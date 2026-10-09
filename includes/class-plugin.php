@@ -26,6 +26,12 @@ final class Plugin {
 			return;
 		}
 
+		( new Rest_Controller() )->register();
+
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			Cli::register();
+		}
+
 		if ( is_admin() ) {
 			$admin = new Admin( new System_Check() );
 			$admin->register();

@@ -5,6 +5,7 @@
 # Lokale Testumgebung
 /.wp-env.override.json
 /build/
+/dist/
 *.zip
 
 # Tool-Caches

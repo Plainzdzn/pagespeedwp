@@ -57,3 +57,20 @@ Alle sieben Bereiche sind echte Unterseiten mit eigener URL und Rechteprüfung. 
 ### ADR-013 – Konflikterkennung über geprüfte Plugin-Basenames
 **Status:** angenommen · 2026-10-09
 Andere Bildoptimierer werden über ihren exakten Basename in `active_plugins` erkannt, geprüft an den Plugins auf wordpress.org. Für FastPixel wird zusätzlich die Stufe aus `fastpixel_images_optimization` gelesen (FastPixel 2.0: 1 Lossy, 2 Glossy, 3 Lossless, Unbekanntes gilt als Lossy). Lossless ist nur ein Hinweis, alles andere eine Warnung. Es wird nie etwas umgestellt.
+
+### ADR-014 – Meilensteine ohne Zwischenstopp, Release-ZIP
+**Status:** angenommen (Felix) · 2026-10-09
+Claude Code arbeitet die Meilensteine nacheinander ab, ohne auf ein Okay zu warten: Pull Request, CI grün, dann selbst nach `main` mergen. Ziel ist eine ZIP-Datei, die Felix nur noch installiert. Der Workflow `release.yml` baut bei jedem Merge nach `main` die ZIP (`git archive`, ohne Dev-Dateien) und legt sie als GitHub-Release zur Version im Plugin-Header ab. Lokal baut `bin/build-zip.sh` dieselbe Datei.
+
+### ADR-015 – URLs erkennen und ersetzen über den Pfad im Upload-Ordner
+**Status:** angenommen · 2026-10-09
+`Url_Matcher` erkennt Upload-URLs per regulärem Ausdruck (absolut, protokollrelativ, relativ, JSON-Slashes, URL-kodiert) nur für den eigenen Host und dessen www-Variante. Gefunden wird der Pfad im Upload-Ordner (`2019/05/bild.png`), der über einen Index aller Dateien dem Anhang zugeordnet wird. Beim Ersetzen wird nur dieser Pfad getauscht, Protokoll, Host und Schreibweise bleiben. URLs fremder Hosts (z. B. Live-Domain auf Staging) werden nie geändert.
+
+### ADR-016 – Scan-Ergebnis in einer Option
+**Status:** angenommen · 2026-10-09
+Stand und Ergebnis des Scans liegen in der Option `akwu_scan` (ohne Autoload): Datensätze je Bild mit Dateien, Größen, bis zu 25 Fundstellen, Warnungen und Hochrechnung. Für Mediatheken mit einigen tausend Bildern reicht das, eine eigene Tabelle wäre mehr Aufwand ohne Nutzen. Die Log-Tabelle `akwu_log` bleibt für die Umwandlung (ADR-006).
+
+### ADR-017 – FastPixel: immer die neueste Version
+**Status:** angenommen (Felix) · 2026-10-09
+Ist FastPixel installiert, gilt die neueste Version (2.0.0, Stand 2026-10-09). Dort gibt es keine Stufe „aus“ für die Bildkomprimierung, nur Lossy, Glossy und Lossless. Ohne FastPixel gibt es keine Warnung, bei Lossless nur einen Hinweis, sonst eine Warnung.
+

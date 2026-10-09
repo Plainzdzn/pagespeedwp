@@ -40,6 +40,24 @@ $groups    = array(
 
 	<hr class="wp-header-end">
 
+	<?php foreach ( $data['notices'] as $notice ) : ?>
+		<div class="notice notice-<?php echo esc_attr( $notice['type'] ); ?> akwu-notice">
+			<p>
+				<strong><?php echo esc_html( $notice['title'] ); ?></strong>
+				<?php echo esc_html( $notice['message'] ); ?>
+			</p>
+			<?php if ( isset( $notice['action'] ) && 'rescan' === $notice['action'] ) : ?>
+				<button type="button" class="akwu-link akwu-notice__action" data-akwu-scan data-akwu-restart="1"><?php esc_html_e( 'Erneut scannen', 'akuma-webp-umwandler' ); ?></button>
+			<?php endif; ?>
+		</div>
+	<?php endforeach; ?>
+
+	<?php
+	if ( 'akwu-einstellungen' === $current ) {
+		settings_errors();
+	}
+	?>
+
 	<div class="akwu-panel">
 		<nav class="akwu-nav" aria-label="<?php esc_attr_e( 'Bereiche des WebP-Umwandlers', 'akuma-webp-umwandler' ); ?>">
 			<?php foreach ( $groups as $group => $heading ) : ?>

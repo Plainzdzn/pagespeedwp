@@ -54,6 +54,7 @@ final class Admin {
 	 */
 	public function register() {
 		add_action( 'admin_menu', array( $this, 'add_menu' ) );
+		add_action( 'admin_init', array( Settings::class, 'register' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 	}
 
@@ -157,6 +158,22 @@ final class Admin {
 		}
 
 		wp_enqueue_style( 'akwu-admin', AKWU_URL . 'assets/admin.css', array(), AKWU_VERSION );
+		wp_enqueue_script( 'akwu-admin', AKWU_URL . 'assets/admin.js', array(), AKWU_VERSION, true );
+		wp_add_inline_script(
+			'akwu-admin',
+			'window.akwuAdmin = ' . wp_json_encode(
+				array(
+					'restUrl' => esc_url_raw( rest_url( Rest_Controller::NAMESPACE_V1 . '/' ) ),
+					'nonce'   => wp_create_nonce( 'wp_rest' ),
+					'i18n'    => array(
+						'error'     => __( 'Das hat nicht geklappt. Bitte die Seite neu laden und noch einmal versuchen.', 'akuma-webp-umwandler' ),
+						'scanDone'  => __( 'Scan abgeschlossen. Seite wird neu geladen …', 'akuma-webp-umwandler' ),
+						'scanStart' => __( 'Scan startet …', 'akuma-webp-umwandler' ),
+					),
+				)
+			) . ';',
+			'before'
+		);
 	}
 
 	/**
@@ -173,6 +190,7 @@ final class Admin {
 
 		$pages   = self::pages();
 		$current = ( is_string( $plugin_page ) && isset( $pages[ $plugin_page ] ) ) ? $plugin_page : self::MENU_SLUG;
+		$result  = Scan_Result::load();
 
 		View::render(
 			'layout',
@@ -180,7 +198,52 @@ final class Admin {
 				'pages'        => $pages,
 				'current'      => $current,
 				'system_check' => $this->system_check,
+				'scan'         => $result,
+				'scan_state'   => Scanner::state(),
+				'query'        => self::query_args(),
+				'notices'      => $this->notices( $current, $result ),
 			)
+		);
+	}
+
+	/**
+	 * Hinweise im WordPress-Stil für die aktuelle Seite.
+	 *
+	 * @param string           $current Slug der Seite.
+	 * @param Scan_Result|null $result  Scan-Ergebnis.
+	 * @return array[] Liste mit type (success, info, warning, error) und message.
+	 */
+	private function notices( $current, $result ) {
+		$notices = array();
+
+		if ( self::MENU_SLUG === $current && null !== $result ) {
+			$notices[] = array(
+				'type'    => 'success',
+				'title'   => __( 'Scan abgeschlossen.', 'akuma-webp-umwandler' ),
+				'message' => __( 'Es wurde nur gelesen, nichts verändert. Bild-IDs bleiben bei der Umwandlung erhalten.', 'akuma-webp-umwandler' ),
+				'action'  => 'rescan',
+			);
+		}
+
+		return $notices;
+	}
+
+	/**
+	 * Filter, Sortierung und Seite der Bildliste aus der URL. Nur lesend, deshalb ohne Nonce.
+	 *
+	 * @return array{filter: string, sort: string, paged: int}
+	 */
+	public static function query_args() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Nur Anzeige-Filter, keine Aktion.
+		$filter = isset( $_GET['filter'] ) ? sanitize_key( wp_unslash( $_GET['filter'] ) ) : 'all';
+		$sort   = isset( $_GET['sort'] ) ? sanitize_key( wp_unslash( $_GET['sort'] ) ) : 'bytes';
+		$paged  = isset( $_GET['paged'] ) ? absint( wp_unslash( $_GET['paged'] ) ) : 1;
+		// phpcs:enable
+
+		return array(
+			'filter' => isset( Scan_Result::filters()[ $filter ] ) ? $filter : 'all',
+			'sort'   => in_array( $sort, array( 'bytes', 'name', 'id' ), true ) ? $sort : 'bytes',
+			'paged'  => max( 1, $paged ),
 		);
 	}
 

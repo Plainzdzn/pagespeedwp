@@ -8,7 +8,7 @@ WordPress-Plugin, das PNG/JPG in der Mediathek **1:1 durch WebP ersetzt, mit der
 2. Die obersten 3 Einträge in [`docs/HANDOFF.md`](docs/HANDOFF.md) lesen. Einträge „(Claude Chat)“ sind Vorgaben aus der Planung und gelten.
 3. Bei Architekturfragen [`docs/DECISIONS.md`](docs/DECISIONS.md) prüfen.
 
-Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht dort), Uhrzeit in Europe/Berlin. Nach jedem Meilenstein: committen, zusammenfassen, auf Felix' Okay warten.
+Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht dort), Uhrzeit in Europe/Berlin. Nach jedem Meilenstein: Pull Request, CI grün, selbst nach `main` mergen und weitermachen (ADR-014, Felix 2026-10-09).
 
 ## Kennungen
 
@@ -21,16 +21,21 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
 | Capability | `manage_options` |
 | WP-CLI | `wp akwu scan\|convert\|report\|rollback\|purge-originals` |
 
-## Architektur (Stand M1)
+## Architektur (Stand M2)
 
 - `akuma-webp-umwandler.php` – Bootstrap, Konstanten (`AKWU_VERSION`, `AKWU_DIR`, `AKWU_URL`), eigener Autoloader (keine Composer-Laufzeitabhängigkeit).
-- `includes/` – vorhanden: `Plugin` (Start, Multisite-Abbruch), `Admin` (Menü, sieben Seiten, Assets), `System_Check`, `Conflict_Detector`, `Format` (deutsche Zahlen), `View`, `Icons`. Geplant: `Scanner`, `Converter`, `Replacer`, `Rollback`, `Report`, `Cache_Purger`, `Rest_Controller`, `Cli`. Admin-UI und WP-CLI rufen **dieselben** Kernklassen auf, keine Logik in Controllern.
-- `includes/views/` – Templates, eingebunden über `View::render( $name, $data )`. Im Template steht nur `$data` bereit. Variablen dort nicht wie WP-Globals benennen (`$page`, `$title` …), PHPCS meldet das.
-- `assets/` – `admin.css` (Design-Tokens als CSS-Variablen unter `.akwu`), `fonts/` (Outfit 500, Inter 400/500/600, WOFF2, OFL). Noch kein JS.
+- `includes/` – Kernklassen:
+  - `Scanner` (Phasen inventory → usage → theme → estimate → finalize, Stand in Option `akwu_scan`), `Inventory`, `Usage_Finder`, `Estimator`, `Scan_Result` (Lesezugriff für UI und CLI).
+  - `Url_Matcher` (URLs finden und ersetzen, ADR-015), `Attachment_Files` (Dateien eines Anhangs), `Encoder` + `Imagick_Webp_Editor` (WebP erzeugen), `Png_Info`, `Settings` (Option `akwu_settings`), `Lock` (Sperre `akwu_lock`).
+  - Eingänge: `Admin` (Menü, sieben Seiten, Assets), `Rest_Controller` (`akwu/v1`), `Cli` (`wp akwu …`). Admin-UI und WP-CLI rufen **dieselben** Kernklassen auf, keine Logik in Controllern.
+  - `System_Check`, `Conflict_Detector`, `Format` (deutsche Zahlen), `View`, `Icons`, `Plugin`.
+  - Geplant: `Converter`, `Replacer`, `Rollback`, `Report`, `Cache_Purger`.
+- `includes/views/` – Templates, eingebunden über `View::render( $name, $data )`. Im Template steht nur `$data` bereit. Variablen dort nicht wie WP-Globals benennen (`$page`, `$pages`, `$paged`, `$title`, `$status`, `$link`, `$totals`, `$per_page` …), PHPCS meldet das.
+- `assets/` – `admin.css` (Design-Tokens als CSS-Variablen unter `.akwu`), `admin.js` (Vanilla JS, REST mit Nonce), `fonts/` (Outfit 500, Inter 400/500/600, WOFF2, OFL).
 - `uninstall.php` – löscht nur `akwu_*`-Optionen, Transients und die Log-Tabelle, nie Bilder.
 - `design/` – Referenz-Mockups, siehe `design/README.md`.
 - `tests/unit/` – PHPUnit ohne WordPress, `tests/seed/seed.php` – Testdaten.
-- `bin/setup-env.sh` – Testinstallation in der Cloud-Sitzung, `bin/screenshots.cjs` – Screenshots aller Seiten und Mockups.
+- `bin/setup-env.sh` – Testinstallation in der Cloud-Sitzung, `bin/screenshots.cjs` – Screenshots aller Seiten und Mockups, `bin/build-zip.sh` – installierbare ZIP.
 
 ## Harte Regeln
 
@@ -58,10 +63,11 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
 composer install                 # Dev-Tools (PHPUnit, PHPCS). Composer-Plugins dürfen fehlen, das Ruleset setzt die Pfade selbst.
 composer lint                    # PHPCS, muss ohne Fehler und Warnungen durchlaufen
 composer test                    # PHPUnit (Unit-Tests ohne WordPress)
+bin/build-zip.sh                 # ZIP aus dem letzten Commit nach dist/
 
 bin/setup-env.sh --serve         # MariaDB, WordPress de_DE, Elementor, Testdaten; Server auf http://localhost:8080 (admin/admin)
 NODE_PATH="$(npm root -g)" node bin/screenshots.cjs <ordner>   # Screenshots aller Plugin-Seiten und Mockups
-php ~/akwu-env/wp-cli.phar --path=$HOME/akwu-env/wordpress --allow-root <befehl>   # WP-CLI in der Testinstallation
+php ~/akwu-env/wp-cli.phar --path=$HOME/akwu-env/wordpress --allow-root <befehl>   # WP-CLI in der Testinstallation, z. B. akwu scan
 ```
 
 - Die Testumgebung liegt außerhalb des Repos in `~/akwu-env` und geht mit der Cloud-Sitzung verloren. Bei jeder Sitzung neu einrichten, das Script ist wiederholbar.
@@ -69,6 +75,6 @@ php ~/akwu-env/wp-cli.phar --path=$HOME/akwu-env/wordpress --allow-root <befehl>
 - Imagick gibt es in der Cloud-Sitzung nicht, getestet wird mit GD.
 - CI: GitHub Actions (`.github/workflows/ci.yml`) mit PHPCS und PHPUnit auf PHP 7.4, 8.1 und 8.3.
 
-## Git
+## Git und Release
 
-`main` ist der stabile Stand. Jede Sitzung arbeitet auf ihrem Branch und öffnet einen Pull Request nach `main`. Der Merge ist Felix' Okay zum Meilenstein.
+`main` ist der stabile Stand. Jede Sitzung arbeitet auf ihrem Branch, öffnet einen Pull Request nach `main` und merged selbst, sobald CI grün ist (ADR-014). Bei jedem Merge baut `.github/workflows/release.yml` die ZIP und legt sie als Release zur Version im Plugin-Header ab. Version deshalb pro Meilenstein erhöhen (Header und `AKWU_VERSION`).
