@@ -289,14 +289,30 @@ final class System_Check {
 			);
 		}
 
-		return self::row(
-			'disk',
-			$label,
-			self::INFO,
-			/* translators: %s: Speicherplatz, z. B. „12,3 GB“. */
-			sprintf( __( '%s frei', 'akuma-webp-umwandler' ), Format::bytes( $free ) ),
-			__( 'Nötig ist etwa das 1,5-Fache der Originalgrößen. Der Abgleich folgt mit dem Scan.', 'akuma-webp-umwandler' )
-		);
+		/* translators: %s: Speicherplatz, z. B. „12,3 GB“. */
+		$value  = sprintf( __( '%s frei', 'akuma-webp-umwandler' ), Format::bytes( $free ) );
+		$result = Scan_Result::load();
+
+		if ( null === $result ) {
+			return self::row( 'disk', $label, self::INFO, $value, __( 'Nötig ist etwa das 1,5-Fache der umzuwandelnden Bilder. Der Abgleich folgt nach dem Scan.', 'akuma-webp-umwandler' ) );
+		}
+
+		$totals = $result->totals();
+		$needed = (int) $totals['needed'];
+		$webp   = isset( $totals['webp'] ) ? (int) $totals['webp'] : 0;
+
+		if ( $free < $webp ) {
+			/* translators: %s: Speicherplatz. */
+			return self::row( 'disk', $label, self::ERROR, $value, sprintf( __( 'Zu wenig Speicher. Allein die WebP-Dateien brauchen etwa %s.', 'akuma-webp-umwandler' ), Format::bytes( $webp ) ) );
+		}
+
+		if ( $free < $needed ) {
+			/* translators: %s: Speicherplatz. */
+			return self::row( 'disk', $label, self::WARN, $value, sprintf( __( 'Knapp. Empfohlen ist das 1,5-Fache der umzuwandelnden Bilder, etwa %s.', 'akuma-webp-umwandler' ), Format::bytes( $needed ) ) );
+		}
+
+		/* translators: %s: Speicherplatz. */
+		return self::row( 'disk', $label, self::OK, $value, sprintf( __( 'Reicht. Nötig sind etwa %s (1,5-Fache der umzuwandelnden Bilder).', 'akuma-webp-umwandler' ), Format::bytes( $needed ) ) );
 	}
 
 	/**

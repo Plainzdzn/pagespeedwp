@@ -14,6 +14,45 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
+## 2026-10-09 19:36 – M2 Scan (Claude Code)
+
+**Stand:** M2 – fertig (Version 0.2.0). M3 folgt direkt.
+
+**Vorgaben von Felix (nach M1):** M1 mergen, dann ohne Zwischenstopp weiterarbeiten und selbst nach `main` mergen. Ziel ist eine ZIP, die er nur noch installiert (ADR-014). Den Standard-Branch muss niemand umstellen. FastPixel: Es gilt immer die neueste Version, nicht jede Seite hat FastPixel oder Bildkomprimierung aktiv (ADR-017).
+
+**Erledigt:**
+- M1 gemergt ([Plainzdzn/pagespeedwp#1](https://github.com/Plainzdzn/pagespeedwp/pull/1)).
+- **Scan** (`Scanner`, nur lesend, in Schritten per REST oder `wp akwu scan`):
+  - Bestandsaufnahme mit Original, `-scaled`, allen Größen und eindeutig zuordenbaren Elementor-Thumbs. PNG-Transparenz liest `Png_Info` aus dem Dateikopf.
+  - Verwendung: Beiträge (Inhalt, Auszug), Postmeta (`_elementor_data` als JSON, `_elementor_page_settings` strukturiert, sonst roh), Optionen, Termmeta, Beitragsbilder und Logo über die ID, Elementor-4-Atomic-Bilder über die ID.
+  - Warnungen: Customizer-CSS, Custom CSS in Elementor, Code-Snippets-Tabelle, Theme-Dateien.
+  - Hochrechnung aus bis zu 20 Stichproben, gemischt nach JPG, PNG, PNG mit Transparenz und vom kleinsten bis zum größten Bild. Die Umwandlung läuft dabei in ein temporäres Verzeichnis.
+- **Encoder** nach Briefing §4.3: JPG und PNG ohne Transparenz mit Qualität 82, PNG mit Transparenz mit Imagick verlustfrei, sonst 90. EXIF-Drehung wird angewendet, Metadaten entfernt (Imagick).
+- **Oberfläche:**
+  - Übersicht mit echten Zahlen: Kennzahlen, Verteilung nach Format, größte Dateien, „Vor dem Start“ mit Warnungen und Speicher, Scan-Start mit Fortschritt.
+  - „Alle Bilder“ mit Filtern, Fundstellen zum Aufklappen und Links zum Bearbeiten.
+  - Einstellungen als Formular. Die Systemprüfung vergleicht den freien Speicher mit dem 1,5-Fachen.
+- **Sperre** `Lock` gegen parallele Läufe (Admin, zweites Fenster, WP-CLI).
+- **Release:** `bin/build-zip.sh` und Workflow `release.yml` (ZIP als GitHub-Release je Version).
+
+**Entscheidungen:** ADR-014 bis ADR-017. Dazu:
+- Fremde Hosts werden nie ersetzt (ADR-015). Staging mit Live-URLs im Inhalt bleibt unverändert.
+- Gezählt werden Verweise auf Größen, die nicht in den Metadaten stehen (z. B. `bild-640x480.png` nach einem Theme-Wechsel). Sie landen unter „Bitte prüfen“.
+- Elementor-Caches (`_elementor_css`, `_elementor_element_cache`, `_elementor_page_assets`) zählen nicht als Verwendung, weil `clear_cache()` sie nach der Umwandlung löscht (am Elementor-Quellcode 4.3.4 geprüft).
+- Code Snippets: Tabelle `{prefix}snippets` mit `id`, `name`, `code`. Der Bearbeiten-Link kommt über `code_snippets()->get_menu_url( 'edit' )`, beides am Plugin-Quellcode geprüft.
+
+**Offen / Nächster Schritt:** M3 – Umwandlung, Replacer, Log-Tabelle, Pakete, „Erst 10 testen“, `wp akwu convert`.
+
+**Fragen an Felix:** keine.
+
+**Getestet** (Cloud-Sitzung, WordPress 7.1.3, Elementor 4.3.4, GD):
+- PHPCS sauber, PHPUnit 44 Tests grün (neu: `Url_Matcher`, `Png_Info`, `Settings`, `Estimator`).
+- Scan gegen die Seed-Daten: Alle Fundstellen des Seeds werden erkannt (Section-, Container- und Kit-Hintergrund, Galerie, Text-Editor, Bildblock samt Link, Auszug, serialisiertes Postmeta, Theme-Mod). Customizer-CSS und Elementor-Custom-CSS erscheinen als Warnung. Die bereits komprimierte JPG wird als „Überspringen“ erkannt (WebP wäre 2 % größer).
+- Im Browser: Scan per Knopf (2 s), Übersicht, „Alle Bilder“ mit Filter, Einstellungen speichern. Keine Konsolenfehler.
+- `wp akwu scan` mit Zusammenfassung und Warnungsliste.
+
+---
+
 ## 2026-10-09 19:05 – M1 Grundgerüst (Claude Code)
 
 **Stand:** M1 – fertig, wartet auf Okay (Pull Request nach `main`)

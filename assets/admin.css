@@ -776,3 +776,327 @@
 	font-weight: 600;
 	color: var(--akwu-heading);
 }
+
+/* ---------- Hinweise (WordPress-Notices im Plugin) ---------- */
+
+.akwu .akwu-notice {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 6px 14px;
+}
+
+.akwu .akwu-notice p {
+	margin: 4px 0;
+}
+
+.akwu .akwu-notice strong {
+	color: var(--akwu-heading);
+}
+
+.akwu .akwu-notice__action {
+	min-height: 28px;
+}
+
+.akwu button.akwu-link {
+	padding: 0;
+	border: 0;
+	background: none;
+	font-family: inherit;
+	cursor: pointer;
+}
+
+.akwu button.akwu-link:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+/* ---------- Karten mit Tabelle ---------- */
+
+.akwu-card__head--padded {
+	margin: 0;
+	padding: 10px 14px 10px 18px;
+}
+
+.akwu-card__body {
+	padding: 0 18px 16px;
+}
+
+.akwu-table__thumb {
+	width: 40px;
+}
+
+.akwu-thumb {
+	display: block;
+	width: 40px;
+	height: 28px;
+	border-radius: 7px;
+	object-fit: cover;
+	background: linear-gradient(135deg, #d8e4dc, #b9cdbf);
+}
+
+.akwu-thumb--empty {
+	background: repeating-linear-gradient(135deg, #eef0ef 0 6px, #e1e4e2 6px 12px);
+}
+
+.akwu-file {
+	display: block;
+	word-break: break-word;
+}
+
+.akwu-nowrap {
+	white-space: nowrap;
+}
+
+.akwu-estimate {
+	font-weight: 600;
+	color: var(--akwu-green-dark);
+}
+
+.akwu-meta-inline {
+	font-size: 12px;
+	color: var(--akwu-meta);
+}
+
+.akwu-places summary {
+	cursor: pointer;
+	color: var(--akwu-link);
+}
+
+.akwu-places ul {
+	margin: 6px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.akwu-places li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+	padding: 3px 0;
+	font-size: 12px;
+}
+
+/* ---------- Verteilung nach Format ---------- */
+
+.akwu-distribution {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.akwu-distribution .akwu-card__head {
+	margin: 0;
+}
+
+.akwu-bar {
+	display: flex;
+	overflow: hidden;
+	height: 12px;
+	border-radius: 999px;
+	background: var(--akwu-line-faint);
+}
+
+.akwu-bar span {
+	display: block;
+	height: 100%;
+}
+
+.akwu-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 20px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 12px;
+	color: var(--akwu-strong);
+}
+
+.akwu-legend li {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	margin: 0;
+}
+
+.akwu-dot {
+	display: inline-block;
+	width: 9px;
+	height: 9px;
+	border-radius: 3px;
+}
+
+.akwu-stat--highlight .akwu-stat__note {
+	font-weight: 500;
+	color: var(--akwu-nav);
+}
+
+/* ---------- Filter und Seiten ---------- */
+
+.akwu-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.akwu .akwu-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 36px;
+	padding: 0 14px;
+	border: 1px solid var(--akwu-line-soft);
+	border-radius: 999px;
+	background: #fff;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--akwu-nav);
+	text-decoration: none;
+}
+
+.akwu .akwu-tab.is-current {
+	border-color: var(--akwu-tint-border);
+	background: linear-gradient(140deg, #fff, #e0edde);
+	color: var(--akwu-green-dark);
+}
+
+.akwu-tab__count {
+	padding: 0 7px;
+	border-radius: 999px;
+	background: var(--akwu-line-faint);
+	font-size: 11px;
+	color: var(--akwu-text);
+}
+
+.akwu-table thead th a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.akwu-pagination {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.akwu .akwu-pagination__item {
+	display: inline-grid;
+	place-items: center;
+	min-width: 34px;
+	min-height: 34px;
+	padding: 0 8px;
+	border: 1px solid var(--akwu-line-soft);
+	border-radius: 10px;
+	background: #fff;
+	color: var(--akwu-nav);
+	text-decoration: none;
+}
+
+.akwu .akwu-pagination__item.is-current {
+	border-color: var(--akwu-tint-border);
+	background: var(--akwu-tint);
+	font-weight: 600;
+	color: var(--akwu-green-dark);
+}
+
+/* ---------- Formular ---------- */
+
+.akwu-form {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 8px 18px 18px;
+}
+
+.akwu-field {
+	display: grid;
+	grid-template-columns: minmax(160px, 240px) minmax(0, 1fr);
+	gap: 4px 16px;
+	align-items: center;
+	padding: 12px 0;
+	border-top: 1px solid var(--akwu-line-faint);
+}
+
+.akwu-field:first-of-type {
+	border-top: 0;
+}
+
+.akwu .akwu-field__label {
+	font-weight: 600;
+	color: var(--akwu-strong);
+}
+
+.akwu .akwu-field__input {
+	width: 110px;
+	min-height: 38px;
+	padding: 0 12px;
+	border: 1px solid #cbd5cb;
+	border-radius: 10px;
+	box-shadow: none;
+	font-family: inherit;
+	color: var(--akwu-strong);
+}
+
+.akwu .akwu-field__input--wide {
+	width: min(100%, 420px);
+}
+
+.akwu .akwu-field__input:focus {
+	border-color: var(--akwu-green);
+	box-shadow: 0 0 0 1px var(--akwu-green);
+}
+
+.akwu .akwu-field__help {
+	grid-column: 2;
+	font-size: 12px;
+	color: var(--akwu-meta);
+}
+
+.akwu-form__actions {
+	display: flex;
+	justify-content: flex-end;
+	padding-top: 12px;
+	border-top: 1px solid var(--akwu-line-faint);
+}
+
+@media (max-width: 782px) {
+	.akwu-field {
+		grid-template-columns: 1fr;
+	}
+
+	.akwu .akwu-field__help {
+		grid-column: 1;
+	}
+}
+
+/* ---------- Scan-Fortschritt ---------- */
+
+.akwu-scan-progress[hidden] {
+	display: none;
+}
+
+.akwu .akwu-progress__error {
+	margin-top: 8px;
+	color: var(--akwu-error-text);
+}
+
+.akwu .akwu-progress__error[hidden] {
+	display: none;
+}
+
+/* Übersicht: Tabelle bekommt Vorrang, „Vor dem Start“ rutscht bei wenig Platz darunter. */
+.akwu-columns--wide-main .akwu-columns__main {
+	flex-basis: 640px;
+}
+
+.akwu-table--compact .akwu-file {
+	overflow: hidden;
+	max-width: 220px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}

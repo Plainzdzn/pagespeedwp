@@ -1,0 +1,36 @@
+name: Release
+
+# Nach jedem Merge nach main: installierbare ZIP bauen und als GitHub-Release
+# zur Version im Plugin-Header ablegen (v0.2.0 usw.). Gleiche Version: ZIP wird ersetzt.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    name: ZIP und Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version lesen
+        id: version
+        run: echo "version=$(sed -n 's/^ \* Version: *//p' akuma-webp-umwandler.php | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+      - name: ZIP bauen
+        run: git archive --format=zip --prefix=akuma-webp-umwandler/ -o akuma-webp-umwandler.zip HEAD
+      - name: Release anlegen oder aktualisieren
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            gh release upload "v$VERSION" akuma-webp-umwandler.zip --clobber
+          else
+            gh release create "v$VERSION" akuma-webp-umwandler.zip \
+              --target "$GITHUB_SHA" \
+              --title "WebP-Umwandler $VERSION" \
+              --notes "Installierbare ZIP-Datei. In WordPress unter Plugins → Installieren → Plugin hochladen auswählen. Immer zuerst auf einer Staging-Seite testen."
+          fi
