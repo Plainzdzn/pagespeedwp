@@ -1,0 +1,73 @@
+<?php
+/**
+ * Gemeinsames Layout aller Plugin-Seiten: Kopfzeile, WordPress-Hinweise, Panel mit Navigation.
+ *
+ * @package Akuma\WebpUmwandler
+ *
+ * @var array $data {
+ *     @type array        $pages        Seiten aus Admin::pages().
+ *     @type string       $current      Slug der aktuellen Seite.
+ *     @type System_Check $system_check Systemprüfung.
+ * }
+ */
+
+use Akuma\WebpUmwandler\Admin;
+use Akuma\WebpUmwandler\Icons;
+use Akuma\WebpUmwandler\View;
+
+defined( 'ABSPATH' ) || exit;
+
+$nav_pages = $data['pages'];
+$current   = $data['current'];
+$groups    = array(
+	'main'  => '',
+	'setup' => __( 'Einrichtung', 'akuma-webp-umwandler' ),
+);
+?>
+<div class="wrap akwu">
+	<header class="akwu-header">
+		<div class="akwu-brand">
+			<span class="akwu-logo"><?php Icons::render( 'logo', 20, '1.8' ); ?></span>
+			<div>
+				<p class="akwu-brand__name">
+					<?php esc_html_e( 'WebP-Umwandler', 'akuma-webp-umwandler' ); ?>
+					<span class="akwu-version"><?php echo esc_html( 'v' . AKWU_VERSION ); ?></span>
+				</p>
+				<p class="akwu-brand__by"><?php esc_html_e( 'von Akuma Digital', 'akuma-webp-umwandler' ); ?></p>
+			</div>
+		</div>
+	</header>
+
+	<hr class="wp-header-end">
+
+	<div class="akwu-panel">
+		<nav class="akwu-nav" aria-label="<?php esc_attr_e( 'Bereiche des WebP-Umwandlers', 'akuma-webp-umwandler' ); ?>">
+			<?php foreach ( $groups as $group => $heading ) : ?>
+				<?php if ( '' !== $heading ) : ?>
+					<p class="akwu-nav__heading"><?php echo esc_html( $heading ); ?></p>
+				<?php endif; ?>
+				<ul class="akwu-nav__list">
+					<?php foreach ( $nav_pages as $slug => $nav_page ) : ?>
+						<?php
+						if ( $group !== $nav_page['group'] ) {
+							continue;
+						}
+						$is_current = ( $slug === $current );
+						?>
+						<li>
+							<a class="akwu-nav__item<?php echo $is_current ? ' is-current' : ''; ?>" href="<?php echo esc_url( Admin::page_url( $slug ) ); ?>"<?php echo $is_current ? ' aria-current="page"' : ''; ?>>
+								<?php Icons::render( $nav_page['icon'] ); ?>
+								<?php echo esc_html( $nav_page['menu'] ); ?>
+							</a>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			<?php endforeach; ?>
+			<p class="akwu-nav__note"><?php esc_html_e( 'Nach Abschluss kann das Plugin entfernt werden. Die Änderungen bleiben bestehen.', 'akuma-webp-umwandler' ); ?></p>
+		</nav>
+
+		<section class="akwu-content" aria-labelledby="akwu-title">
+			<?php View::render( $nav_pages[ $current ]['view'], $data ); ?>
+		</section>
+	</div>
+</div>

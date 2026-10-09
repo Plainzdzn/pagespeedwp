@@ -14,6 +14,67 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
+## 2026-10-09 19:05 – M1 Grundgerüst (Claude Code)
+
+**Stand:** M1 – fertig, wartet auf Okay (Pull Request nach `main`)
+
+**Antworten von Felix auf die Fragen vom 17:30-Eintrag:**
+- Alle sieben Unterseiten umsetzen, WordPress zeigt sie selbst im Menü an (ADR-011).
+- Alles auf Deutsch (ADR-010).
+- Kein lokales Docker, Arbeit nur in Claude-Code-Cloud-Sitzungen. Die Testumgebung läuft deshalb in der Sitzung (ADR-009, Änderung am Briefing §6).
+- CI: keine Vorgabe. Eingerichtet mit GitHub Actions, weil es ohne Aufwand jeden Pull Request prüft (ADR-012).
+- `main` anlegen: erledigt, Arbeit ab jetzt per Pull Request.
+
+**Erledigt:**
+- Bootstrap mit eigenem Autoloader, Version 0.1.0. Multisite: Die Aktivierung bricht ab (pro Seite und netzwerkweit). Ist das Plugin trotzdem aktiv, erscheint nur ein Hinweis.
+- Menü „WebP-Umwandler“ mit sieben Unterseiten im Layout der Mockups: Kopfzeile, WordPress-Hinweise, Panel mit eigener Navigation.
+  - Übersicht: Gerüst der Kennzahlen, „Vor dem Start“ mit echten Prüfwerten und Backup-Checkbox, Start-Bereich (Button gesperrt bis M2).
+  - Umwandlung: Fortschrittsbalken mit `role="progressbar"`, Ablauf in vier Schritten.
+  - Einstellungen: die geplanten Standardwerte, noch nicht bearbeitbar.
+  - Systemprüfung: vollständig.
+  - Bericht, Alle Bilder, Rückgängig: Platzhalter „Folgt mit Mx“. Rückgängig mit Hinweis, dass nach dem Löschen des Plugins kein Rückgängig mehr geht.
+- Systemprüfung (`System_Check`): WebP-Support und Editor (Imagick oder GD, mit Version), Upload-Ordner, freier Speicher, Laufzeit, Arbeitsspeicher für Bildbearbeitung, PHP- und WP-Version, Elementor, andere Bildoptimierer. Der Start ist nur gesperrt, wenn WebP fehlt oder der Upload-Ordner nicht beschreibbar ist.
+- Konflikterkennung (`Conflict_Detector`): acht Plugins, Basenames an den aktuellen Versionen auf wordpress.org geprüft, FastPixel mit Stufe (ADR-013).
+- Look: `assets/admin.css` mit Design-Tokens, nur unter `.akwu` und nur auf Plugin-Seiten geladen. Outfit 500 und Inter 400/500/600 lokal (Fontsource 5.3.0, OFL).
+- `uninstall.php`: löscht `akwu_*`-Optionen, Transients und die Log-Tabelle.
+- Testumgebung `bin/setup-env.sh`, Testdaten `tests/seed/seed.php`, Screenshots `bin/screenshots.cjs`. Befehle stehen in `CLAUDE.md`.
+- Dev-Tools: Composer nur für Dev, PHPCS mit WPCS 3 und PHPCompatibilityWP, PHPUnit 9.6 (22 Tests), GitHub Actions.
+
+**Entscheidungen:**
+- ADR-003 und ADR-005 angenommen, ADR-007 durch ADR-009 ersetzt, neu ADR-010 bis ADR-013.
+- Die Testbilder werden direkt in `uploads/2019/05` geschrieben und als Anhang registriert, nicht hochgeladen. So entsteht die Namenskollision `bild.png` + `bild.jpg` wie auf älteren Seiten, unabhängig davon, wie WordPress beim Upload Namen vergibt.
+- Die Backup-Checkbox hat bis M3 keine Funktion. Die Pflichtprüfung kommt mit dem Start der Umwandlung.
+- Der WordPress-Menüpunkt bleibt im Standard-Farbschema, obwohl das Mockup ihn grün zeigt. Das Briefing sagt: WP-Rahmen bleibt Standard.
+
+**Erkenntnisse für die nächsten Meilensteine:**
+- **FastPixel 2.0** hat keine Stufe „aus“ für die Bildkomprimierung. Die Option `fastpixel_images_optimization` kennt 1 Lossy (Standard), 2 Glossy und 3 Lossless, andere Werte behandelt FastPixel als Lossy. Bilder liefert FastPixel immer über sein CDN als WebP aus. Die Systemprüfung warnt bei Lossy und Glossy, bei Lossless gibt sie nur einen Hinweis.
+- **Elementor 4.3.4** ist aktuell. Neben Sections und Containern gibt es „Atomic“-Elemente (`modules/atomic-widgets`), die Bilder als typisierte Werte speichern (`$$type`: `image`, `image-src`, `image-attachment-id`). Scan und Replacer müssen beide Formate kennen. Das Format vor M2 am Elementor-Quellcode prüfen.
+- In der Cloud-Sitzung erreicht die WordPress-HTTP-API das Internet nicht (Proxy), deshalb laufen alle Downloads per curl. Die PageSpeed-API (M5) lässt sich deshalb hier nicht testen, auf Raidboxes betrifft das nicht.
+
+**Offen / Nächster Schritt – M2 (Scan):**
+- Bestandsaufnahme: Größen inklusive `original_image` und Elementor-Thumbs.
+- Hochrechnung per Stichprobe.
+- Verwendung ermitteln: `post_content`, `_elementor_data` als JSON (inklusive Atomic-Format), Page-Settings, Kit, Theme-Mods, Options, sonstige Postmeta.
+- Warnungen: Customizer-CSS, Code Snippets, Theme-Dateien, Elementor-Custom-CSS.
+- Ergebnis mit Zeitstempel speichern. Übersicht und „Alle Bilder“ mit echten Daten. Speicherplatz-Abgleich in der Systemprüfung.
+
+**Fragen an Felix:**
+1. **FastPixel:** Welche Version und welche Stufe der Bildkomprimierung laufen auf den Seiten? In Version 2.0 lässt sich die Komprimierung nicht ausschalten. Bei „Lossy“ oder „Glossy“ wird unser WebP noch einmal verlustbehaftet komprimiert. Vorschlag: auf „Lossless“ stellen.
+2. **Standard-Branch:** Bitte auf GitHub unter Settings → General → Default branch auf `main` umstellen. Das kann ich von hier nicht. Im Moment ist noch `claude/new-session-02wmh1` der Standard.
+3. **Imagick auf Raidboxes (optional):** Wenn du das Plugin auf einer Staging-Seite installierst, zeigt die Systemprüfung, ob Imagick verfügbar ist. Davon hängt ab, ob PNG mit Transparenz verlustfrei gespeichert wird.
+
+**Getestet** (Cloud-Sitzung: WordPress 7.1.3 de_DE, PHP 8.3.6 mit GD, MariaDB 10.11, Elementor 4.3.4, Hello Elementor):
+- `composer lint`: keine Fehler, keine Warnungen. `composer test`: 22 Tests, 43 Assertions, alle grün.
+- Setup-Script zweimal hintereinander: Der zweite Lauf ersetzt die Testdaten sauber.
+- Alle sieben Seiten im Browser (Playwright): laden, keine Konsolenfehler, keine 4xx/5xx-Antworten, Schriften lokal geladen. Auf Dashboard und Mediathek wird kein Plugin-CSS geladen.
+- Screenshots gegen die Mockups verglichen: Kopfzeile, Navigation, Kennzahlen, „Vor dem Start“ und Start-Bereich entsprechen dem Design. Drei Screenshots liegen in `docs/screenshots/m1/`.
+- Konflikte simuliert (FastPixel Stufe Glossy und Smush in `active_plugins`): je eine Warnung in Systemprüfung und Übersicht.
+- Deinstallation (`wp plugin uninstall --skip-delete`): `akwu_*`-Option, Transient und Tabelle `wp_akwu_log` sind weg. Eine fremde Option und die Bilddateien (md5) sind unverändert.
+- Multisite (eigene Testinstallation): Die Aktivierung pro Seite und netzwerkweit bricht mit Meldung ab. Zwangsweise aktiviert erscheint nur der Hinweis, die Admin-Klasse wird nicht geladen.
+- Nicht getestet: PHP 7.4 (läuft in CI), Imagick (in der Cloud-Sitzung nicht vorhanden), eine echte FastPixel-Installation (nur simuliert).
+
+---
+
 ## 2026-10-09 17:30 – Repo-Grundgerüst, Kontextdateien, Plan M1 (Claude Code)
 
 **Stand:** M0 (Vorbereitung) – fertig · M1 – offen, wartet auf Okay

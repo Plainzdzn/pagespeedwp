@@ -180,3 +180,9 @@ Leg jetzt das Repo-Grundgerüst und die vier Kontextdateien an, schreib den erst
 - **Claude Chat (dieses Projekt)** liest den Stand direkt aus dem GitHub-Repo, sobald du mir den Repo-Namen gibst. Ich kann es hier in der Cloud-Sitzung anhängen und lesen. Vorgaben aus dem Chat schreibe ich als Handoff-Eintrag „(Claude Chat)“ ins Repo oder gebe sie dir zum Einfügen.
 - Dieses Briefing liegt zusätzlich als Projekt-Dokument hier, damit jeder neue Chat im Projekt „Pagespeed WordPress“ es automatisch kennt.
 - Design-Referenz: Die drei Mockups (`Main.dc.html`, `Umwandlung.dc.html`, `Bericht.dc.html`) gehören nach `design/` ins Repo.
+
+---
+
+## Änderungen
+
+- **2026-10-09 – Testumgebung (§6):** Statt `@wordpress/env` oder Docker läuft die Testumgebung direkt in der Claude-Code-Cloud-Sitzung, eingerichtet per `bin/setup-env.sh` (MariaDB, WP-CLI, WordPress de_DE, Elementor, Hello Elementor, Seed-Daten). Grund: Felix arbeitet ausschließlich in Cloud-Sitzungen, ein lokales Docker gibt es nicht. Siehe ADR-009.
