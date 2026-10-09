@@ -28,6 +28,9 @@ final class Plugin {
 
 		( new Rest_Controller() )->register();
 
+		// Wird ein umgewandeltes Bild aus der Mediathek gelöscht, die alten Originale mitnehmen.
+		add_action( 'delete_attachment', array( Originals::class, 'on_delete_attachment' ) );
+
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			Cli::register();
 		}

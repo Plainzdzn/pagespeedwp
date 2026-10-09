@@ -90,3 +90,15 @@ Zusätzlich zu den Status aus Briefing §4.8 gibt es `working` (Zustand gesicher
 ### ADR-021 – Verweise je Paket ersetzen, Gegenprobe am Ende
 **Status:** angenommen · 2026-10-09
 Verweise werden direkt nach jedem Paket ersetzt, nicht erst am Ende. So zeigt die Website auch bei einem abgebrochenen Lauf nie auf fehlende Dateien, und das Rückgängig betrifft immer ganze Bilder. SQL `LIKE` filtert vor (`%dateiname%.endung%`). Danach erneuern `Cache_Purger` Elementor-CSS und Caches, und die Gegenprobe sucht mit dem `Usage_Finder` des Scans nach alten Adressen der umgewandelten Bilder. Treffer über die ID (Beitragsbild, Logo, Elementor-4-Bilder) zählen nicht, sie zeigen von selbst auf das WebP.
+
+### ADR-022 – Bericht über alle Läufe
+**Status:** angenommen · 2026-10-09
+Der Bericht (`Report`) nimmt je Anhang die letzte Zeile im Protokoll, ohne `pending` und `cancelled`. Testlauf und späterer Gesamtlauf ergeben so einen gemeinsamen Bericht. In der Mediathek gelöschte Anhänge fallen heraus. Die Gegenprobe am Ende jedes Laufs prüft alle umgewandelten Bilder, nicht nur die des Laufs, und legt ihre Restfundstellen in der Option `akwu_leftovers` ab. Ein abgebrochener Lauf überschreibt sie nicht. CSV-Export über `admin-post.php` mit Nonce und Rechteprüfung, Semikolon, UTF-8 mit BOM, Formel-Anfänge mit Hochkomma entschärft.
+
+### ADR-023 – Rückgängig und Originale löschen als Job
+**Status:** angenommen · 2026-10-09
+Beides läuft als `Job` in Schritten per REST oder WP-CLI. Die Ziele (Log-Zeilen) stehen beim Start fest, der Stand liegt in der Option `akwu_job`. Bereits erledigte Zeilen werden nach einem Abbruch erkannt. Während eines Jobs startet keine Umwandlung und umgekehrt. Originale löschen verlangt das Eintippen der Anzahl (Briefing §4.7). Vor dem Löschen läuft eine frische Gegenprobe (`Verifier`, dieselbe wie am Ende der Umwandlung), und jedes Original, dessen alte Adresse noch irgendwo steht, bleibt. Die Menge dieser Bilder wird ungekappt gespeichert. Lässt sich eine Datei nicht löschen, wird das Bild nicht als bereinigt markiert. Gelöscht wird nur, was der Anhang nicht mehr nutzt und kein anderer Anhang als Datei führt. Elementor-Thumbs nur, wenn ihr Dateiname eindeutig einem Anhang gehört.
+
+### ADR-024 – Gelöschte Bilder nehmen ihre Originale mit
+**Status:** angenommen · 2026-10-09
+Wird ein umgewandeltes Bild aus der Mediathek gelöscht, löscht WordPress nur die WebP-Dateien, denn die alten JPG/PNG stehen nicht mehr in den Metadaten. Der Hook `delete_attachment` löscht deshalb die alten Originale mit (gleiche Regeln wie ADR-023), damit keine verwaisten Dateien bleiben. Nach der Deinstallation greift das nicht mehr. Wer die Originale behalten will, löscht das Bild nicht.

@@ -61,4 +61,19 @@ final class Format {
 
 		return self::number( $value, $decimals ) . self::NBSP . $units[ $index ];
 	}
+
+	/**
+	 * Zeitpunkt kurz: „heute, 16:52“ oder „09.10.2026, 16:52“, in der Zeitzone der Website.
+	 *
+	 * @param int $time Unix-Zeit.
+	 * @return string
+	 */
+	public static function time_label( $time ) {
+		if ( wp_date( 'Y-m-d', $time ) === wp_date( 'Y-m-d' ) ) {
+			/* translators: %s: Uhrzeit. */
+			return sprintf( __( 'heute, %s', 'akuma-webp-umwandler' ), wp_date( 'H:i', $time ) );
+		}
+
+		return wp_date( 'd.m.Y, H:i', $time );
+	}
 }

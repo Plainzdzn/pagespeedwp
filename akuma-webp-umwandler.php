@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WebP-Umwandler
  * Description:       Ersetzt PNG- und JPG-Bilder der Mediathek durch WebP, mit derselben Attachment-ID. Verweise in der Datenbank werden mitgezogen, danach kann das Plugin entfernt werden.
- * Version:           0.3.0
+ * Version:           0.4.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Akuma Digital
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'AKWU_VERSION', '0.3.0' );
+define( 'AKWU_VERSION', '0.4.0' );
 define( 'AKWU_FILE', __FILE__ );
 define( 'AKWU_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AKWU_URL', plugin_dir_url( __FILE__ ) );

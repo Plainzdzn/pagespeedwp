@@ -32,17 +32,12 @@ final class Conversion {
 	/**
 	 * Gespeicherte Restfundstellen der Gegenprobe.
 	 */
-	const MAX_LEFTOVERS = 500;
+	const MAX_LEFTOVERS = Verifier::MAX_HITS;
 
 	/**
 	 * Versuche je Bild, bevor es nach Abbrüchen übersprungen wird.
 	 */
 	const MAX_ATTEMPTS = 2;
-
-	/**
-	 * Quellen der Gegenprobe (Verweise über die ID brauchen keinen Ersatz).
-	 */
-	const VERIFY_SOURCES = array( 'posts', 'postmeta', 'options', 'termmeta', 'snippets', 'theme' );
 
 	/**
 	 * Aktueller oder letzter Lauf.
@@ -78,6 +73,10 @@ final class Conversion {
 			return new \WP_Error( 'akwu_active', __( 'Es läuft bereits eine Umwandlung. Bitte erst fortsetzen oder abbrechen.', 'akuma-webp-umwandler' ) );
 		}
 
+		if ( Job::is_active( Job::current() ) ) {
+			return new \WP_Error( 'akwu_job_active', __( 'Es läuft noch ein Rückgängig oder Löschen. Bitte kurz warten.', 'akuma-webp-umwandler' ) );
+		}
+
 		if ( null !== Lock::holder() ) {
 			return new \WP_Error( 'akwu_locked', __( 'Gerade läuft schon ein Scan oder eine Umwandlung. Bitte kurz warten.', 'akuma-webp-umwandler' ) );
 		}
@@ -102,10 +101,7 @@ final class Conversion {
 			'seconds'   => 0.0,
 			'elementor' => false,
 			'purged'    => array(),
-			'verify'    => array(
-				'source' => 0,
-				'cursor' => 0,
-			),
+			'verify'    => Verifier::start(),
 			'leftovers' => array(),
 			'user'      => get_current_user_id(),
 		);
@@ -374,10 +370,7 @@ final class Conversion {
 		$run['elementor'] = Cache_Purger::elementor();
 		$run['purged']    = Cache_Purger::purge_all();
 		$run['phase']     = 'verify';
-		$run['verify']    = array(
-			'source' => 0,
-			'cursor' => 0,
-		);
+		$run['verify']    = Verifier::start();
 	}
 
 	/**
@@ -391,56 +384,15 @@ final class Conversion {
 	 * @return void
 	 */
 	private static function step_verify( array &$run, $deadline ) {
-		$index = array();
-		foreach ( Log_Table::rows( $run['id'], array( 'done' ) ) as $row ) {
-			foreach ( array_keys( $row['url_map'] ) as $old_path ) {
-				$index[ $old_path ] = (int) $row['attachment_id'];
-			}
-		}
+		Verifier::step( $run['verify'], $deadline );
 
-		$finder  = new Usage_Finder( new Url_Matcher( Attachment_Files::baseurl() ), $index );
-		$sources = count( self::VERIFY_SOURCES );
-
-		while ( microtime( true ) < $deadline && $run['verify']['source'] < $sources ) {
-			$source = self::VERIFY_SOURCES[ $run['verify']['source'] ];
-
-			if ( empty( $index ) ) {
-				$run['verify']['source'] = count( self::VERIFY_SOURCES );
-				break;
-			}
-
-			if ( 'theme' === $source ) {
-				$files = Usage_Finder::theme_files();
-				$chunk = array_slice( $files, $run['verify']['cursor'], Scanner::THEME_BATCH );
-				$hits  = $finder->scan_theme_files( $chunk );
-
-				$run['verify']['cursor'] += count( $chunk );
-				if ( $run['verify']['cursor'] >= count( $files ) ) {
-					$run['verify']['source'] = count( self::VERIFY_SOURCES );
-				}
-			} else {
-				$result = $finder->scan( $source, $run['verify']['cursor'], Scanner::USAGE_BATCH[ $source ] );
-				$hits   = $result['hits'];
-
-				$run['verify']['cursor'] = $result['cursor'];
-				if ( $result['done'] ) {
-					++$run['verify']['source'];
-					$run['verify']['cursor'] = 0;
-				}
-			}
-
-			foreach ( $hits as $hit ) {
-				// Verweise über die ID zeigen automatisch auf das WebP und sind kein Rest.
-				if ( 'url' === $hit['by'] && in_array( $hit['attachment'], $index, true ) && count( $run['leftovers'] ) < self::MAX_LEFTOVERS ) {
-					$run['leftovers'][] = $hit;
-				}
-			}
-		}
-
-		if ( $run['verify']['source'] >= count( self::VERIFY_SOURCES ) ) {
-			$run['phase']    = 'done';
-			$run['status']   = 'done';
-			$run['finished'] = time();
+		if ( Verifier::finished( $run['verify'] ) ) {
+			$run['leftovers']      = $run['verify']['hits'];
+			$run['verify']['hits'] = array();
+			$run['verify']['ids']  = array();
+			$run['phase']          = 'done';
+			$run['status']         = 'done';
+			$run['finished']       = time();
 		}
 	}
 
@@ -575,7 +527,7 @@ final class Conversion {
 				$percent = 92;
 				break;
 			case 'verify':
-				$percent = 93 + (int) floor( 6 * $run['verify']['source'] / count( self::VERIFY_SOURCES ) );
+				$percent = 93 + (int) floor( 6 * Verifier::share( $run['verify'] ) );
 				break;
 			case 'rollback':
 				$percent = (int) floor( 100 * $counts['rolled_back'] / max( 1, $counts['rolled_back'] + $counts['done'] + $counts['converted'] ) );

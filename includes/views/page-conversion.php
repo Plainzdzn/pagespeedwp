@@ -125,9 +125,11 @@ if ( ! $finished ) {
 }
 
 // Nach dem Lauf: was erneuert wurde und was die Gegenprobe gefunden hat.
+// Die Gegenprobe deckt alle umgewandelten Bilder ab, auch aus früheren Läufen.
 $old_files = array();
-foreach ( Log_Table::rows( $run['id'], array( 'done' ) ) as $row ) {
-	$old_files[ (int) $row['attachment_id'] ] = wp_basename( (string) $row['old_file'] );
+$left_ids  = array_map( 'intval', wp_list_pluck( $run['leftovers'], 'attachment' ) );
+foreach ( $left_ids ? Log_Table::latest_by_attachment( $left_ids ) : array() as $attachment_id => $row ) {
+	$old_files[ $attachment_id ] = wp_basename( (string) $row['old_file'] );
 }
 
 $unexpected = array();

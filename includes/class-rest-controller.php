@@ -59,6 +59,110 @@ final class Rest_Controller {
 		);
 
 		$this->convert_routes();
+		$this->job_routes();
+	}
+
+	/**
+	 * Routen für Rückgängig und Originale löschen.
+	 *
+	 * @return void
+	 */
+	private function job_routes() {
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/job',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'job_status' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/job/start',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'job_start' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'type'    => array(
+						'type'     => 'string',
+						'enum'     => array( 'rollback', 'purge' ),
+						'required' => true,
+					),
+					'ids'     => array(
+						'type'    => 'array',
+						'items'   => array( 'type' => 'integer' ),
+						'default' => array(),
+					),
+					'confirm' => array(
+						'type'    => 'integer',
+						'default' => -1,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/job/step',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'job_step' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+	}
+
+	/**
+	 * Stand des Jobs.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function job_status() {
+		$job = Job::current();
+
+		return rest_ensure_response( null === $job ? array( 'status' => 'none' ) : Job::progress( $job ) );
+	}
+
+	/**
+	 * Startet Rückgängig (alle oder einzelne Bilder) oder das Löschen der Originale.
+	 *
+	 * Löschen verlangt als Bestätigung die Anzahl der betroffenen Bilder (Briefing §4.7).
+	 *
+	 * @param \WP_REST_Request $request Anfrage.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function job_start( \WP_REST_Request $request ) {
+		$rows = Job::targets( $request['type'], array_map( 'absint', (array) $request['ids'] ), 'purge' === $request['type'] ? (int) $request['confirm'] : null );
+		if ( is_wp_error( $rows ) ) {
+			$rows->add_data( array( 'status' => 400 ) );
+			return $rows;
+		}
+
+		$job = Job::start( $request['type'], $rows );
+		if ( is_wp_error( $job ) ) {
+			$job->add_data( array( 'status' => 409 ) );
+			return $job;
+		}
+
+		return rest_ensure_response( Job::progress( $job ) );
+	}
+
+	/**
+	 * Nächster Schritt des Jobs.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function job_step() {
+		$job = Job::step( self::budget() );
+		if ( is_wp_error( $job ) ) {
+			$job->add_data( array( 'status' => 409 ) );
+			return $job;
+		}
+
+		return rest_ensure_response( Job::progress( $job ) );
 	}
 
 	/**

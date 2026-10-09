@@ -58,6 +58,43 @@ final class Admin {
 		add_action( 'admin_init', array( Log_Table::class, 'maybe_install' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar' ), 100 );
+		add_action( 'admin_post_akwu_report_csv', array( $this, 'download_csv' ) );
+	}
+
+	/**
+	 * Bericht als CSV herunterladen (Briefing §4.9). Nur für Admins, mit Nonce.
+	 *
+	 * @return void
+	 */
+	public function download_csv() {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			wp_die( esc_html__( 'Dafür fehlen die Rechte.', 'akuma-webp-umwandler' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'akwu_report_csv' );
+
+		$report = Report::load();
+		if ( null === $report ) {
+			wp_die( esc_html__( 'Es gibt noch keinen Bericht.', 'akuma-webp-umwandler' ), '', array( 'response' => 404 ) );
+		}
+
+		$host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+		$name = sanitize_file_name( 'webp-umwandler-' . $host . '-' . wp_date( 'Y-m-d' ) . '.csv' );
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $name . '"' );
+
+		echo $report->csv(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV-Datei, Felder in Report::csv_value() aufbereitet.
+		exit;
+	}
+
+	/**
+	 * Link zum CSV-Export.
+	 *
+	 * @return string
+	 */
+	public static function csv_url() {
+		return wp_nonce_url( admin_url( 'admin-post.php?action=akwu_report_csv' ), 'akwu_report_csv' );
 	}
 
 	/**
@@ -226,6 +263,8 @@ final class Admin {
 		$current = ( is_string( $plugin_page ) && isset( $pages[ $plugin_page ] ) ) ? $plugin_page : self::MENU_SLUG;
 		$result  = Scan_Result::load();
 		$run     = Conversion::current();
+		$job     = Job::current();
+		$report  = in_array( $current, array( 'akwu-bericht', 'akwu-rueckgaengig' ), true ) ? Report::load() : null;
 
 		View::render(
 			'layout',
@@ -236,9 +275,11 @@ final class Admin {
 				'scan'           => $result,
 				'scan_state'     => Scanner::state(),
 				'run'            => $run,
+				'job'            => $job,
+				'report'         => $report,
 				'query'          => self::query_args(),
-				'notices'        => $this->notices( $current, $result, $run ),
-				'header_actions' => self::header_actions( $current, $run ),
+				'notices'        => $this->notices( $current, $result, $run, $job, $report ),
+				'header_actions' => self::header_actions( $current, $run, $report ),
 			)
 		);
 	}
@@ -249,10 +290,64 @@ final class Admin {
 	 * @param string           $current Slug der Seite.
 	 * @param Scan_Result|null $result  Scan-Ergebnis.
 	 * @param array|null       $run     Aktueller oder letzter Lauf.
+	 * @param array|null       $job     Aktueller oder letzter Job (Rückgängig, Originale löschen).
+	 * @param Report|null      $report  Bericht, nur auf Bericht und Rückgängig geladen.
 	 * @return array[] Liste mit type (success, info, warning, error), title, message, optional action und link.
 	 */
-	private function notices( $current, $result, $run ) {
+	private function notices( $current, $result, $run, $job, $report ) {
 		$notices = array();
+
+		if ( Job::is_active( $job ) ) {
+			$page = self::job_page( $job );
+			if ( $page === $current ) {
+				$notices[] = array(
+					'type'    => 'warning',
+					'title'   => 'purge' === $job['type'] ? __( 'Originale werden gelöscht.', 'akuma-webp-umwandler' ) : __( 'Rückgängig läuft.', 'akuma-webp-umwandler' ),
+					'message' => __( 'Bitte dieses Fenster geöffnet lassen. Bei einer Unterbrechung geht es beim nächsten Paket weiter.', 'akuma-webp-umwandler' ),
+				);
+			} else {
+				$notices[] = array(
+					'type'    => 'warning',
+					'title'   => 'purge' === $job['type'] ? __( 'Das Löschen der Originale ist offen.', 'akuma-webp-umwandler' ) : __( 'Ein Rückgängig ist offen.', 'akuma-webp-umwandler' ),
+					'message' => __( 'Es läuft nur weiter, solange die Seite dazu geöffnet ist.', 'akuma-webp-umwandler' ),
+					'link'    => array(
+						'url'   => self::page_url( $page ),
+						'label' => __( 'Zur Seite', 'akuma-webp-umwandler' ),
+					),
+				);
+			}
+
+			return $notices;
+		}
+
+		// Nach einem Job: Ergebnis einmal anzeigen. Nur Anzeige, deshalb ohne Nonce.
+		$finished = isset( $_GET['akwu_done'] ) ? sanitize_key( wp_unslash( $_GET['akwu_done'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( null !== $job && 'done' === $job['status'] && $finished === $job['type'] && self::job_page( $job ) === $current ) {
+			$notices[] = array(
+				'type'    => $job['failed'] > 0 ? 'warning' : 'success',
+				'title'   => 'purge' === $job['type'] ? __( 'Originale gelöscht.', 'akuma-webp-umwandler' ) : __( 'Rückgängig abgeschlossen.', 'akuma-webp-umwandler' ),
+				'message' => Job::label( $job ) . ( $job['failed'] > 0
+					/* translators: %s: Anzahl Bilder. */
+					? ' ' . sprintf( _n( '%s Bild ging nicht, Gründe stehen in der Liste.', '%s Bilder gingen nicht, Gründe stehen in der Liste.', $job['failed'], 'akuma-webp-umwandler' ), Format::number( $job['failed'] ) )
+					: '' ),
+			);
+		}
+
+		if ( 'akwu-bericht' === $current && null !== $report && ! Conversion::is_active( $run ) ) {
+			$totals = $report->totals();
+			if ( $totals['converted'] > 0 ) {
+				$notices[] = array(
+					'type'    => 'success',
+					'title'   => __( 'Fertig.', 'akuma-webp-umwandler' ),
+					/* translators: %s: Anzahl Bilder. */
+					'message' => sprintf( _n( '%s Bild umgewandelt, Elementor-CSS neu erzeugt, Cache geleert.', '%s Bilder umgewandelt, Elementor-CSS neu erzeugt, Cache geleert.', $totals['converted'], 'akuma-webp-umwandler' ), Format::number( $totals['converted'] ) ),
+					'link'    => array(
+						'url'   => home_url( '/' ),
+						'label' => __( 'Website ansehen', 'akuma-webp-umwandler' ),
+					),
+				);
+			}
+		}
 
 		if ( Conversion::is_active( $run ) ) {
 			if ( 'akwu-umwandlung' === $current ) {
@@ -300,11 +395,29 @@ final class Admin {
 	/**
 	 * Knöpfe in der Kopfzeile. Auf der Umwandlung: Pausieren oder Fortsetzen und Abbrechen.
 	 *
-	 * @param string     $current Slug der Seite.
-	 * @param array|null $run     Aktueller oder letzter Lauf.
-	 * @return array[] Liste mit action, label und style (default, danger).
+	 * @param string      $current Slug der Seite.
+	 * @param array|null  $run     Aktueller oder letzter Lauf.
+	 * @param Report|null $report  Bericht.
+	 * @return array[] Liste mit action (Knopf) oder url (Link), label, icon und style (default, danger).
 	 */
-	private static function header_actions( $current, $run ) {
+	private static function header_actions( $current, $run, $report ) {
+		if ( 'akwu-bericht' === $current && null !== $report ) {
+			return array(
+				array(
+					'url'   => self::csv_url(),
+					'label' => __( 'CSV exportieren', 'akuma-webp-umwandler' ),
+					'icon'  => 'download',
+					'style' => 'default',
+				),
+				array(
+					'url'   => self::page_url( 'akwu-rueckgaengig' ),
+					'label' => __( 'Rückgängig machen', 'akuma-webp-umwandler' ),
+					'icon'  => 'undo',
+					'style' => 'default',
+				),
+			);
+		}
+
 		if ( 'akwu-umwandlung' !== $current || ! Conversion::is_active( $run ) || 'cancelling' === $run['status'] ) {
 			return array();
 		}
@@ -330,6 +443,16 @@ final class Admin {
 				'style'  => 'danger',
 			),
 		);
+	}
+
+	/**
+	 * Seite, auf der ein Job läuft.
+	 *
+	 * @param array $job Job.
+	 * @return string Slug.
+	 */
+	public static function job_page( array $job ) {
+		return 'purge' === $job['type'] ? 'akwu-bericht' : 'akwu-rueckgaengig';
 	}
 
 	/**

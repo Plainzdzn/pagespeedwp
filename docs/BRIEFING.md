@@ -191,3 +191,4 @@ Leg jetzt das Repo-Grundgerüst und die vier Kontextdateien an, schreib den erst
 - **2026-10-09 – MIME-Typ (§4.3.6):** `post_mime_type` wird direkt per `$wpdb` gesetzt statt über `wp_update_post()`, damit keine Hooks anderer Plugins und kein kses-Filter mitlaufen. Siehe ADR-018.
 - **2026-10-09 – Serialisierte Daten (§4.4):** Ersetzt wird mit einem Tokenizer auf dem serialisierten Text statt mit `maybe_unserialize()`, ohne Objekte zu erzeugen. Siehe ADR-019.
 - **2026-10-09 – Status (§4.8):** Zusätzliche Status `working`, `converted` und `cancelled` für die Fortsetzbarkeit. Siehe ADR-020.
+- **2026-10-09 – Bild löschen (Ergänzung zu §4.7):** Wird ein umgewandeltes Bild aus der Mediathek gelöscht, löscht das Plugin die alten Originale mit, damit keine verwaisten JPG/PNG bleiben. Siehe ADR-024.

@@ -14,6 +14,52 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
+## 2026-10-09 20:30 – M4 Bericht, Rückgängig, Originale löschen (Claude Code)
+
+**Stand:** M4 – fertig (Version 0.4.0). M5 folgt direkt.
+
+**Erledigt:**
+- M3 gemergt ([Plainzdzn/pagespeedwp#3](https://github.com/Plainzdzn/pagespeedwp/pull/3)), erstes Release v0.3.0 vom Workflow gebaut.
+- **Bericht** wie im Mockup:
+  - Vorher/nachher als Balken mit Kennzahlen (umgewandelt, übersprungen, Verweise ersetzt samt Seitenzahl). Die Kachel „PageSpeed mobil“ ist vorbereitet, die Messung kommt mit M5.
+  - „Größte Ersparnis“ mit „Alle anzeigen“, daneben „Bitte prüfen“ mit Links zu den Fundstellen.
+  - In der Kopfzeile „CSV exportieren“ (Semikolon, UTF-8 mit BOM) und „Rückgängig machen“.
+- **Originale löschen** im Bericht:
+  - Bestätigung durch Eintippen der Anzahl, falsche Zahl wird abgelehnt.
+  - Gelöscht werden Original, `-scaled`-Quelle, alte Größen und eindeutige Elementor-Thumbs.
+  - Bleiben: Originale, deren alte Adresse noch in CSS, Snippets oder Theme steht, und Dateien, die ein anderer Anhang führt.
+  - Danach ist Rückgängig für diese Bilder gesperrt, mit Grund in der Liste.
+- **Rückgängig** als eigene Seite: alle Bilder auf einmal oder einzeln, mit Fortschritt. Läuft nach einer Unterbrechung beim Öffnen der Seite weiter.
+- **Bild löschen** in der Mediathek nimmt jetzt auch die alten Originale mit (ADR-024). Seine Protokollzeilen werden dabei entfernt.
+- **Review (Codex) umgesetzt:**
+  - Vor dem Löschen der Originale läuft immer eine frische Gegenprobe (`Verifier`). Wurde eine alte Adresse nach der Umwandlung wieder eingefügt, bleibt das Original.
+  - Die Menge der noch verwendeten Bilder wird vollständig gespeichert, nur die Fundstellen für die Anzeige sind auf 500 gekappt.
+  - Lässt sich eine Datei nicht löschen, gilt das Bild nicht als bereinigt und kann erneut versucht werden.
+- **WP-CLI:** `wp akwu report [--format=summary|table|csv|json]`, `wp akwu rollback [--ids] [--dry-run] [--yes]`, `wp akwu purge-originals [--dry-run] [--yes]`.
+
+**Entscheidungen:** ADR-022 bis ADR-024. Ergänzung zum Briefing: Das Löschen eines Bilds nimmt die Originale mit. Ohne das blieben nach der Umwandlung verwaiste JPG/PNG auf dem Server.
+
+**Offen / Nächster Schritt:** M5 – PageSpeed-API (optional), Feinschliff Cache-Purger und Raidboxes-Hinweis, Deinstallation, i18n-Prüfung, README für Niovo, Release-ZIP.
+
+**Fragen an Felix:** keine.
+
+**Getestet** (Cloud-Sitzung, WordPress 7.1.3, Elementor 4.3.4, GD):
+- PHPCS sauber, PHPUnit 67 Tests grün (neu: CSV-Felder mit Formel-Schutz).
+- `tests/integration/roundtrip.php`: Rückgängig jetzt über den Job wie in der Oberfläche, wieder Byte für Byte wie vorher.
+- `tests/integration/purge.php`:
+  - Originale von 4 Bildern gelöscht (auch `-scaled`-Quelle und die Größe aus dem alten Theme). `bild.png` und `bild.jpg` bleiben, weil sie in CSS stehen.
+  - Alle WebP-Dateien sind noch da, alle Bilder der Testseiten abrufbar.
+  - Rückgängig ist für gelöschte Originale gesperrt, für die behaltenen möglich.
+  - Eine nach der Umwandlung eingefügte alte Adresse findet die Gegenprobe vor dem Löschen, das Original bleibt.
+- Im Browser:
+  - Bericht, CSV-Download (BOM geprüft).
+  - Originale löschen mit falscher, dann richtiger Zahl.
+  - Rückgängig einzeln und für alle. Keine Konsolenfehler außer der erwarteten 400 bei falscher Zahl.
+- Ein umgewandeltes Bild per `wp post delete` gelöscht: Danach liegen weder WebP noch alte PNG auf dem Server.
+- Screenshots: `docs/screenshots/m4/`.
+
+---
+
 ## 2026-10-09 20:10 – M3 Umwandlung (Claude Code)
 
 **Stand:** M3 – fertig (Version 0.3.0). M4 folgt direkt.

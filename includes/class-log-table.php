@@ -251,22 +251,29 @@ final class Log_Table {
 	}
 
 	/**
-	 * Letzte Zeile je Anhang (über alle Läufe).
+	 * Letzte Zeile je Anhang, über alle Läufe.
 	 *
-	 * @param int[] $ids Anhänge, leer für alle.
-	 * @return array<int, array> Attachment-ID => Zeile.
+	 * Zeilen mit Status pending oder cancelled zählen nicht, sie haben am Anhang nichts geändert.
+	 *
+	 * @param int[]    $ids      Nur diese Anhänge, leer für alle.
+	 * @param string[] $statuses Nur Anhänge, deren letzte Zeile diesen Status hat, leer für alle.
+	 * @return array<int, array> Anhang-ID => Zeile, aufsteigend nach Zeilen-ID.
 	 */
-	public static function latest_by_attachment( array $ids = array() ) {
+	public static function latest_by_attachment( array $ids = array(), array $statuses = array() ) {
 		global $wpdb;
 
 		$table = self::name();
-		$where = '';
+		$where = "WHERE status NOT IN ('pending', 'cancelled')";
 		if ( $ids ) {
-			$where = ' WHERE attachment_id IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')';
+			$where .= ' AND attachment_id IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')';
+		}
+		$outer = '';
+		if ( $statuses ) {
+			$outer = " WHERE l.status IN ('" . implode( "','", array_map( 'esc_sql', $statuses ) ) . "')";
 		}
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Eigene Tabelle, IDs als int.
-		$rows = $wpdb->get_results( "SELECT l.* FROM {$table} l INNER JOIN ( SELECT MAX(id) AS id FROM {$table}{$where} GROUP BY attachment_id ) m ON m.id = l.id", ARRAY_A );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Eigene Tabelle, IDs als int, Status maskiert.
+		$rows = $wpdb->get_results( "SELECT l.* FROM {$table} l INNER JOIN ( SELECT MAX(id) AS id FROM {$table} {$where} GROUP BY attachment_id ) m ON m.id = l.id{$outer} ORDER BY l.id ASC", ARRAY_A );
 
 		$latest = array();
 		foreach ( (array) $rows as $row ) {
@@ -274,6 +281,44 @@ final class Log_Table {
 		}
 
 		return $latest;
+	}
+
+	/**
+	 * Löscht alle Zeilen eines Anhangs.
+	 *
+	 * @param int $attachment_id Anhang.
+	 * @return void
+	 */
+	public static function delete_attachment( $attachment_id ) {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Eigene Tabelle.
+		$wpdb->delete( self::name(), array( 'attachment_id' => (int) $attachment_id ), array( '%d' ) );
+	}
+
+	/**
+	 * Zeilen nach ID.
+	 *
+	 * @param int[] $ids Zeilen-IDs.
+	 * @return array<int, array> Zeilen-ID => Zeile.
+	 */
+	public static function by_ids( array $ids ) {
+		global $wpdb;
+
+		$rows = array();
+		if ( empty( $ids ) ) {
+			return $rows;
+		}
+
+		$table = self::name();
+		$list  = implode( ',', array_map( 'intval', $ids ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Eigene Tabelle, IDs als int.
+		foreach ( (array) $wpdb->get_results( "SELECT * FROM {$table} WHERE id IN ({$list})", ARRAY_A ) as $row ) {
+			$rows[ (int) $row['id'] ] = self::decode( $row );
+		}
+
+		return $rows;
 	}
 
 	/**
