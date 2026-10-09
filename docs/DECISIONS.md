@@ -74,3 +74,19 @@ Stand und Ergebnis des Scans liegen in der Option `akwu_scan` (ohne Autoload): D
 **Status:** angenommen (Felix) · 2026-10-09
 Ist FastPixel installiert, gilt die neueste Version (2.0.0, Stand 2026-10-09). Dort gibt es keine Stufe „aus“ für die Bildkomprimierung, nur Lossy, Glossy und Lossless. Ohne FastPixel gibt es keine Warnung, bei Lossless nur einen Hinweis, sonst eine Warnung.
 
+
+### ADR-018 – MIME-Typ direkt in der Datenbank setzen
+**Status:** angenommen · 2026-10-09
+Abweichend von Briefing §4.3.6 setzt der `Converter` `post_mime_type` per `$wpdb->update()` und leert danach den Beitrags-Cache, statt `wp_update_post()` zu nutzen. `wp_update_post()` würde `save_post` und Co. auslösen (andere Plugins speichern dann mit) und den Inhalt des Anhangs je nach Benutzerrecht durch kses filtern. Ergebnis ist dasselbe: gleiche ID, MIME `image/webp`, `guid` unberührt. Datei-Pointer und Metadaten laufen weiter über `update_attached_file()` und `wp_generate_attachment_metadata()`.
+
+### ADR-019 – Serialisierte Werte als Text umschreiben, ohne unserialize
+**Status:** angenommen · 2026-10-09
+`Value_Replacer` liest serialisierte Werte mit einem eigenen Tokenizer und ersetzt nur in Strings, die Längenangaben werden neu berechnet. Es wird nichts deserialisiert, damit keine Objekte fremder Klassen entstehen (`__wakeup`, `__PHP_Incomplete_Class`) und alles außerhalb der ersetzten Strings Byte für Byte gleich bleibt. Erfüllt Briefing §4.4 (nie `REPLACE()` auf serialisierte Daten). JSON (`_elementor_data`) wird decodiert, ersetzt und mit `wp_json_encode()` direkt geschrieben, ohne `wp_slash()`, weil der Weg nicht über `update_post_meta()` läuft. Der Schlüssel `custom_css` bleibt überall unangetastet.
+
+### ADR-020 – Status je Bild und Ablauf eines Laufs
+**Status:** angenommen · 2026-10-09
+Zusätzlich zu den Status aus Briefing §4.8 gibt es `working` (Zustand gesichert, Umwandlung begonnen), `converted` (Anhang umgestellt, Verweise noch offen) und `cancelled` (nie begonnen, Lauf abgebrochen). Ein abgebrochener Request wird beim nächsten Schritt aufgeräumt: `working` wird aus dem gesicherten Zustand wiederhergestellt und einmal neu versucht, beim zweiten Abbruch übersprungen (`error`). `converted` bekommt seine Verweise nachgeholt. Der Lauf selbst liegt in der Option `akwu_run` (Phasen convert → finalize → verify → done, beim Abbrechen rollback). Pausieren und Abbrechen aus einem anderen Request gehen nicht verloren, weil jeder Schritt vor dem Speichern den Status frisch liest.
+
+### ADR-021 – Verweise je Paket ersetzen, Gegenprobe am Ende
+**Status:** angenommen · 2026-10-09
+Verweise werden direkt nach jedem Paket ersetzt, nicht erst am Ende. So zeigt die Website auch bei einem abgebrochenen Lauf nie auf fehlende Dateien, und das Rückgängig betrifft immer ganze Bilder. SQL `LIKE` filtert vor (`%dateiname%.endung%`). Danach erneuern `Cache_Purger` Elementor-CSS und Caches, und die Gegenprobe sucht mit dem `Usage_Finder` des Scans nach alten Adressen der umgewandelten Bilder. Treffer über die ID (Beitragsbild, Logo, Elementor-4-Bilder) zählen nicht, sie zeigen von selbst auf das WebP.

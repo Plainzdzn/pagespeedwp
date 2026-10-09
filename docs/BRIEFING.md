@@ -188,4 +188,6 @@ Leg jetzt das Repo-Grundgerüst und die vier Kontextdateien an, schreib den erst
 - **2026-10-09 – Testumgebung (§6):** Statt `@wordpress/env` oder Docker läuft die Testumgebung direkt in der Claude-Code-Cloud-Sitzung, eingerichtet per `bin/setup-env.sh` (MariaDB, WP-CLI, WordPress de_DE, Elementor, Hello Elementor, Seed-Daten). Grund: Felix arbeitet ausschließlich in Cloud-Sitzungen, ein lokales Docker gibt es nicht. Siehe ADR-009.
 - **2026-10-09 – Ablauf (§7):** Felix verzichtet auf das Okay nach jedem Meilenstein. Claude Code arbeitet M2 bis M5 nacheinander ab, merged selbst nach `main`, sobald CI grün ist, und liefert am Ende eine installierbare ZIP-Datei. Siehe ADR-014.
 - **2026-10-09 – FastPixel (§1, §4.1):** Es gilt immer die neueste FastPixel-Version. Nicht jede Seite hat FastPixel oder Bildkomprimierung aktiv. Siehe ADR-017.
-
+- **2026-10-09 – MIME-Typ (§4.3.6):** `post_mime_type` wird direkt per `$wpdb` gesetzt statt über `wp_update_post()`, damit keine Hooks anderer Plugins und kein kses-Filter mitlaufen. Siehe ADR-018.
+- **2026-10-09 – Serialisierte Daten (§4.4):** Ersetzt wird mit einem Tokenizer auf dem serialisierten Text statt mit `maybe_unserialize()`, ohne Objekte zu erzeugen. Siehe ADR-019.
+- **2026-10-09 – Status (§4.8):** Zusätzliche Status `working`, `converted` und `cancelled` für die Fortsetzbarkeit. Siehe ADR-020.

@@ -18,7 +18,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Version lesen
         id: version
-        run: echo "version=$(sed -n 's/^ \* Version: *//p' akuma-webp-umwandler.php | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+        run: |
+          version="$(sed -n 's/^ \* Version: *//p' akuma-webp-umwandler.php | tr -d '[:space:]')"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: ZIP bauen
         run: git archive --format=zip --prefix=akuma-webp-umwandler/ -o akuma-webp-umwandler.zip HEAD
       - name: Release anlegen oder aktualisieren

@@ -12,8 +12,8 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Findet, wo Bilder per URL oder ID verwendet werden. Liest nur.
  *
- * Jede Fundstelle ist ein Array mit den Schlüsseln attachment, where, object, key,
- * label, context, count und warning. `warning` ist null für Stellen, die bei der
+ * Jede Fundstelle ist ein Array mit den Schlüsseln attachment, by (url oder id), where, object,
+ * key, label, context, count und warning. `warning` ist null für Stellen, die bei der
  * Umwandlung automatisch ersetzt werden, sonst der Typ der Warnung:
  *
  * - customizer_css: Zusätzliches CSS des Customizers
@@ -245,7 +245,7 @@ final class Usage_Finder {
 		}
 
 		foreach ( $ids as $attachment_id => $count ) {
-			$hits[] = self::hit( $attachment_id, 'meta', (int) $row->post_id, $row->meta_key, $label, 'elementor', $count, null, (string) $row->post_type );
+			$hits[] = self::hit( $attachment_id, 'meta', (int) $row->post_id, $row->meta_key, $label, 'elementor', $count, null, (string) $row->post_type, 'id' );
 		}
 	}
 
@@ -442,7 +442,7 @@ final class Usage_Finder {
 		$hits = array();
 		foreach ( $rows as $row ) {
 			$cursor = (int) $row->meta_id;
-			$hits[] = self::hit( (int) $row->meta_value, 'featured', (int) $row->post_id, '_thumbnail_id', self::post_label( $row->post_title ), 'featured', 1, null, $row->post_type );
+			$hits[] = self::hit( (int) $row->meta_value, 'featured', (int) $row->post_id, '_thumbnail_id', self::post_label( $row->post_title ), 'featured', 1, null, $row->post_type, 'id' );
 		}
 
 		return self::result( $hits, $cursor, count( $rows ) < $limit, count( $rows ) );
@@ -459,10 +459,10 @@ final class Usage_Finder {
 		$icon = (int) get_option( 'site_icon' );
 
 		if ( $logo > 0 ) {
-			$hits[] = self::hit( $logo, 'option', 0, 'custom_logo', __( 'Logo', 'akuma-webp-umwandler' ), 'logo', 1, null );
+			$hits[] = self::hit( $logo, 'option', 0, 'custom_logo', __( 'Logo', 'akuma-webp-umwandler' ), 'logo', 1, null, '', 'id' );
 		}
 		if ( $icon > 0 ) {
-			$hits[] = self::hit( $icon, 'option', 0, 'site_icon', __( 'Website-Icon', 'akuma-webp-umwandler' ), 'logo', 1, null );
+			$hits[] = self::hit( $icon, 'option', 0, 'site_icon', __( 'Website-Icon', 'akuma-webp-umwandler' ), 'logo', 1, null, '', 'id' );
 		}
 
 		return $hits;
@@ -594,10 +594,12 @@ final class Usage_Finder {
 	 * @param int         $count         Anzahl.
 	 * @param string|null $warning       Warnungstyp oder null.
 	 * @param string      $post_type     Post-Typ.
+	 * @param string      $by            url (Verweis über die Adresse) oder id (über die Attachment-ID).
 	 * @return array
 	 */
-	private static function hit( $attachment_id, $where, $object_id, $key, $label, $context, $count, $warning, $post_type = '' ) {
+	private static function hit( $attachment_id, $where, $object_id, $key, $label, $context, $count, $warning, $post_type = '', $by = 'url' ) {
 		return array(
+			'by'         => $by,
 			'attachment' => (int) $attachment_id,
 			'where'      => $where,
 			'object'     => $object_id,

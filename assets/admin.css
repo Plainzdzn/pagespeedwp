@@ -1100,3 +1100,141 @@
 	white-space: nowrap;
 	text-overflow: ellipsis;
 }
+
+/* ---------- Kopfzeile: Knöpfe der Umwandlung ---------- */
+
+.akwu-header__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.akwu .akwu-header-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 38px;
+	padding: 0 16px;
+	border: 1px solid #cbd5cb;
+	border-radius: 999px;
+	background: #fff;
+	color: var(--akwu-nav);
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.akwu .akwu-header-button:hover {
+	border-color: var(--akwu-green);
+	color: var(--akwu-green-dark);
+}
+
+.akwu .akwu-header-button--danger {
+	border-color: var(--akwu-error-border);
+	background: var(--akwu-error-bg);
+	color: var(--akwu-error-text);
+}
+
+.akwu .akwu-header-button--danger:hover {
+	border-color: var(--akwu-error-text);
+	color: var(--akwu-error-text);
+}
+
+.akwu .akwu-header-button:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+/* ---------- Umwandlung ---------- */
+
+.akwu-run {
+	display: flex;
+	flex-direction: column;
+	gap: 22px;
+}
+
+.akwu-tiles {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+	gap: 12px;
+}
+
+.akwu-tile {
+	padding: 12px 15px;
+	border: 1px solid #dbe7da;
+	border-radius: 14px;
+	background: linear-gradient(125deg, #fff, #f1f6ed);
+	color: #2f603d;
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.akwu-tile__value {
+	display: block;
+	margin-top: 2px;
+	font-size: 24px;
+	line-height: 1.25;
+}
+
+.akwu-tile--highlight .akwu-tile__value {
+	color: var(--akwu-green-dark);
+}
+
+.akwu-step--wait .akwu-step__label {
+	color: var(--akwu-meta);
+}
+
+.akwu .akwu-log {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.akwu .akwu-log__entry {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: 4px 12px;
+	align-items: center;
+	margin: 0;
+	padding: 9px 0;
+	border-top: 1px solid var(--akwu-line-faint);
+	color: var(--akwu-strong);
+	font-size: 13px;
+}
+
+.akwu-log__text {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.akwu-log__text .akwu-meta {
+	display: block;
+	font-size: 11px;
+}
+
+.akwu-log__size {
+	white-space: nowrap;
+}
+
+.akwu-log__size strong {
+	color: var(--akwu-green-dark);
+	font-weight: 600;
+}
+
+.akwu .akwu-cta__error {
+	flex-basis: 100%;
+	margin: 0;
+}
+
+#wpadminbar #wp-admin-bar-akwu-progress .ab-item {
+	color: #9fd9c1;
+}
+
+.akwu .akwu-table--fluid {
+	min-width: 0;
+}
+
+.akwu-table--fluid .akwu-pill + .akwu-meta {
+	margin-top: 4px;
+}

@@ -1,7 +1,7 @@
 /**
  * WebP-Umwandler – Admin-Skript.
  *
- * Scan per REST in Schritten mit Fortschrittsanzeige. Kein Build nötig.
+ * Scan und Umwandlung per REST in Schritten mit Fortschrittsanzeige. Kein Build nötig.
  */
 ( function () {
 	'use strict';
@@ -35,7 +35,12 @@
 					} )
 					.then( function ( data ) {
 						if ( ! response.ok ) {
-							throw new Error( ( data && data.message ) || i18n.error );
+							var error = new Error(
+								( data && data.message ) || i18n.error
+							);
+							error.code = ( data && data.code ) || '';
+							error.status = response.status;
+							throw error;
 						}
 						return data;
 					} );
@@ -126,11 +131,228 @@
 		} );
 	}
 
+	/**
+	 * Startet eine Umwandlung von der Übersicht aus und wechselt zur Umwandlungsseite.
+	 *
+	 * @param {HTMLElement} button Auslöser mit data-akwu-convert (all oder test).
+	 */
+	function startConversion( button ) {
+		var backup = document.querySelector( '[data-akwu-backup]' );
+		var error = document.querySelector( '[data-akwu-convert-error]' );
+		var buttons = document.querySelectorAll( '[data-akwu-convert]' );
+
+		function fail( message ) {
+			if ( error ) {
+				error.textContent = message;
+				error.hidden = false;
+			} else {
+				window.alert( message ); // eslint-disable-line no-alert
+			}
+		}
+
+		if ( ! backup || ! backup.checked ) {
+			fail( i18n.backup );
+			if ( backup ) {
+				backup.focus();
+			}
+			return;
+		}
+
+		buttons.forEach( function ( element ) {
+			element.disabled = true;
+		} );
+
+		post( 'convert/start', {
+			mode: button.getAttribute( 'data-akwu-convert' ),
+			backup: true,
+		} )
+			.then( function () {
+				window.location.href = config.convertUrl;
+			} )
+			.catch( function ( exception ) {
+				fail( exception.message );
+				buttons.forEach( function ( element ) {
+					element.disabled = false;
+				} );
+			} );
+	}
+
+	/**
+	 * Überträgt eine Antwort von convert/* in die Seite und die Admin-Leiste.
+	 *
+	 * @param {Element} root Element mit data-akwu-run.
+	 * @param {Object}  data Antwort.
+	 */
+	function renderRun( root, data ) {
+		var track = root.querySelector( '[role="progressbar"]' );
+		var fill = root.querySelector( '.akwu-progress__fill' );
+		var barItem = document.querySelector(
+			'#wp-admin-bar-akwu-progress .akwu-bar-label'
+		);
+
+		root.setAttribute( 'data-akwu-run-status', data.status );
+		track.setAttribute( 'aria-valuenow', String( data.percent ) );
+		fill.style.width = data.percent + '%';
+
+		[ 'eyebrow', 'headline', 'accent', 'batch_label' ].forEach(
+			function ( key ) {
+				var element = root.querySelector(
+					'[data-akwu-run-field="' + key + '"]'
+				);
+				if ( element ) {
+					element.textContent = data[ key ];
+				}
+			}
+		);
+		root.querySelector( '[data-akwu-run-field="percent"]' ).textContent =
+			data.percent + ' %';
+
+		Object.keys( data.tiles || {} ).forEach( function ( key ) {
+			var element = root.querySelector(
+				'[data-akwu-run-tile="' + key + '"]'
+			);
+			if ( element ) {
+				element.textContent = data.tiles[ key ];
+			}
+		} );
+
+		// HTML kommt fertig maskiert vom Server (Run_Presenter).
+		[ 'steps_html', 'log_html' ].forEach( function ( key ) {
+			var element = root.querySelector(
+				'[data-akwu-run-html="' + key + '"]'
+			);
+			if ( element && typeof data[ key ] === 'string' ) {
+				element.innerHTML = data[ key ];
+			}
+		} );
+
+		if ( barItem ) {
+			barItem.textContent = data.bar_label;
+		}
+	}
+
+	/**
+	 * Fordert Pakete an, solange der Lauf läuft. Lädt die Seite neu, wenn er endet oder pausiert.
+	 *
+	 * @param {Element} root Element mit data-akwu-run.
+	 */
+	function runLoop( root ) {
+		var error = root.querySelector( '[data-akwu-run-error]' );
+		var failures = 0;
+
+		function showError( message ) {
+			error.textContent = message;
+			error.hidden = false;
+		}
+
+		function next() {
+			post( 'convert/step' )
+				.then( function ( data ) {
+					failures = 0;
+					error.hidden = true;
+					renderRun( root, data );
+
+					if (
+						data.finished ||
+						( data.status !== 'running' &&
+							data.status !== 'cancelling' )
+					) {
+						window.location.reload();
+						return;
+					}
+					next();
+				} )
+				.catch( function ( exception ) {
+					// Ein anderes Fenster oder ein abgestürzter Schritt hält die Sperre: warten.
+					// Netzwerk- und Serverfehler: mit wachsender Pause neu versuchen, der Lauf macht beim
+					// nächsten Paket weiter.
+					var locked = exception.code === 'akwu_locked';
+					var retryable =
+						locked ||
+						! exception.status ||
+						exception.status >= 500;
+
+					if ( ! retryable ) {
+						showError( exception.message );
+						return;
+					}
+
+					failures++;
+					showError(
+						locked
+							? exception.message
+							: i18n.retry + ' (' + exception.message + ')'
+					);
+					window.setTimeout(
+						next,
+						Math.min( 30, locked ? 5 : 2 * failures ) * 1000
+					);
+				} );
+		}
+
+		next();
+	}
+
+	/**
+	 * Pausieren, Fortsetzen oder Abbrechen aus der Kopfzeile.
+	 *
+	 * @param {HTMLElement} button Auslöser mit data-akwu-run-action.
+	 */
+	function runAction( button ) {
+		var action = button.getAttribute( 'data-akwu-run-action' );
+
+		if ( action === 'cancel' && ! window.confirm( i18n.cancel ) ) { // eslint-disable-line no-alert
+			return;
+		}
+
+		document
+			.querySelectorAll( '[data-akwu-run-action]' )
+			.forEach( function ( element ) {
+				element.disabled = true;
+			} );
+
+		post( 'convert/' + action )
+			.then( function () {
+				window.location.reload();
+			} )
+			.catch( function ( exception ) {
+				window.alert( exception.message ); // eslint-disable-line no-alert
+				window.location.reload();
+			} );
+	}
+
 	document.addEventListener( 'click', function ( event ) {
-		var button = event.target.closest( '[data-akwu-scan]' );
-		if ( button ) {
+		var scan = event.target.closest( '[data-akwu-scan]' );
+		var convert = event.target.closest( '[data-akwu-convert]' );
+		var action = event.target.closest( '[data-akwu-run-action]' );
+
+		if ( scan ) {
 			event.preventDefault();
-			runScan( button );
+			runScan( scan );
+		} else if ( convert ) {
+			event.preventDefault();
+			startConversion( convert );
+		} else if ( action ) {
+			event.preventDefault();
+			runAction( action );
 		}
 	} );
+
+	/**
+	 * Setzt einen offenen Lauf auf der Umwandlungsseite automatisch fort.
+	 */
+	function resumeOpenRun() {
+		var root = document.querySelector( '[data-akwu-run]' );
+		var status = root ? root.getAttribute( 'data-akwu-run-status' ) : '';
+
+		if ( status === 'running' || status === 'cancelling' ) {
+			runLoop( root );
+		}
+	}
+
+	if ( document.readyState === 'loading' ) {
+		document.addEventListener( 'DOMContentLoaded', resumeOpenRun );
+	} else {
+		resumeOpenRun();
+	}
 } )();

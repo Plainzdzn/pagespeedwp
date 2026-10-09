@@ -55,7 +55,37 @@ final class Admin {
 	public function register() {
 		add_action( 'admin_menu', array( $this, 'add_menu' ) );
 		add_action( 'admin_init', array( Settings::class, 'register' ) );
+		add_action( 'admin_init', array( Log_Table::class, 'maybe_install' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_bar_menu', array( $this, 'admin_bar' ), 100 );
+	}
+
+	/**
+	 * Fortschritt in der Admin-Leiste, solange eine Umwandlung offen ist.
+	 *
+	 * @param \WP_Admin_Bar $bar Admin-Leiste.
+	 * @return void
+	 */
+	public function admin_bar( $bar ) {
+		if ( ! is_admin() || ! current_user_can( self::CAPABILITY ) ) {
+			return;
+		}
+
+		$run = Conversion::current();
+		if ( ! Conversion::is_active( $run ) ) {
+			return;
+		}
+
+		$progress = Conversion::progress( $run );
+
+		$bar->add_node(
+			array(
+				'id'    => 'akwu-progress',
+				/* translators: %s: Fortschritt in Prozent. */
+				'title' => '<span class="akwu-bar-label">' . esc_html( sprintf( __( 'WebP-Umwandler · %s %%', 'akuma-webp-umwandler' ), $progress['percent'] ) ) . '</span>',
+				'href'  => self::page_url( 'akwu-umwandlung' ),
+			)
+		);
 	}
 
 	/**
@@ -163,12 +193,16 @@ final class Admin {
 			'akwu-admin',
 			'window.akwuAdmin = ' . wp_json_encode(
 				array(
-					'restUrl' => esc_url_raw( rest_url( Rest_Controller::NAMESPACE_V1 . '/' ) ),
-					'nonce'   => wp_create_nonce( 'wp_rest' ),
-					'i18n'    => array(
+					'restUrl'    => esc_url_raw( rest_url( Rest_Controller::NAMESPACE_V1 . '/' ) ),
+					'convertUrl' => esc_url_raw( self::page_url( 'akwu-umwandlung' ) ),
+					'nonce'      => wp_create_nonce( 'wp_rest' ),
+					'i18n'       => array(
 						'error'     => __( 'Das hat nicht geklappt. Bitte die Seite neu laden und noch einmal versuchen.', 'akuma-webp-umwandler' ),
 						'scanDone'  => __( 'Scan abgeschlossen. Seite wird neu geladen …', 'akuma-webp-umwandler' ),
 						'scanStart' => __( 'Scan startet …', 'akuma-webp-umwandler' ),
+						'backup'    => __( 'Bitte zuerst bestätigen, dass ein Backup erstellt ist.', 'akuma-webp-umwandler' ),
+						'cancel'    => __( 'Umwandlung abbrechen und alle Bilder dieses Laufs zurück ins Original setzen?', 'akuma-webp-umwandler' ),
+						'retry'     => __( 'Verbindung unterbrochen. Neuer Versuch in wenigen Sekunden …', 'akuma-webp-umwandler' ),
 					),
 				)
 			) . ';',
@@ -191,17 +225,20 @@ final class Admin {
 		$pages   = self::pages();
 		$current = ( is_string( $plugin_page ) && isset( $pages[ $plugin_page ] ) ) ? $plugin_page : self::MENU_SLUG;
 		$result  = Scan_Result::load();
+		$run     = Conversion::current();
 
 		View::render(
 			'layout',
 			array(
-				'pages'        => $pages,
-				'current'      => $current,
-				'system_check' => $this->system_check,
-				'scan'         => $result,
-				'scan_state'   => Scanner::state(),
-				'query'        => self::query_args(),
-				'notices'      => $this->notices( $current, $result ),
+				'pages'          => $pages,
+				'current'        => $current,
+				'system_check'   => $this->system_check,
+				'scan'           => $result,
+				'scan_state'     => Scanner::state(),
+				'run'            => $run,
+				'query'          => self::query_args(),
+				'notices'        => $this->notices( $current, $result, $run ),
+				'header_actions' => self::header_actions( $current, $run ),
 			)
 		);
 	}
@@ -211,12 +248,44 @@ final class Admin {
 	 *
 	 * @param string           $current Slug der Seite.
 	 * @param Scan_Result|null $result  Scan-Ergebnis.
-	 * @return array[] Liste mit type (success, info, warning, error) und message.
+	 * @param array|null       $run     Aktueller oder letzter Lauf.
+	 * @return array[] Liste mit type (success, info, warning, error), title, message, optional action und link.
 	 */
-	private function notices( $current, $result ) {
+	private function notices( $current, $result, $run ) {
 		$notices = array();
 
-		if ( self::MENU_SLUG === $current && null !== $result ) {
+		if ( Conversion::is_active( $run ) ) {
+			if ( 'akwu-umwandlung' === $current ) {
+				$notices[] = array(
+					'type'    => 'warning',
+					'title'   => 'paused' === $run['status'] ? __( 'Umwandlung pausiert.', 'akuma-webp-umwandler' ) : __( 'Umwandlung läuft.', 'akuma-webp-umwandler' ),
+					'message' => 'paused' === $run['status']
+						? __( 'Mit „Fortsetzen“ geht es beim nächsten Paket weiter.', 'akuma-webp-umwandler' )
+						: __( 'Bitte dieses Fenster geöffnet lassen. Bei einer Unterbrechung geht es beim nächsten Paket weiter.', 'akuma-webp-umwandler' ),
+				);
+			} else {
+				$notices[] = array(
+					'type'    => 'warning',
+					'title'   => __( 'Eine Umwandlung ist offen.', 'akuma-webp-umwandler' ),
+					'message' => __( 'Sie läuft nur weiter, solange die Seite der Umwandlung geöffnet ist.', 'akuma-webp-umwandler' ),
+					'link'    => array(
+						'url'   => self::page_url( 'akwu-umwandlung' ),
+						'label' => __( 'Zur Umwandlung', 'akuma-webp-umwandler' ),
+					),
+				);
+			}
+
+			return $notices;
+		}
+
+		if ( self::MENU_SLUG === $current && null !== $result && null !== $run && $run['finished'] > $result->finished() ) {
+			$notices[] = array(
+				'type'    => 'info',
+				'title'   => __( 'Zahlen vom Scan vor der Umwandlung.', 'akuma-webp-umwandler' ),
+				'message' => __( 'Ein neuer Scan zeigt den aktuellen Stand.', 'akuma-webp-umwandler' ),
+				'action'  => 'rescan',
+			);
+		} elseif ( self::MENU_SLUG === $current && null !== $result ) {
 			$notices[] = array(
 				'type'    => 'success',
 				'title'   => __( 'Scan abgeschlossen.', 'akuma-webp-umwandler' ),
@@ -226,6 +295,41 @@ final class Admin {
 		}
 
 		return $notices;
+	}
+
+	/**
+	 * Knöpfe in der Kopfzeile. Auf der Umwandlung: Pausieren oder Fortsetzen und Abbrechen.
+	 *
+	 * @param string     $current Slug der Seite.
+	 * @param array|null $run     Aktueller oder letzter Lauf.
+	 * @return array[] Liste mit action, label und style (default, danger).
+	 */
+	private static function header_actions( $current, $run ) {
+		if ( 'akwu-umwandlung' !== $current || ! Conversion::is_active( $run ) || 'cancelling' === $run['status'] ) {
+			return array();
+		}
+
+		return array(
+			'paused' === $run['status']
+				? array(
+					'action' => 'resume',
+					'label'  => __( 'Fortsetzen', 'akuma-webp-umwandler' ),
+					'icon'   => 'play',
+					'style'  => 'default',
+				)
+				: array(
+					'action' => 'pause',
+					'label'  => __( 'Pausieren', 'akuma-webp-umwandler' ),
+					'icon'   => 'pause',
+					'style'  => 'default',
+				),
+			array(
+				'action' => 'cancel',
+				'label'  => __( 'Abbrechen und zurücksetzen', 'akuma-webp-umwandler' ),
+				'icon'   => '',
+				'style'  => 'danger',
+			),
+		);
 	}
 
 	/**

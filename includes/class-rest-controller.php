@@ -57,6 +57,146 @@ final class Rest_Controller {
 				),
 			)
 		);
+
+		$this->convert_routes();
+	}
+
+	/**
+	 * Routen der Umwandlung.
+	 *
+	 * @return void
+	 */
+	private function convert_routes() {
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/convert',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'convert_status' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/convert/start',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'convert_start' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'mode'   => array(
+						'type'    => 'string',
+						'enum'    => array( 'all', 'test' ),
+						'default' => 'all',
+					),
+					'backup' => array(
+						'type'    => 'boolean',
+						'default' => false,
+					),
+				),
+			)
+		);
+
+		foreach ( array( 'step', 'pause', 'resume', 'cancel' ) as $action ) {
+			register_rest_route(
+				self::NAMESPACE_V1,
+				'/convert/' . $action,
+				array(
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'convert_' . $action ),
+					'permission_callback' => array( $this, 'can_manage' ),
+				)
+			);
+		}
+	}
+
+	/**
+	 * Stand der Umwandlung.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function convert_status() {
+		$run = Conversion::current();
+
+		return rest_ensure_response( null === $run ? array( 'status' => 'none' ) : Run_Presenter::payload( $run ) );
+	}
+
+	/**
+	 * Startet eine Umwandlung. Verlangt die Bestätigung des Backups und eine bestandene Systemprüfung.
+	 *
+	 * @param \WP_REST_Request $request Anfrage.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function convert_start( \WP_REST_Request $request ) {
+		if ( ! $request['backup'] ) {
+			return new \WP_Error( 'akwu_backup', __( 'Bitte zuerst bestätigen, dass ein Backup von Datenbank und Uploads erstellt ist.', 'akuma-webp-umwandler' ), array( 'status' => 400 ) );
+		}
+
+		$check = new System_Check();
+		if ( ! $check->can_start() ) {
+			return new \WP_Error( 'akwu_system', __( 'Die Systemprüfung meldet ein Problem. Bitte zuerst dort nachsehen.', 'akuma-webp-umwandler' ), array( 'status' => 400 ) );
+		}
+
+		$run = Conversion::start( $request['mode'] );
+
+		if ( is_wp_error( $run ) ) {
+			$run->add_data( array( 'status' => 409 ) );
+			return $run;
+		}
+
+		return rest_ensure_response( Run_Presenter::payload( $run ) );
+	}
+
+	/**
+	 * Nächster Schritt der Umwandlung.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function convert_step() {
+		return self::run_response( Conversion::step( self::budget() ) );
+	}
+
+	/**
+	 * Pausieren.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function convert_pause() {
+		return self::run_response( Conversion::pause() );
+	}
+
+	/**
+	 * Fortsetzen.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function convert_resume() {
+		return self::run_response( Conversion::resume() );
+	}
+
+	/**
+	 * Abbrechen und zurücksetzen.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function convert_cancel() {
+		return self::run_response( Conversion::cancel() );
+	}
+
+	/**
+	 * Antwort für einen Lauf oder Fehler.
+	 *
+	 * @param array|\WP_Error $run Lauf.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private static function run_response( $run ) {
+		if ( is_wp_error( $run ) ) {
+			$run->add_data( array( 'status' => 409 ) );
+			return $run;
+		}
+
+		return rest_ensure_response( Run_Presenter::payload( $run ) );
 	}
 
 	/**
@@ -87,6 +227,10 @@ final class Rest_Controller {
 	 */
 	public function scan_step( \WP_REST_Request $request ) {
 		$state = Scanner::state();
+
+		if ( Conversion::is_active( Conversion::current() ) ) {
+			return new \WP_Error( 'akwu_run_active', __( 'Während einer Umwandlung ist kein neuer Scan möglich.', 'akuma-webp-umwandler' ), array( 'status' => 409 ) );
+		}
 
 		if ( $request['restart'] || null === $state || 'running' !== $state['status'] ) {
 			if ( null !== Lock::holder() ) {

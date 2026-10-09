@@ -51,6 +51,8 @@ final class Plugin {
 				array( 'back_link' => true )
 			);
 		}
+
+		Log_Table::install();
 	}
 
 	/**

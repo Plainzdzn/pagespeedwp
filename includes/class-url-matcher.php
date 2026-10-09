@@ -119,19 +119,20 @@ final class Url_Matcher {
 	/**
 	 * Ersetzt Upload-Pfade laut Zuordnung. Schreibweise (JSON-Slashes, URL-Kodierung) bleibt erhalten.
 	 *
-	 * @param string                $text  Beliebiger Text.
-	 * @param array<string, string> $map   Alter Pfad => neuer Pfad, normalisiert.
-	 * @param int                   $count Wird um die Zahl der Ersetzungen erhöht.
+	 * @param string                $text    Beliebiger Text.
+	 * @param array<string, string> $map     Alter Pfad => neuer Pfad, normalisiert.
+	 * @param int                   $count   Wird um die Zahl der Ersetzungen erhöht.
+	 * @param array<string, int>    $by_path Wird je altem Pfad um die Zahl der Ersetzungen erhöht.
 	 * @return string
 	 */
-	public function replace( $text, array $map, &$count = 0 ) {
+	public function replace( $text, array $map, &$count = 0, &$by_path = array() ) {
 		if ( ! is_string( $text ) || '' === $text || empty( $map ) ) {
 			return $text;
 		}
 
 		$result = preg_replace_callback(
 			$this->pattern,
-			static function ( $found ) use ( $map, &$count ) {
+			static function ( $found ) use ( $map, &$count, &$by_path ) {
 				$path = self::normalize( $found[2] );
 				if ( ! isset( $map[ $path ] ) ) {
 					return $found[0];
@@ -146,6 +147,7 @@ final class Url_Matcher {
 				}
 
 				++$count;
+				$by_path[ $path ] = isset( $by_path[ $path ] ) ? $by_path[ $path ] + 1 : 1;
 
 				return $found[1] . $new;
 			},
