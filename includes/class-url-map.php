@@ -16,7 +16,8 @@ defined( 'ABSPATH' ) || exit;
  * - Volle Auflösung (Original vor dem Verkleinern, sonst die angehängte Datei) → volle Auflösung.
  * - `-scaled`-Datei → neue `-scaled`-Datei, sonst volle Auflösung.
  * - Jede Größe über ihren Namen, nicht über Pixelmaße. Fehlt eine Größe danach,
- *   zeigt sie auf die neue angehängte Datei und wird gemeldet.
+ *   zeigt sie auf die neue angehängte Datei und wird gemeldet. Der Converter erzeugt
+ *   alte Größen deshalb vorher nach und bricht ab, wenn trotzdem eine fehlt.
  *
  * Kommt ohne WordPress aus und ist dadurch direkt testbar.
  */

@@ -196,7 +196,72 @@ function create_images() {
 		$ids[ $key ] = $id;
 	}
 
+	add_stale_size( $ids['praxis'] );
+	$ids['ohne_meta'] = create_without_metadata( $dir, trailingslashit( $upload['url'] ) );
+
 	return $ids;
+}
+
+/**
+ * Größe aus einem früheren Theme: steht in den Metadaten, ist aber nicht mehr registriert.
+ * Die Umwandlung muss dafür eine eigene WebP-Datei in denselben Maßen anlegen.
+ *
+ * @param int $id Anhang.
+ * @return void
+ */
+function add_stale_size( $id ) {
+	$file   = get_attached_file( $id );
+	$editor = wp_get_image_editor( $file );
+	if ( is_wp_error( $editor ) ) {
+		WP_CLI::error( $editor->get_error_message() );
+	}
+	$editor->resize( 640, 427, true );
+	$saved = $editor->save( $editor->generate_filename() );
+	if ( is_wp_error( $saved ) ) {
+		WP_CLI::error( $saved->get_error_message() );
+	}
+
+	$meta                                = wp_get_attachment_metadata( $id );
+	$meta['sizes']['altes_theme_teaser'] = array(
+		'file'      => wp_basename( $saved['file'] ),
+		'width'     => (int) $saved['width'],
+		'height'    => (int) $saved['height'],
+		'mime-type' => $saved['mime-type'],
+		'filesize'  => (int) filesize( $saved['path'] ),
+	);
+	wp_update_attachment_metadata( $id, $meta );
+}
+
+/**
+ * Anhang ohne Metadaten (z. B. per FTP hochgeladen und nur eingetragen).
+ * Die Umwandlung muss ihn ablehnen, ohne etwas zu ändern.
+ *
+ * @param string $dir Zielordner mit Schrägstrich.
+ * @param string $url URL des Ordners mit Schrägstrich.
+ * @return int Attachment-ID.
+ */
+function create_without_metadata( $dir, $url ) {
+	$name = 'ohne-metadaten.png';
+	write_image( $dir . $name, 600, 400, 'png' );
+
+	$id = wp_insert_attachment(
+		array(
+			'post_mime_type' => 'image/png',
+			'post_title'     => 'PNG ohne Metadaten',
+			'post_content'   => '',
+			'post_status'    => 'inherit',
+			'guid'           => $url . $name,
+		),
+		$dir . $name,
+		0,
+		true
+	);
+	if ( is_wp_error( $id ) ) {
+		WP_CLI::error( $id->get_error_message() );
+	}
+	update_post_meta( $id, META_KEY, 1 );
+
+	return $id;
 }
 
 /**
@@ -440,10 +505,14 @@ function create_block_post( array $ids, array $urls ) {
 		'<!-- wp:image {"id":%1$d,"sizeSlug":"large","linkDestination":"media"} -->' . "\n"
 		. '<figure class="wp-block-image size-large"><a href="%3$s"><img src="%2$s" alt="" class="wp-image-%1$d"/></a></figure>' . "\n"
 		. '<!-- /wp:image -->' . "\n\n"
-		. '<!-- wp:paragraph -->' . "\n" . '<p>Ein Beitrag mit Bild aus dem Block-Editor.</p>' . "\n" . '<!-- /wp:paragraph -->',
+		. '<!-- wp:paragraph -->' . "\n" . '<p>Ein Beitrag mit Bild aus dem Block-Editor.</p>' . "\n" . '<!-- /wp:paragraph -->' . "\n\n"
+		. '<!-- wp:html -->' . "\n" . '<img src="%4$s" alt="Teaser aus dem alten Theme" width="640" height="427">' . "\n" . '<!-- /wp:html -->' . "\n\n"
+		. '<!-- wp:html -->' . "\n" . '<img src="%5$s" alt="Bild ohne Metadaten">' . "\n" . '<!-- /wp:html -->',
 		$ids['team'],
 		$large[0],
-		$urls['team']
+		$urls['team'],
+		wp_get_attachment_image_src( $ids['praxis'], 'altes_theme_teaser' )[0],
+		$urls['ohne_meta']
 	);
 
 	$post_id = wp_insert_post(

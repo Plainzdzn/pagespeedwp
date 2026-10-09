@@ -127,7 +127,11 @@ function main() {
 	WP_CLI::log( 'Nach der Umwandlung:' );
 	check( count( $rows ) >= 5, sprintf( '%d Bilder umgewandelt', count( $rows ) ) );
 	check( 0 === $progress['ids_changed'], 'Bild-IDs unverändert' );
-	check( 0 === $progress['errors'], 'keine Fehler' );
+	$errors = Log_Table::rows( $run['id'], array( 'error' ) );
+	check( 1 === count( $errors ) && 'ohne-metadaten.png' === wp_basename( (string) get_post_meta( $errors[0]['attachment_id'], '_wp_attached_file', true ) ), 'nur das Bild ohne Metadaten abgelehnt' );
+	foreach ( $errors as $row ) {
+		check( 'image/png' === get_post_mime_type( $row['attachment_id'] ) && ! wp_get_attachment_metadata( $row['attachment_id'] ), 'Bild ohne Metadaten unverändert' );
+	}
 
 	foreach ( $rows as $row ) {
 		check( 'image/webp' === get_post_mime_type( $row['attachment_id'] ) && is_file( Attachment_Files::path( $row['new_file'] ) ), sprintf( 'Anhang %d ist WebP, Datei vorhanden', $row['attachment_id'] ) );
@@ -143,6 +147,15 @@ function main() {
 	$data = (string) get_post_meta( $page->ID, '_elementor_data', true );
 	check( is_array( json_decode( $data, true ) ), '_elementor_data ist gültiges JSON' );
 	check( false === strpos( $data, 'team-header.png' ) && false !== strpos( $data, 'team-header.webp' ), 'Hintergrundbild in _elementor_data ersetzt' );
+	$block = get_posts(
+		array(
+			'post_type'   => 'post',
+			'title'       => 'Testbeitrag Block-Editor',
+			'numberposts' => 1,
+		)
+	)[0];
+	check( false !== strpos( $block->post_content, 'praxis-empfang-640x427.webp' ) && false === strpos( $block->post_content, 'praxis-empfang-640x427.jpg' ), 'Größe aus altem Theme auf eigene WebP-Datei umgestellt' );
+	check( is_file( Attachment_Files::basedir() . '2019/05/praxis-empfang-640x427.webp' ), 'WebP-Datei der alten Größe vorhanden' );
 	$settings = get_post_meta( $page->ID, '_elementor_page_settings', true );
 	check( false !== strpos( $settings['custom_css'], 'bild.jpg' ), 'Custom CSS in Elementor unverändert' );
 	check( false !== strpos( wp_get_custom_css(), 'bild.png' ), 'Customizer-CSS unverändert' );
@@ -157,7 +170,7 @@ function main() {
 	check( empty( $leftovers ), 'Gegenprobe: keine unerwarteten Reste' );
 
 	foreach ( array( $page->ID ) as $post_id ) {
-		$response = wp_remote_get( get_permalink( $post_id ) );
+		$response = wp_remote_get( get_permalink( $post_id ), array( 'timeout' => 30 ) );
 		$html     = is_wp_error( $response ) ? '' : wp_remote_retrieve_body( $response );
 		if ( '' === $html ) {
 			WP_CLI::log( '  –     Seite nicht abrufbar (Server läuft nicht?), Bildprüfung übersprungen' );

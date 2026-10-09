@@ -39,8 +39,13 @@ final class Converter {
 			return self::finish( $row, 'skipped', __( 'Kein JPG oder PNG mehr, nichts zu tun.', 'akuma-webp-umwandler' ) );
 		}
 
-		$meta      = wp_get_attachment_metadata( $attachment_id, true );
-		$meta      = is_array( $meta ) ? $meta : array();
+		$meta = wp_get_attachment_metadata( $attachment_id, true );
+
+		// Ohne Metadaten gäbe es keinen Zustand, auf den Rückgängig zurückstellen könnte.
+		if ( ! is_array( $meta ) || empty( $meta['file'] ) ) {
+			return self::finish( $row, 'error', __( 'Für dieses Bild fehlen die Metadaten. Bitte zuerst die Vorschaubilder neu erzeugen lassen, dann erneut scannen.', 'akuma-webp-umwandler' ) );
+		}
+
 		$old_files = Attachment_Files::of( $attachment_id, $meta );
 
 		if ( null === $old_files ) {
@@ -104,18 +109,21 @@ final class Converter {
 
 		$new_files = Attachment_Files::of( $attachment_id );
 		$mapping   = Url_Map::build( $old_files, $new_files );
-		$message   = sprintf(
+
+		// Jede alte Größe braucht ihre eigene neue Datei, sonst ließe sich Rückgängig nicht genau umkehren.
+		if ( $mapping['missing'] ) {
+			Rollback::restore_attachment( array_merge( $row, array( 'new_files' => $new_files ) ) );
+			/* translators: %s: Liste von Größennamen. */
+			return self::finish( $row, 'error', sprintf( __( 'Diese Größen ließen sich nicht als WebP erzeugen: %s. Bild bleibt im Original.', 'akuma-webp-umwandler' ), implode( ', ', $mapping['missing'] ) ) );
+		}
+
+		$message = sprintf(
 			/* translators: 1: lossy oder lossless, 2: Qualität, 3: imagick oder gd. */
 			__( 'WebP %1$s, Qualität %2$d, %3$s.', 'akuma-webp-umwandler' ),
 			'lossless' === $encoded['mode'] ? __( 'verlustfrei', 'akuma-webp-umwandler' ) : __( 'verlustbehaftet', 'akuma-webp-umwandler' ),
 			$encoded['quality'],
 			'imagick' === $encoded['editor'] ? 'Imagick' : 'GD'
 		);
-		if ( $mapping['missing'] ) {
-			/* translators: %s: Liste von Größennamen. */
-			$message .= ' ' . sprintf( __( 'Größen ohne Entsprechung, zeigen auf das ganze Bild: %s.', 'akuma-webp-umwandler' ), implode( ', ', $mapping['missing'] ) );
-		}
-
 		$update = array(
 			'status'      => 'converted',
 			'new_file'    => (string) get_post_meta( $attachment_id, '_wp_attached_file', true ),
@@ -157,9 +165,63 @@ final class Converter {
 			$meta['image_meta'] = $old_meta['image_meta'];
 		}
 
+		$meta = self::add_old_sizes( $file, $meta, $old_meta );
+
 		wp_update_attachment_metadata( $attachment_id, $meta );
 
 		return true;
+	}
+
+	/**
+	 * Erzeugt Größen, die das Bild vorher hatte, WordPress aber nicht mehr registriert
+	 * (z. B. nach einem Theme-Wechsel), in denselben Maßen als WebP.
+	 *
+	 * So bekommt jede alte Datei genau eine neue, und Verweise wie `bild-640x480.jpg`
+	 * zeigen danach auf `bild-640x480.webp` statt auf das ganze Bild.
+	 * Was sich nicht erzeugen lässt, fehlt in den Metadaten und bricht die Umwandlung ab.
+	 *
+	 * @param string $file     Neue Datei (absoluter Pfad).
+	 * @param array  $meta     Neue Metadaten.
+	 * @param array  $old_meta Metadaten vorher.
+	 * @return array Neue Metadaten, ergänzt.
+	 */
+	private static function add_old_sizes( $file, array $meta, array $old_meta ) {
+		if ( empty( $old_meta['sizes'] ) || ! is_array( $old_meta['sizes'] ) ) {
+			return $meta;
+		}
+
+		foreach ( $old_meta['sizes'] as $name => $size ) {
+			if ( isset( $meta['sizes'][ $name ] ) || ! is_array( $size ) || empty( $size['width'] ) || empty( $size['height'] ) ) {
+				continue;
+			}
+
+			$editor = wp_get_image_editor( $file );
+			if ( is_wp_error( $editor ) ) {
+				continue;
+			}
+
+			// Gleiche Maße wie das ganze Bild: WordPress verkleinert nicht, dann wird es eine Kopie.
+			$current = $editor->get_size();
+			$same    = (int) $current['width'] === (int) $size['width'] && (int) $current['height'] === (int) $size['height'];
+			if ( ! $same && is_wp_error( $editor->resize( (int) $size['width'], (int) $size['height'], true ) ) ) {
+				continue;
+			}
+
+			$saved = $editor->save( $editor->generate_filename(), 'image/webp' );
+			if ( is_wp_error( $saved ) || empty( $saved['file'] ) ) {
+				continue;
+			}
+
+			$meta['sizes'][ $name ] = array(
+				'file'      => wp_basename( $saved['file'] ),
+				'width'     => (int) $saved['width'],
+				'height'    => (int) $saved['height'],
+				'mime-type' => 'image/webp',
+				'filesize'  => isset( $saved['filesize'] ) ? (int) $saved['filesize'] : (int) filesize( $saved['path'] ),
+			);
+		}
+
+		return $meta;
 	}
 
 	/**
