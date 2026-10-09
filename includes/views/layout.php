@@ -42,14 +42,19 @@ $groups    = array(
 		<?php if ( ! empty( $data['header_actions'] ) ) : ?>
 			<div class="akwu-header__actions">
 				<?php foreach ( $data['header_actions'] as $header_action ) : ?>
-					<button type="button" class="akwu-header-button<?php echo 'danger' === $header_action['style'] ? ' akwu-header-button--danger' : ''; ?>" data-akwu-run-action="<?php echo esc_attr( $header_action['action'] ); ?>">
+					<?php $header_class = 'akwu-header-button' . ( 'danger' === $header_action['style'] ? ' akwu-header-button--danger' : '' ); ?>
+					<?php if ( isset( $header_action['url'] ) ) : ?>
+						<a class="<?php echo esc_attr( $header_class ); ?>" href="<?php echo esc_url( $header_action['url'] ); ?>">
+					<?php else : ?>
+						<button type="button" class="<?php echo esc_attr( $header_class ); ?>" data-akwu-run-action="<?php echo esc_attr( $header_action['action'] ); ?>">
+					<?php endif; ?>
 						<?php
 						if ( '' !== $header_action['icon'] ) {
 							Icons::render( $header_action['icon'], 15, '1.8' );
 						}
 						echo esc_html( $header_action['label'] );
 						?>
-					</button>
+					<?php echo isset( $header_action['url'] ) ? '</a>' : '</button>'; ?>
 				<?php endforeach; ?>
 			</div>
 		<?php endif; ?>

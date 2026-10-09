@@ -186,6 +186,225 @@ final class Cli {
 	}
 
 	/**
+	 * Bericht über alle Umwandlungen: vorher/nachher, je Bild, Stellen zum Prüfen.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : Ausgabe.
+	 * ---
+	 * default: summary
+	 * options:
+	 *   - summary
+	 *   - table
+	 *   - csv
+	 *   - json
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp akwu report
+	 *     wp akwu report --format=csv > bericht.csv
+	 *
+	 * @param array $args       Positionsargumente.
+	 * @param array $assoc_args Optionen.
+	 * @return void
+	 */
+	public function report( $args, $assoc_args ) {
+		$report = Report::load();
+		if ( null === $report ) {
+			WP_CLI::error( __( 'Es wurde noch nichts umgewandelt.', 'akuma-webp-umwandler' ) );
+		}
+
+		$format = WP_CLI\Utils\get_flag_value( $assoc_args, 'format', 'summary' );
+
+		if ( 'csv' === $format ) {
+			echo $report->csv(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV auf der Konsole.
+			return;
+		}
+
+		if ( 'summary' !== $format ) {
+			$rows = array();
+			foreach ( $report->entries( 'id' ) as $entry ) {
+				$rows[] = array(
+					'ID'       => $entry['id'],
+					'Datei'    => $entry['file'],
+					'Status'   => Report::status_label( $entry['status'] ),
+					'Vorher'   => $entry['before'],
+					'Nachher'  => $entry['after'],
+					'Prozent'  => $entry['percent'],
+					'Verweise' => $entry['replacements'],
+					'Prüfen'   => count( $entry['leftovers'] ),
+					'Meldung'  => $entry['message'],
+				);
+			}
+			WP_CLI\Utils\format_items( $format, $rows, array_keys( $rows[0] ) );
+			return;
+		}
+
+		$totals = $report->totals();
+		WP_CLI::log( sprintf( 'Vorher:            %s', Format::bytes( $totals['before'] ) ) );
+		WP_CLI::log( sprintf( 'Nachher:           %s (−%s %%)', Format::bytes( $totals['after'] ), Format::number( $totals['percent'] ) ) );
+		WP_CLI::log( sprintf( 'Umgewandelt:       %s', Format::number( $totals['converted'] ) ) );
+		WP_CLI::log( sprintf( 'Übersprungen:      %s, davon mit Fehler: %s', Format::number( $totals['skipped'] + $totals['errors'] ), Format::number( $totals['errors'] ) ) );
+		WP_CLI::log( sprintf( 'Zurückgesetzt:     %s', Format::number( $totals['rolled_back'] ) ) );
+		WP_CLI::log( sprintf( 'Verweise ersetzt:  %s in %s Seiten und Beiträgen', Format::number( $totals['replacements'] ), Format::number( $totals['places'] ) ) );
+		WP_CLI::log( sprintf( 'Originale gelöscht: %s', Format::number( $totals['purged'] ) ) );
+
+		$leftovers = $report->leftovers();
+		if ( $leftovers ) {
+			WP_CLI::log( '' );
+			WP_CLI::log( __( 'Bitte prüfen (hier lädt noch das Original):', 'akuma-webp-umwandler' ) );
+			foreach ( $leftovers as $hit ) {
+				WP_CLI::log( sprintf( '- %s: %s (%s)', $hit['file'], $hit['label'], null === $hit['warning'] ? __( 'nicht ersetzt', 'akuma-webp-umwandler' ) : Scan_Result::warning_label( $hit['warning'] ) ) );
+			}
+		}
+	}
+
+	/**
+	 * Nimmt Umwandlungen zurück: Datei, Metadaten und Verweise wie vorher, WebP-Dateien gelöscht.
+	 *
+	 * Geht nur, solange die Originale existieren.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--ids=<ids>]
+	 * : Nur diese Anhänge, durch Komma getrennt. Ohne: alle umgewandelten Bilder.
+	 *
+	 * [--dry-run]
+	 * : Nur anzeigen, was zurückgesetzt würde.
+	 *
+	 * [--yes]
+	 * : Ohne Rückfrage.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp akwu rollback --dry-run
+	 *     wp akwu rollback --ids=12,34
+	 *
+	 * @param array $args       Positionsargumente.
+	 * @param array $assoc_args Optionen.
+	 * @return void
+	 */
+	public function rollback( $args, $assoc_args ) {
+		$ids  = array_filter( array_map( 'absint', explode( ',', (string) WP_CLI\Utils\get_flag_value( $assoc_args, 'ids', '' ) ) ) );
+		$rows = Job::targets( 'rollback', $ids );
+		if ( is_wp_error( $rows ) ) {
+			WP_CLI::error( $rows->get_error_message() );
+		}
+		if ( empty( $rows ) ) {
+			WP_CLI::error( __( 'Keine Bilder zum Zurücksetzen.', 'akuma-webp-umwandler' ) );
+		}
+
+		if ( WP_CLI\Utils\get_flag_value( $assoc_args, 'dry-run', false ) ) {
+			foreach ( Log_Table::by_ids( $rows ) as $row ) {
+				WP_CLI::log( sprintf( '- ID %d: %s → %s', $row['attachment_id'], wp_basename( (string) $row['new_file'] ), wp_basename( (string) $row['old_file'] ) ) );
+			}
+			/* translators: %s: Anzahl Bilder. */
+			WP_CLI::success( sprintf( _n( 'Probelauf: %s Bild würde zurückgesetzt. Es wurde nichts verändert.', 'Probelauf: %s Bilder würden zurückgesetzt. Es wurde nichts verändert.', count( $rows ), 'akuma-webp-umwandler' ), Format::number( count( $rows ) ) ) );
+			return;
+		}
+
+		/* translators: %s: Anzahl Bilder. */
+		WP_CLI::confirm( sprintf( _n( '%s Bild zurück ins Original setzen?', '%s Bilder zurück ins Original setzen?', count( $rows ), 'akuma-webp-umwandler' ), Format::number( count( $rows ) ) ), $assoc_args );
+
+		$this->run_job( 'rollback', $rows );
+	}
+
+	/**
+	 * Löscht die alten Originale umgewandelter Bilder. Danach ist kein Rückgängig mehr möglich.
+	 *
+	 * Originale, deren alte Adresse noch unter „Bitte prüfen“ steht, bleiben.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--dry-run]
+	 * : Nur anzeigen, wie viel frei würde.
+	 *
+	 * [--yes]
+	 * : Ohne Rückfrage.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp akwu purge-originals --dry-run
+	 *     wp akwu purge-originals
+	 *
+	 * @subcommand purge-originals
+	 *
+	 * @param array $args       Positionsargumente.
+	 * @param array $assoc_args Optionen.
+	 * @return void
+	 */
+	public function purge_originals( $args, $assoc_args ) {
+		$report = Report::load();
+		if ( null === $report ) {
+			WP_CLI::error( __( 'Es wurde noch nichts umgewandelt.', 'akuma-webp-umwandler' ) );
+		}
+		if ( Conversion::is_active( Conversion::current() ) ) {
+			WP_CLI::error( __( 'Es ist noch eine Umwandlung offen. Bitte erst fertig laufen lassen oder abbrechen.', 'akuma-webp-umwandler' ) );
+		}
+
+		$purgeable = $report->purgeable();
+		if ( 0 === $purgeable['count'] ) {
+			WP_CLI::error( __( 'Keine Originale zum Löschen.', 'akuma-webp-umwandler' ) );
+		}
+
+		/* translators: 1: Anzahl Bilder, 2: Speicher. */
+		WP_CLI::log( sprintf( __( 'Originale von %1$s Bildern, etwa %2$s.', 'akuma-webp-umwandler' ), Format::number( $purgeable['count'] ), Format::bytes( $purgeable['bytes'] ) ) );
+		if ( $purgeable['kept'] > 0 ) {
+			/* translators: %s: Anzahl Bilder. */
+			WP_CLI::log( sprintf( __( '%s Originale bleiben, weil ihre alte Adresse noch verwendet wird.', 'akuma-webp-umwandler' ), Format::number( $purgeable['kept'] ) ) );
+		}
+
+		if ( WP_CLI\Utils\get_flag_value( $assoc_args, 'dry-run', false ) ) {
+			WP_CLI::success( __( 'Probelauf. Es wurde nichts gelöscht.', 'akuma-webp-umwandler' ) );
+			return;
+		}
+
+		WP_CLI::confirm( __( 'Originale endgültig löschen? Danach ist kein Rückgängig mehr möglich.', 'akuma-webp-umwandler' ), $assoc_args );
+
+		$this->run_job( 'purge', $purgeable['rows'] );
+	}
+
+	/**
+	 * Führt einen Job bis zum Ende aus.
+	 *
+	 * @param string $type rollback oder purge.
+	 * @param int[]  $rows Log-Zeilen.
+	 * @return void
+	 */
+	private function run_job( $type, array $rows ) {
+		$job = Job::start( $type, $rows );
+		if ( is_wp_error( $job ) ) {
+			WP_CLI::error( $job->get_error_message() );
+		}
+
+		do {
+			$job = Job::step( 30 );
+			if ( is_wp_error( $job ) ) {
+				WP_CLI::error( $job->get_error_message() );
+			}
+			$progress = Job::progress( $job );
+			WP_CLI::log( sprintf( '%3d %%  %s', $progress['percent'], $progress['label'] ) );
+		} while ( ! $progress['finished'] );
+
+		foreach ( $job['errors'] as $attachment_id => $message ) {
+			WP_CLI::warning( sprintf( 'ID %d: %s', $attachment_id, $message ) );
+		}
+
+		if ( 'rollback' === $type && $job['purged'] ) {
+			WP_CLI::log( sprintf( 'Cache geleert:      %s', implode( ', ', $job['purged'] ) ) );
+		}
+
+		if ( $progress['failed'] > 0 ) {
+			/* translators: %s: Anzahl Bilder. */
+			WP_CLI::warning( sprintf( _n( '%s Bild ging nicht.', '%s Bilder gingen nicht.', $progress['failed'], 'akuma-webp-umwandler' ), Format::number( $progress['failed'] ) ) );
+		}
+
+		WP_CLI::success( Job::label( $job ) );
+	}
+
+	/**
 	 * Fordert Schritte an, bis der Lauf endet, und zeigt den Fortschritt je Paket.
 	 *
 	 * @return void

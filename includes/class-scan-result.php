@@ -81,14 +81,7 @@ final class Scan_Result {
 	 * @return string
 	 */
 	public function finished_label() {
-		$time = $this->finished();
-
-		if ( wp_date( 'Y-m-d', $time ) === wp_date( 'Y-m-d' ) ) {
-			/* translators: %s: Uhrzeit. */
-			return sprintf( __( 'heute, %s', 'akuma-webp-umwandler' ), wp_date( 'H:i', $time ) );
-		}
-
-		return wp_date( 'd.m.Y, H:i', $time );
+		return Format::time_label( $this->finished() );
 	}
 
 	/**

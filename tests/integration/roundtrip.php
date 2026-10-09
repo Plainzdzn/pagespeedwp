@@ -18,10 +18,9 @@ namespace Akuma\WebpUmwandler\Tests\Integration;
 
 use Akuma\WebpUmwandler\Attachment_Files;
 use Akuma\WebpUmwandler\Conversion;
+use Akuma\WebpUmwandler\Job;
 use Akuma\WebpUmwandler\Log_Table;
-use Akuma\WebpUmwandler\Rollback;
 use Akuma\WebpUmwandler\Scanner;
-use Akuma\WebpUmwandler\Url_Matcher;
 use WP_CLI;
 
 if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
@@ -76,8 +75,8 @@ function snapshot() {
 
 	// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Nur Test, IDs als int.
 	$posts = $wpdb->get_results( "SELECT ID, post_content, post_excerpt, post_mime_type, guid FROM {$wpdb->posts} WHERE ID IN ({$list}) ORDER BY ID", ARRAY_A );
-	// Elementor-Caches und den Migrationsstand legt Elementor selbst beim Aufruf der Seite an.
-	$meta = $wpdb->get_results( "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id IN ({$list}) AND meta_key NOT IN ('_elementor_css', '_elementor_element_cache', '_elementor_page_assets', '_edit_lock') AND meta_key NOT LIKE '\\_elementor\\_migrations\\_state%' ORDER BY post_id, meta_key, meta_id", ARRAY_A );
+	// Elementor-Caches und den Migrationsstand legt Elementor selbst beim Aufruf der Seite an, _encloseme und _pingme räumt WP-Cron weg.
+	$meta = $wpdb->get_results( "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id IN ({$list}) AND meta_key NOT IN ('_elementor_css', '_elementor_element_cache', '_elementor_page_assets', '_edit_lock', '_encloseme', '_pingme') AND meta_key NOT LIKE '\\_elementor\\_migrations\\_state%' ORDER BY post_id, meta_key, meta_id", ARRAY_A );
 	// phpcs:enable
 
 	$files = glob( Attachment_Files::basedir() . '2019/05/*' );
@@ -183,8 +182,12 @@ function main() {
 	}
 
 	WP_CLI::log( 'Rückgängig …' );
-	$result = Rollback::rollback_rows( $rows, new Url_Matcher( Attachment_Files::baseurl() ) );
-	check( empty( $result['errors'] ), 'Rückgängig ohne Fehler' );
+	// Über den Job wie in der Oberfläche: alle umgewandelten Bilder.
+	$job = Job::start( 'rollback', Job::targets( 'rollback' ) );
+	do {
+		$job = Job::step( 30 );
+	} while ( 'done' !== $job['status'] );
+	check( 0 === $job['failed'] && count( $rows ) === $job['done'], sprintf( 'Rückgängig ohne Fehler (%d Bilder)', $job['done'] ) );
 	wp_cache_flush();
 
 	$after = snapshot();

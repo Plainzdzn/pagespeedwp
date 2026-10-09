@@ -321,10 +321,119 @@
 			} );
 	}
 
+	/**
+	 * Arbeitet einen Job (Rückgängig, Originale löschen) Schritt für Schritt ab und lädt danach
+	 * die Seite mit dem Ergebnis neu.
+	 *
+	 * @param {string} type rollback oder purge.
+	 */
+	function jobLoop( type ) {
+		var root = document.querySelector( '[data-akwu-progress="job"]' );
+		var ui = progress( root );
+		var failures = 0;
+
+		ui.show();
+		root.scrollIntoView( { behavior: 'smooth', block: 'center' } );
+
+		function next() {
+			post( 'job/step' )
+				.then( function ( data ) {
+					failures = 0;
+					ui.set( data.percent, data.label );
+					if ( data.finished ) {
+						var url = new window.URL( window.location.href );
+						url.searchParams.delete( 'paged' );
+						url.searchParams.set( 'akwu_done', type );
+						window.location.href = url.toString();
+						return;
+					}
+					next();
+				} )
+				.catch( function ( exception ) {
+					var locked = exception.code === 'akwu_locked';
+					if (
+						! locked &&
+						exception.status &&
+						exception.status < 500
+					) {
+						ui.fail( exception.message );
+						return;
+					}
+					failures++;
+					ui.fail(
+						locked
+							? exception.message
+							: i18n.retry + ' (' + exception.message + ')'
+					);
+					window.setTimeout(
+						next,
+						Math.min( 30, locked ? 5 : 2 * failures ) * 1000
+					);
+				} );
+		}
+
+		next();
+	}
+
+	/**
+	 * Startet einen Job.
+	 *
+	 * @param {string} type    rollback oder purge.
+	 * @param {Object} payload ids oder confirm.
+	 * @return {Promise} Erfüllt nach dem Start.
+	 */
+	function startJob( type, payload ) {
+		var buttons = document.querySelectorAll(
+			'[data-akwu-job], [data-akwu-purge-open], [data-akwu-purge-form] button'
+		);
+
+		buttons.forEach( function ( element ) {
+			element.disabled = true;
+		} );
+
+		return post(
+			'job/start',
+			Object.assign( { type: type }, payload || {} )
+		)
+			.then( function () {
+				jobLoop( type );
+			} )
+			.catch( function ( exception ) {
+				buttons.forEach( function ( element ) {
+					element.disabled = false;
+				} );
+				throw exception;
+			} );
+	}
+
+	/**
+	 * Rückgängig für alle oder ein Bild.
+	 *
+	 * @param {HTMLElement} button Auslöser mit data-akwu-job.
+	 */
+	function startRollback( button ) {
+		var ids = button.getAttribute( 'data-akwu-ids' );
+		var question = button.getAttribute( 'data-akwu-confirm' );
+
+		if ( question && ! window.confirm( question ) ) { // eslint-disable-line no-alert
+			return;
+		}
+
+		startJob( 'rollback', {
+			ids: ids ? ids.split( ',' ).map( Number ) : [],
+		} ).catch( function ( exception ) {
+			window.alert( exception.message ); // eslint-disable-line no-alert
+		} );
+	}
+
 	document.addEventListener( 'click', function ( event ) {
 		var scan = event.target.closest( '[data-akwu-scan]' );
 		var convert = event.target.closest( '[data-akwu-convert]' );
 		var action = event.target.closest( '[data-akwu-run-action]' );
+		var job = event.target.closest( '[data-akwu-job]' );
+		var purgeOpen = event.target.closest( '[data-akwu-purge-open]' );
+		var purgeClose = event.target.closest( '[data-akwu-purge-close]' );
+		var form = document.querySelector( '[data-akwu-purge-form]' );
 
 		if ( scan ) {
 			event.preventDefault();
@@ -335,18 +444,56 @@
 		} else if ( action ) {
 			event.preventDefault();
 			runAction( action );
+		} else if ( job ) {
+			event.preventDefault();
+			startRollback( job );
+		} else if ( purgeOpen && form ) {
+			event.preventDefault();
+			form.hidden = false;
+			purgeOpen.hidden = true;
+			form.querySelector( '[data-akwu-purge-input]' ).focus();
+		} else if ( purgeClose && form ) {
+			event.preventDefault();
+			form.hidden = true;
+			document.querySelector( '[data-akwu-purge-open]' ).hidden = false;
 		}
 	} );
 
+	document.addEventListener( 'submit', function ( event ) {
+		var form = event.target.closest( '[data-akwu-purge-form]' );
+		if ( ! form ) {
+			return;
+		}
+		event.preventDefault();
+
+		var input = form.querySelector( '[data-akwu-purge-input]' );
+		var error = form.querySelector( '[data-akwu-purge-error]' );
+		var value = parseInt( input.value.replace( /\D/g, '' ), 10 );
+
+		error.hidden = true;
+		startJob( 'purge', { confirm: isNaN( value ) ? -1 : value } ).catch(
+			function ( exception ) {
+				error.textContent = exception.message;
+				error.hidden = false;
+				input.focus();
+			}
+		);
+	} );
+
 	/**
-	 * Setzt einen offenen Lauf auf der Umwandlungsseite automatisch fort.
+	 * Setzt einen offenen Lauf oder Job auf seiner Seite automatisch fort.
 	 */
 	function resumeOpenRun() {
 		var root = document.querySelector( '[data-akwu-run]' );
 		var status = root ? root.getAttribute( 'data-akwu-run-status' ) : '';
+		var job = document.querySelector(
+			'[data-akwu-progress="job"][data-akwu-job-status="running"]'
+		);
 
 		if ( status === 'running' || status === 'cancelling' ) {
 			runLoop( root );
+		} else if ( job ) {
+			jobLoop( job.getAttribute( 'data-akwu-job-type' ) );
 		}
 	}
 

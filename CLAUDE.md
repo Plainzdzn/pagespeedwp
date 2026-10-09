@@ -21,7 +21,7 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
 | Capability | `manage_options` |
 | WP-CLI | `wp akwu scan\|convert\|report\|rollback\|purge-originals` |
 
-## Architektur (Stand M3)
+## Architektur (Stand M4)
 
 - `akuma-webp-umwandler.php` – Bootstrap, Konstanten (`AKWU_VERSION`, `AKWU_DIR`, `AKWU_URL`), eigener Autoloader (keine Composer-Laufzeitabhängigkeit).
 - `includes/` – Kernklassen:
@@ -30,12 +30,12 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
   - Eingänge: `Admin` (Menü, sieben Seiten, Assets), `Rest_Controller` (`akwu/v1`), `Cli` (`wp akwu …`). Admin-UI und WP-CLI rufen **dieselben** Kernklassen auf, keine Logik in Controllern.
   - `System_Check`, `Conflict_Detector`, `Format` (deutsche Zahlen), `View`, `Icons`, `Plugin`.
   - Umwandlung: `Conversion` (Lauf in Option `akwu_run`, Phasen convert → finalize → verify → done, ADR-020/021), `Converter` (ein Anhang, gleiche ID, ADR-018), `Url_Map` (alte → neue Pfade je Größenname), `Replacer` (Verweise in Posts, Postmeta, Termmeta, Optionen), `Value_Replacer` (Text, serialisiert, JSON, ADR-019), `Cache_Purger`, `Rollback`, `Log_Table` (`{prefix}akwu_log`), `Run_Presenter` (Texte und HTML für Seite, REST und Admin-Leiste).
-  - Geplant: `Report`.
+  - Nach der Umwandlung: `Report` (Bericht über alle Läufe, CSV, ADR-022), `Job` (Rückgängig und Originale löschen in Schritten, Option `akwu_job`, ADR-023), `Originals` (alte Dateien löschen, auch beim Löschen eines Bilds, ADR-024).
 - `includes/views/` – Templates, eingebunden über `View::render( $name, $data )`. Im Template steht nur `$data` bereit. Variablen dort nicht wie WP-Globals benennen (`$page`, `$pages`, `$paged`, `$title`, `$status`, `$link`, `$totals`, `$per_page` …), PHPCS meldet das.
 - `assets/` – `admin.css` (Design-Tokens als CSS-Variablen unter `.akwu`), `admin.js` (Vanilla JS, REST mit Nonce), `fonts/` (Outfit 500, Inter 400/500/600, WOFF2, OFL).
 - `uninstall.php` – löscht nur `akwu_*`-Optionen, Transients und die Log-Tabelle, nie Bilder.
 - `design/` – Referenz-Mockups, siehe `design/README.md`.
-- `tests/unit/` – PHPUnit ohne WordPress, `tests/seed/seed.php` – Testdaten, `tests/integration/roundtrip.php` – Rundlauf in der Testinstallation.
+- `tests/unit/` – PHPUnit ohne WordPress, `tests/seed/seed.php` – Testdaten, `tests/integration/` – Rundlauf und Originale löschen in der Testinstallation.
 - `bin/setup-env.sh` – Testinstallation in der Cloud-Sitzung, `bin/screenshots.cjs` – Screenshots aller Seiten und Mockups, `bin/build-zip.sh` – installierbare ZIP.
 
 ## Harte Regeln
@@ -68,6 +68,7 @@ bin/build-zip.sh                 # ZIP aus dem letzten Commit nach dist/
 
 bin/setup-env.sh --serve         # MariaDB, WordPress de_DE, Elementor, Testdaten; Server auf http://localhost:8080 (admin/admin)
 php ~/akwu-env/wp-cli.phar --path=$HOME/akwu-env/wordpress --allow-root eval-file tests/integration/roundtrip.php   # Umwandeln und Rückgängig, Vergleich Byte für Byte (legt Seed neu an)
+php ~/akwu-env/wp-cli.phar --path=$HOME/akwu-env/wordpress --allow-root eval-file tests/integration/purge.php       # Originale löschen (legt Seed neu an)
 NODE_PATH="$(npm root -g)" node bin/screenshots.cjs <ordner>   # Screenshots aller Plugin-Seiten und Mockups
 php ~/akwu-env/wp-cli.phar --path=$HOME/akwu-env/wordpress --allow-root <befehl>   # WP-CLI in der Testinstallation, z. B. akwu scan
 ```

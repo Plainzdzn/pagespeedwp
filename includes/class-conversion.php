@@ -78,6 +78,10 @@ final class Conversion {
 			return new \WP_Error( 'akwu_active', __( 'Es läuft bereits eine Umwandlung. Bitte erst fortsetzen oder abbrechen.', 'akuma-webp-umwandler' ) );
 		}
 
+		if ( Job::is_active( Job::current() ) ) {
+			return new \WP_Error( 'akwu_job_active', __( 'Es läuft noch ein Rückgängig oder Löschen. Bitte kurz warten.', 'akuma-webp-umwandler' ) );
+		}
+
 		if ( null !== Lock::holder() ) {
 			return new \WP_Error( 'akwu_locked', __( 'Gerade läuft schon ein Scan oder eine Umwandlung. Bitte kurz warten.', 'akuma-webp-umwandler' ) );
 		}
@@ -391,8 +395,9 @@ final class Conversion {
 	 * @return void
 	 */
 	private static function step_verify( array &$run, $deadline ) {
+		// Alle umgewandelten Bilder, auch aus früheren Läufen (z. B. „Erst 10 testen“), damit der Bericht vollständig ist.
 		$index = array();
-		foreach ( Log_Table::rows( $run['id'], array( 'done' ) ) as $row ) {
+		foreach ( Log_Table::latest_by_attachment( array(), array( 'done' ) ) as $row ) {
 			foreach ( array_keys( $row['url_map'] ) as $old_path ) {
 				$index[ $old_path ] = (int) $row['attachment_id'];
 			}
@@ -438,6 +443,7 @@ final class Conversion {
 		}
 
 		if ( $run['verify']['source'] >= count( self::VERIFY_SOURCES ) ) {
+			Report::save_leftovers( $run['leftovers'] );
 			$run['phase']    = 'done';
 			$run['status']   = 'done';
 			$run['finished'] = time();
