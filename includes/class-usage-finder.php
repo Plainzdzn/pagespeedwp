@@ -173,16 +173,19 @@ final class Usage_Finder {
 		$like = '%' . $wpdb->esc_like( $this->matcher->like_needle() ) . '%';
 		$skip = "'" . implode( "','", array_map( 'esc_sql', self::SKIP_META ) ) . "'";
 
+		// Elementor-4-Atomic-Bilder stehen oft nur mit ID drin, ohne URL. Deshalb der zweite Vorfilter.
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $skip besteht aus Konstanten.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Scan in Paketen mit LIKE-Vorfilter.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT pm.meta_id, pm.post_id, pm.meta_key, pm.meta_value, p.post_type, p.post_title
 				FROM {$wpdb->postmeta} pm LEFT JOIN {$wpdb->posts} p ON p.ID = pm.post_id
-				WHERE pm.meta_id > %d AND pm.meta_key NOT IN ($skip) AND pm.meta_value LIKE %s
+				WHERE pm.meta_id > %d AND pm.meta_key NOT IN ($skip)
+				AND ( pm.meta_value LIKE %s OR ( pm.meta_key = '_elementor_data' AND pm.meta_value LIKE %s ) )
 				AND ( p.post_type IS NULL OR p.post_type <> 'revision' ) ORDER BY pm.meta_id ASC LIMIT %d",
 				$cursor,
 				$like,
+				'%' . $wpdb->esc_like( 'image-attachment-id' ) . '%',
 				$limit
 			)
 		);
@@ -466,16 +469,17 @@ final class Usage_Finder {
 	}
 
 	/**
-	 * Dateien des aktiven Themes (und Eltern-Themes). Nur Warnungen.
+	 * Durchsuchbare Dateien des aktiven Themes (und Eltern-Themes), sortiert.
+	 *
+	 * Nur das Auflisten, ohne Lesen. Ordner node_modules, vendor und .git werden übersprungen,
+	 * ebenso Dateien über 2 MB.
 	 *
 	 * @param int $max_files Höchstzahl Dateien.
-	 * @return array[]
+	 * @return string[] Absolute Pfade.
 	 */
-	public function scan_theme_files( $max_files = 3000 ) {
-		$hits  = array();
+	public static function theme_files( $max_files = 3000 ) {
+		$files = array();
 		$dirs  = array_unique( array( get_stylesheet_directory(), get_template_directory() ) );
-		$root  = trailingslashit( wp_normalize_path( get_theme_root() ) );
-		$count = 0;
 
 		foreach ( $dirs as $dir ) {
 			if ( ! is_dir( $dir ) ) {
@@ -492,20 +496,36 @@ final class Usage_Finder {
 			);
 
 			foreach ( $iterator as $file ) {
-				if ( $count >= $max_files ) {
+				if ( count( $files ) >= $max_files ) {
 					break 2;
 				}
-				if ( ! $file->isFile() || $file->getSize() > 2 * MB_IN_BYTES || ! in_array( strtolower( $file->getExtension() ), self::THEME_EXTENSIONS, true ) ) {
-					continue;
+				if ( $file->isFile() && $file->getSize() <= 2 * MB_IN_BYTES && in_array( strtolower( $file->getExtension() ), self::THEME_EXTENSIONS, true ) ) {
+					$files[] = wp_normalize_path( $file->getPathname() );
 				}
-				++$count;
+			}
+		}
 
-				$text     = file_get_contents( $file->getPathname() ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Lokale Theme-Datei, nur lesen.
-				$relative = str_replace( $root, '', wp_normalize_path( $file->getPathname() ) );
+		sort( $files );
 
-				foreach ( $this->matcher->find( (string) $text ) as $path => $matches ) {
-					$this->add_path_hit( $hits, $path, $matches, 'file', 0, $relative, $relative, '', 'theme_file' );
-				}
+		return $files;
+	}
+
+	/**
+	 * Durchsucht Theme-Dateien. Nur Warnungen.
+	 *
+	 * @param string[] $files Absolute Pfade aus theme_files().
+	 * @return array[]
+	 */
+	public function scan_theme_files( array $files ) {
+		$hits = array();
+		$root = trailingslashit( wp_normalize_path( get_theme_root() ) );
+
+		foreach ( $files as $path ) {
+			$text     = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Lokale Theme-Datei, nur lesen.
+			$relative = str_replace( $root, '', $path );
+
+			foreach ( $this->matcher->find( (string) $text ) as $found => $matches ) {
+				$this->add_path_hit( $hits, $found, $matches, 'file', 0, $relative, $relative, '', 'theme_file' );
 			}
 		}
 

@@ -11,7 +11,8 @@
  * - Bilder per GD: PNG mit und ohne Transparenz, große JPG, ein Bild über 2560 px (ergibt -scaled),
  *   Namenskollision bild.png + bild.jpg, eine bereits stark komprimierte JPG, ein GIF und ein WebP.
  * - Elementor-Seite: Image-Widget, Section- und Container-Hintergrundbild, Galerie,
- *   Bild im Text-Editor und eine Bild-URL im Custom CSS der Seiteneinstellungen.
+ *   Bild im Text-Editor, Elementor-4-Atomic-Bild (nur ID) und eine Bild-URL im Custom CSS
+ *   der Seiteneinstellungen.
  * - Beitrag mit Bildblock und Postmeta (URL und serialisiertes Array).
  * - Theme-Mod mit Bild-URL, Hintergrundbild im Elementor-Kit, Bild-URL im Customizer-CSS.
  *
@@ -366,6 +367,31 @@ function create_elementor_page( array $ids, array $urls ) {
 					'widgetType' => 'image',
 					'isInner'    => false,
 					'settings'   => array( 'image' => $image_setting( 'optimiert' ) ),
+					'elements'   => array(),
+				),
+				// Elementor-4-Atomic-Bild: nur die ID, keine URL.
+				array(
+					'id'         => 'a5e0008',
+					'elType'     => 'widget',
+					'widgetType' => 'e-image',
+					'isInner'    => false,
+					'settings'   => array(
+						'image' => array(
+							'$$type' => 'image',
+							'value'  => array(
+								'src' => array(
+									'$$type' => 'image-src',
+									'value'  => array(
+										'id'  => array(
+											'$$type' => 'image-attachment-id',
+											'value'  => $ids['webp'],
+										),
+										'url' => null,
+									),
+								),
+							),
+						),
+					),
 					'elements'   => array(),
 				),
 			),

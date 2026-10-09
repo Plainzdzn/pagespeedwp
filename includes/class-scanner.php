@@ -47,6 +47,11 @@ final class Scanner {
 	);
 
 	/**
+	 * Theme-Dateien pro Runde.
+	 */
+	const THEME_BATCH = 200;
+
+	/**
 	 * Gespeicherte Fundstellen je Bild (die Gesamtzahl wird immer gezählt).
 	 */
 	const MAX_PLACES = 25;
@@ -179,6 +184,8 @@ final class Scanner {
 			$share = count( $state['items'] ) / $state['total'];
 		} elseif ( 'usage' === $phase ) {
 			$share = $state['source'] / count( Usage_Finder::SOURCES );
+		} elseif ( 'theme' === $phase && ! empty( $state['theme'] ) ) {
+			$share = $state['cursor'] / $state['theme'];
 		} elseif ( 'estimate' === $phase ) {
 			$planned = count( $state['samples'] ) + count( $state['queue'] );
 			$share   = $planned > 0 ? count( $state['samples'] ) / $planned : 1;
@@ -265,7 +272,8 @@ final class Scanner {
 			++$state['source'];
 			$state['cursor'] = 0;
 			if ( $state['source'] >= count( Usage_Finder::SOURCES ) ) {
-				$state['phase'] = 'theme';
+				$state['phase']  = 'theme';
+				$state['cursor'] = 0;
 			}
 		}
 	}
@@ -277,10 +285,18 @@ final class Scanner {
 	 * @return void
 	 */
 	private static function step_theme( array &$state ) {
-		self::merge_hits( $state, self::finder( $state )->scan_theme_files() );
+		$files = Usage_Finder::theme_files();
+		$chunk = array_slice( $files, $state['cursor'], self::THEME_BATCH );
 
-		$state['phase'] = 'estimate';
-		$state['queue'] = Estimator::pick_samples( $state['items'], self::SAMPLES );
+		self::merge_hits( $state, self::finder( $state )->scan_theme_files( $chunk ) );
+		$state['cursor'] += count( $chunk );
+		$state['theme']   = count( $files );
+
+		if ( $state['cursor'] >= count( $files ) ) {
+			$state['phase']  = 'estimate';
+			$state['cursor'] = 0;
+			$state['queue']  = Estimator::pick_samples( $state['items'], self::SAMPLES );
+		}
 	}
 
 	/**
@@ -382,7 +398,7 @@ final class Scanner {
 
 					++$totals['convertible'][ $kind ];
 					$totals['source'] += $item['bytes'];
-					if ( 0 === $item['uses'] ) {
+					if ( 0 === $item['uses'] && empty( $item['warnings'] ) ) {
 						++$totals['unused'];
 					}
 				}

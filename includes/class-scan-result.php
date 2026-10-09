@@ -234,7 +234,8 @@ final class Scan_Result {
 			case 'check':
 				return ! empty( $item['warnings'] ) || 'missing' === $item['status'] || ! empty( $item['unknown'] ) || ! empty( $item['missing'] );
 			case 'unused':
-				return 0 === (int) $item['uses'] && isset( Inventory::CONVERTIBLE[ $item['mime'] ] );
+				// Bilder, die nur in CSS, Snippets oder Theme-Dateien vorkommen, gelten als gefunden.
+				return 0 === (int) $item['uses'] && empty( $item['warnings'] ) && isset( Inventory::CONVERTIBLE[ $item['mime'] ] );
 			default:
 				return true;
 		}
@@ -267,6 +268,10 @@ final class Scan_Result {
 
 		if ( ! empty( $item['places'] ) ) {
 			return $item['places'][0]['label'];
+		}
+
+		if ( ! empty( $item['warnings'] ) ) {
+			return $item['warnings'][0]['label'];
 		}
 
 		return __( 'Nicht gefunden', 'akuma-webp-umwandler' );
