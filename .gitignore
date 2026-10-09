@@ -1,0 +1,19 @@
+# Abhängigkeiten (nur Dev)
+/vendor/
+/node_modules/
+
+# Lokale Testumgebung
+/.wp-env.override.json
+/build/
+*.zip
+
+# Tool-Caches
+.phpunit.result.cache
+.phpunit.cache/
+.phpcs-cache
+
+# Editor und System
+/.idea/
+/.vscode/
+.DS_Store
+Thumbs.db
