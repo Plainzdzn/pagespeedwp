@@ -7,7 +7,10 @@
  * @var array $data {
  *     @type array        $pages        Seiten aus Admin::pages().
  *     @type string       $current      Slug der aktuellen Seite.
- *     @type System_Check $system_check Systemprüfung.
+ *     @type System_Check $system_check   Systemprüfung.
+ *     @type array|null   $run            Aktueller oder letzter Lauf.
+ *     @type array[]      $notices        Hinweise.
+ *     @type array[]      $header_actions Knöpfe in der Kopfzeile.
  * }
  */
 
@@ -36,6 +39,20 @@ $groups    = array(
 				<p class="akwu-brand__by"><?php esc_html_e( 'von Akuma Digital', 'akuma-webp-umwandler' ); ?></p>
 			</div>
 		</div>
+		<?php if ( ! empty( $data['header_actions'] ) ) : ?>
+			<div class="akwu-header__actions">
+				<?php foreach ( $data['header_actions'] as $header_action ) : ?>
+					<button type="button" class="akwu-header-button<?php echo 'danger' === $header_action['style'] ? ' akwu-header-button--danger' : ''; ?>" data-akwu-run-action="<?php echo esc_attr( $header_action['action'] ); ?>">
+						<?php
+						if ( '' !== $header_action['icon'] ) {
+							Icons::render( $header_action['icon'], 15, '1.8' );
+						}
+						echo esc_html( $header_action['label'] );
+						?>
+					</button>
+				<?php endforeach; ?>
+			</div>
+		<?php endif; ?>
 	</header>
 
 	<hr class="wp-header-end">
@@ -48,6 +65,9 @@ $groups    = array(
 			</p>
 			<?php if ( isset( $notice['action'] ) && 'rescan' === $notice['action'] ) : ?>
 				<button type="button" class="akwu-link akwu-notice__action" data-akwu-scan data-akwu-restart="1"><?php esc_html_e( 'Erneut scannen', 'akuma-webp-umwandler' ); ?></button>
+			<?php endif; ?>
+			<?php if ( isset( $notice['link'] ) ) : ?>
+				<a class="akwu-link akwu-notice__action" href="<?php echo esc_url( $notice['link']['url'] ); ?>"><?php echo esc_html( $notice['link']['label'] ); ?></a>
 			<?php endif; ?>
 		</div>
 	<?php endforeach; ?>

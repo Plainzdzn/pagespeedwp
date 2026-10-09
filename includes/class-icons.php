@@ -27,6 +27,8 @@ final class Icons {
 		'shield'  => '<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"></path><path d="M9 12l2 2 4-4"></path>',
 		'undo'    => '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path>',
 		'arrow'   => '<path d="M7 17L17 7"></path><path d="M8 7h9v9"></path>',
+		'pause'   => '<path d="M9 5v14"></path><path d="M15 5v14"></path>',
+		'play'    => '<path d="M8 5l11 7-11 7z"></path>',
 	);
 
 	/**

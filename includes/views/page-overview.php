@@ -10,6 +10,7 @@
  */
 
 use Akuma\WebpUmwandler\Admin;
+use Akuma\WebpUmwandler\Conversion;
 use Akuma\WebpUmwandler\Format;
 use Akuma\WebpUmwandler\Icons;
 use Akuma\WebpUmwandler\Scan_Result;
@@ -24,6 +25,7 @@ $result      = $data['scan'];
 $state       = $data['scan_state'];
 $running     = ( null !== $state && 'running' === $state['status'] );
 $scan_totals = null === $result ? null : $result->totals();
+$open_count  = null === $result ? 0 : count( $result->open_items() );
 $webp        = $check->result( 'webp' );
 $disk        = $check->result( 'disk' );
 
@@ -293,32 +295,60 @@ if ( null !== $scan_totals && $scan_totals['bytes'] > 0 ) :
 				<span class="akwu-button__medal"><?php Icons::render( 'arrow', 17, '1.8' ); ?></span>
 			</button>
 		</div>
+	<?php elseif ( 0 === $open_count && ! Conversion::is_active( $data['run'] ) ) : ?>
+		<div class="akwu-cta__text">
+			<h2 class="akwu-cta__title"><?php esc_html_e( 'Nichts mehr umzuwandeln', 'akuma-webp-umwandler' ); ?></h2>
+			<p><?php esc_html_e( 'Alle bereiten Bilder sind jetzt WebP. Neu hochgeladene Bilder erfasst ein neuer Scan.', 'akuma-webp-umwandler' ); ?></p>
+		</div>
+		<div class="akwu-cta__actions">
+			<a class="akwu-button" href="<?php echo esc_url( Admin::page_url( 'akwu-bericht' ) ); ?>">
+				<?php esc_html_e( 'Zum Bericht', 'akuma-webp-umwandler' ); ?>
+				<span class="akwu-button__medal"><?php Icons::render( 'arrow', 17, '1.8' ); ?></span>
+			</a>
+		</div>
 	<?php else : ?>
 		<div class="akwu-cta__text">
 			<h2 class="akwu-cta__title">
 				<?php
 				/* translators: %s: Anzahl Bilder. */
-				echo esc_html( sprintf( _n( '%s Bild umwandeln', '%s Bilder umwandeln', $scan_totals['ready'], 'akuma-webp-umwandler' ), Format::number( $scan_totals['ready'] ) ) );
+				echo esc_html( sprintf( _n( '%s Bild umwandeln', '%s Bilder umwandeln', $open_count, 'akuma-webp-umwandler' ), Format::number( $open_count ) ) );
 				?>
 			</h2>
 			<p>
 				<?php
+				$batch_size = (int) Settings::get( 'batch_size' );
 				/* translators: %s: Paketgröße. */
-				echo esc_html( sprintf( __( 'In Paketen zu %s Bildern. Verweise in Seiten und Elementor werden mitgezogen, danach CSS und Cache erneuert.', 'akuma-webp-umwandler' ), Format::number( Settings::get( 'batch_size' ) ) ) );
+				echo esc_html( sprintf( _n( 'In Paketen zu %s Bild. Verweise in Seiten und Elementor werden mitgezogen, danach CSS und Cache erneuert.', 'In Paketen zu %s Bildern. Verweise in Seiten und Elementor werden mitgezogen, danach CSS und Cache erneuert.', $batch_size, 'akuma-webp-umwandler' ), Format::number( $batch_size ) ) );
 				?>
 			</p>
 		</div>
 		<div class="akwu-cta__actions">
-			<span class="akwu-small">
-				<?php
-				/* translators: %s: Meilenstein, z. B. „M3“. */
-				echo esc_html( sprintf( __( 'Folgt mit %s', 'akuma-webp-umwandler' ), 'M3' ) );
-				?>
-			</span>
-			<button type="button" class="akwu-button" disabled>
-				<?php esc_html_e( 'Umwandlung starten', 'akuma-webp-umwandler' ); ?>
-				<span class="akwu-button__medal"><?php Icons::render( 'arrow', 17, '1.8' ); ?></span>
-			</button>
+			<?php if ( Conversion::is_active( $data['run'] ) ) : ?>
+				<a class="akwu-button" href="<?php echo esc_url( Admin::page_url( 'akwu-umwandlung' ) ); ?>">
+					<?php esc_html_e( 'Zur laufenden Umwandlung', 'akuma-webp-umwandler' ); ?>
+					<span class="akwu-button__medal"><?php Icons::render( 'arrow', 17, '1.8' ); ?></span>
+				</a>
+			<?php elseif ( ! $check->can_start() ) : ?>
+				<a class="akwu-link" href="<?php echo esc_url( Admin::page_url( 'akwu-systempruefung' ) ); ?>"><?php esc_html_e( 'Systemprüfung meldet ein Problem', 'akuma-webp-umwandler' ); ?></a>
+				<button type="button" class="akwu-button" disabled>
+					<?php esc_html_e( 'Umwandlung starten', 'akuma-webp-umwandler' ); ?>
+					<span class="akwu-button__medal"><?php Icons::render( 'arrow', 17, '1.8' ); ?></span>
+				</button>
+			<?php else : ?>
+				<?php if ( $open_count > Conversion::TEST_SIZE ) : ?>
+					<button type="button" class="akwu-link" data-akwu-convert="test">
+						<?php
+						/* translators: %s: Anzahl Bilder im Testlauf. */
+						echo esc_html( sprintf( __( 'Erst %s testen', 'akuma-webp-umwandler' ), Format::number( Conversion::TEST_SIZE ) ) );
+						?>
+					</button>
+				<?php endif; ?>
+				<button type="button" class="akwu-button" data-akwu-convert="all">
+					<?php esc_html_e( 'Umwandlung starten', 'akuma-webp-umwandler' ); ?>
+					<span class="akwu-button__medal"><?php Icons::render( 'arrow', 17, '1.8' ); ?></span>
+				</button>
+			<?php endif; ?>
 		</div>
+		<p class="akwu-cta__error akwu-progress__error" data-akwu-convert-error role="alert" hidden></p>
 	<?php endif; ?>
 </div>

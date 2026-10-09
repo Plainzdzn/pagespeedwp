@@ -14,6 +14,41 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
+## 2026-10-09 20:10 – M3 Umwandlung (Claude Code)
+
+**Stand:** M3 – fertig (Version 0.3.0). M4 folgt direkt.
+
+**Erledigt:**
+- M2 gemergt ([Plainzdzn/pagespeedwp#2](https://github.com/Plainzdzn/pagespeedwp/pull/2)).
+- **Umwandlung** (`Conversion`, in Paketen per REST oder `wp akwu convert`):
+  - Je Bild (`Converter`): Zustand in `akwu_log` sichern, WebP erzeugen, bei zu wenig Ersparnis überspringen, Anhang mit derselben ID umstellen, alle Größen neu erzeugen, `Url_Map` alt → neu je Größenname. Namenskollision `bild.png` + `bild.jpg` ergibt `bild.webp` und `bild-1.webp`.
+  - Verweise je Paket (`Replacer`, `Value_Replacer`): Beiträge (Inhalt, Auszug), Postmeta, Termmeta, Optionen. Serialisiert ohne unserialize, `_elementor_data` als JSON. Nie `guid`, nie `custom_css`, nie Customizer-CSS, Snippets oder Theme-Dateien.
+  - Abschluss: Elementor-CSS und Caches (`Cache_Purger`), dann Gegenprobe nach alten Adressen.
+  - Pausieren, Fortsetzen, „Abbrechen und zurücksetzen“ (nimmt alle Bilder des Laufs zurück). Abgebrochene Requests werden beim nächsten Paket aufgeräumt, ein Bild, das zweimal abbricht, wird übersprungen.
+- **Oberfläche:** Umwandlungsseite wie im Mockup (Fortschritt, Kacheln mit „Bild-IDs verändert“, Ablauf, Live-Protokoll), nach dem Lauf „Erneuert“ und „Gegenprobe“. Knöpfe in der Kopfzeile, Fortschritt in der Admin-Leiste, Hinweis auf allen Plugin-Seiten, solange ein Lauf offen ist. Auf der Übersicht „Erst 10 testen“ (die 10 meistgenutzten Bilder) und „Umwandlung starten“, beides nur mit Backup-Häkchen und bestandener Systemprüfung.
+- **WP-CLI:** `wp akwu convert [--dry-run] [--limit=<n>] [--ids=<ids>] [--test] [--resume] [--yes]`.
+
+**Entscheidungen:** ADR-018 bis ADR-021, im Briefing unter „Änderungen“ vermerkt:
+- MIME-Typ direkt per `$wpdb` statt `wp_update_post()` (keine fremden Hooks, kein kses).
+- Serialisierte Werte per Tokenizer statt `maybe_unserialize()`.
+- Zusätzliche Status `working`, `converted`, `cancelled` für die Fortsetzbarkeit.
+- Verweise je Paket statt am Ende, damit die Seite auch bei Abbruch nie auf fehlende Dateien zeigt.
+
+**TODO (nicht verifiziert):** Raidboxes-Server-Cache ohne FastPixel. Dafür gibt es keine dokumentierte Schnittstelle. Das Plugin zeigt auf Raidboxes ohne FastPixel einen Hinweis, den Cache im Dashboard zu leeren (Erkennung: Hostname `box-…` und Ordner `rb-plugins`). FastPixel leert den Raidboxes-Cache laut eigener Doku mit.
+
+**Offen / Nächster Schritt:** M4 – Bericht mit CSV, Rückgängig (alles oder je Bild), Originale löschen, `wp akwu report|rollback|purge-originals`.
+
+**Fragen an Felix:** keine.
+
+**Getestet** (Cloud-Sitzung, WordPress 7.1.3, Elementor 4.3.4, GD):
+- PHPCS sauber, PHPUnit 59 Tests grün (neu: `Url_Map`, `Value_Replacer` mit serialisierten, verschachtelten und JSON-Werten).
+- `tests/integration/roundtrip.php`: Seed, Scan, alle 6 Bilder umwandeln, prüfen (IDs gleich, WebP-Dateien da, `_elementor_data` gültig und ersetzt, Custom CSS und Customizer-CSS unverändert, Theme-Mod ersetzt, Gegenprobe ohne unerwartete Reste, alle Bilder der Testseite abrufbar), dann alles zurück: Beiträge, Postmeta, Theme-Mods, Customizer-CSS und Upload-Ordner Byte für Byte wie vorher. Bestanden.
+- Im Browser (Playwright, Paketgröße 1): Start ohne Backup-Häkchen wird abgelehnt, Start, Pausieren nach dem ersten Paket, Hinweis auf anderen Seiten, Fortsetzen, Abbrechen (3 Bilder zurückgesetzt, 3 nie begonnen), neuer Lauf bis „Fertig“, Admin-Leiste zeigt den Fortschritt. Keine Konsolenfehler.
+- `wp akwu convert --dry-run`, `--test --yes`, `--ids` mit ungültigen IDs, `--resume` ohne offenen Lauf.
+- Screenshots: `docs/screenshots/m3/`.
+
+---
+
 ## 2026-10-09 19:36 – M2 Scan (Claude Code)
 
 **Stand:** M2 – fertig (Version 0.2.0). M3 folgt direkt.

@@ -164,6 +164,48 @@ final class Scan_Result {
 	}
 
 	/**
+	 * Bereite Bilder, die jetzt noch JPG oder PNG sind. Umgewandelte fallen heraus, auch ohne neuen Scan.
+	 *
+	 * @param string $sort bytes, name, id oder uses (meistgenutzte zuerst).
+	 * @return array[] Einträge wie items().
+	 */
+	public function open_items( $sort = 'id' ) {
+		global $wpdb;
+
+		$items = $this->items( 'ready', 'uses' === $sort ? 'id' : $sort );
+		$open  = array();
+
+		$mimes = "'" . implode( "','", array_map( 'esc_sql', array_keys( Inventory::CONVERTIBLE ) ) ) . "'";
+		foreach ( array_chunk( wp_list_pluck( $items, 'id' ), 500 ) as $chunk ) {
+			$list = implode( ',', array_map( 'intval', $chunk ) );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- IDs als int, MIME-Typen maskiert.
+			foreach ( (array) $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type IN ({$mimes}) AND ID IN ({$list})" ) as $attachment_id ) {
+				$open[ (int) $attachment_id ] = true;
+			}
+		}
+
+		$items = array_values(
+			array_filter(
+				$items,
+				static function ( $item ) use ( $open ) {
+					return isset( $open[ (int) $item['id'] ] );
+				}
+			)
+		);
+
+		if ( 'uses' === $sort ) {
+			usort(
+				$items,
+				static function ( $a, $b ) {
+					return array( $b['uses'], $b['bytes'] ) <=> array( $a['uses'], $a['bytes'] );
+				}
+			);
+		}
+
+		return $items;
+	}
+
+	/**
 	 * Anzahl je Filter.
 	 *
 	 * @return array<string, int>
