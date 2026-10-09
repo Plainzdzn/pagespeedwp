@@ -15,6 +15,9 @@ defined( 'ABSPATH' ) || exit;
  * Die Ziele (Log-Zeilen) stehen beim Start fest, der Stand liegt in der Option `akwu_job`.
  * Jeder Schritt arbeitet ein Stück ab. Bricht ein Request ab, macht der nächste dort weiter:
  * Zeilen, die schon zurückgesetzt oder gelöscht sind, werden dabei erkannt und übersprungen.
+ *
+ * Vor dem Löschen läuft immer eine frische Gegenprobe. Wurde eine alte Adresse seit der
+ * Umwandlung wieder eingefügt, bleibt das Original dieses Bilds.
  */
 final class Job {
 
@@ -74,6 +77,9 @@ final class Job {
 		$job = array(
 			'type'         => 'purge' === $type ? 'purge' : 'rollback',
 			'status'       => 'running',
+			'phase'        => 'purge' === $type ? 'verify' : 'work',
+			'verify'       => Verifier::start(),
+			'kept'         => 0,
 			'targets'      => array_values( array_map( 'intval', $row_ids ) ),
 			'cursor'       => 0,
 			'done'         => 0,
@@ -162,9 +168,14 @@ final class Job {
 
 			$deadline = microtime( true ) + (float) $budget;
 			$batch    = max( 1, (int) Settings::get( 'batch_size' ) );
-			$total    = count( $job['targets'] );
 
-			while ( $job['cursor'] < $total && microtime( true ) < $deadline ) {
+			if ( 'verify' === $job['phase'] ) {
+				self::verify( $job, $deadline );
+			}
+
+			$total = count( $job['targets'] );
+
+			while ( 'work' === $job['phase'] && $job['cursor'] < $total && microtime( true ) < $deadline ) {
 				$ids  = array_slice( $job['targets'], $job['cursor'], 'purge' === $job['type'] ? $batch * 5 : $batch );
 				$rows = Log_Table::by_ids( $ids );
 
@@ -178,7 +189,7 @@ final class Job {
 				self::save( $job );
 			}
 
-			if ( $job['cursor'] >= $total ) {
+			if ( 'work' === $job['phase'] && $job['cursor'] >= $total ) {
 				if ( 'rollback' === $job['type'] ) {
 					Cache_Purger::elementor();
 					$job['purged'] = Cache_Purger::purge_all();
@@ -195,6 +206,38 @@ final class Job {
 	}
 
 	/**
+	 * Gegenprobe vor dem Löschen. Danach fallen alle Ziele heraus, deren alte Adresse noch steht.
+	 *
+	 * @param array $job      Job.
+	 * @param float $deadline Zeitlimit.
+	 * @return void
+	 */
+	private static function verify( array &$job, $deadline ) {
+		Verifier::step( $job['verify'], $deadline );
+
+		if ( ! Verifier::finished( $job['verify'] ) ) {
+			self::save( $job );
+			return;
+		}
+
+		$keep = $job['verify']['ids'];
+		$rows = Log_Table::by_ids( $job['targets'] );
+
+		$job['targets'] = array_values(
+			array_filter(
+				$job['targets'],
+				static function ( $row_id ) use ( $rows, $keep ) {
+					return isset( $rows[ $row_id ] ) && ! isset( $keep[ (int) $rows[ $row_id ]['attachment_id'] ] );
+				}
+			)
+		);
+		$job['kept']    = count( $rows ) - count( $job['targets'] );
+		$job['phase']   = 'work';
+		$job['verify']  = array( 'source' => count( Verifier::SOURCES ) );
+		self::save( $job );
+	}
+
+	/**
 	 * Fortschritt für Oberfläche und WP-CLI.
 	 *
 	 * @param array $job Job.
@@ -203,12 +246,23 @@ final class Job {
 	public static function progress( array $job ) {
 		$total = count( $job['targets'] );
 
+		// Beim Löschen zählt die Gegenprobe zu den ersten 40 %.
+		if ( 'verify' === $job['phase'] ) {
+			$percent = (int) floor( 40 * Verifier::share( $job['verify'] ) );
+		} else {
+			$percent = $total > 0 ? (int) floor( 100 * min( $total, $job['cursor'] ) / $total ) : 100;
+			if ( 'purge' === $job['type'] ) {
+				$percent = 40 + (int) floor( 0.6 * $percent );
+			}
+		}
+
 		return array(
 			'type'     => $job['type'],
 			'status'   => $job['status'],
 			'total'    => $total,
 			'cursor'   => min( $total, (int) $job['cursor'] ),
-			'percent'  => $total > 0 ? (int) floor( 100 * min( $total, $job['cursor'] ) / $total ) : 100,
+			'percent'  => $percent,
+			'kept'     => (int) $job['kept'],
 			'done'     => (int) $job['done'],
 			'failed'   => (int) $job['failed'],
 			'bytes'    => (int) $job['bytes'],
@@ -229,10 +283,19 @@ final class Job {
 		if ( 'done' === $job['status'] ) {
 			if ( 'purge' === $job['type'] ) {
 				/* translators: 1: Anzahl Bilder, 2: freigegebener Speicher. */
-				return sprintf( _n( 'Originale von %1$s Bild gelöscht, %2$s frei.', 'Originale von %1$s Bildern gelöscht, %2$s frei.', $job['done'], 'akuma-webp-umwandler' ), Format::number( $job['done'] ), Format::bytes( $job['bytes'] ) );
+				$label = sprintf( _n( 'Originale von %1$s Bild gelöscht, %2$s frei.', 'Originale von %1$s Bildern gelöscht, %2$s frei.', $job['done'], 'akuma-webp-umwandler' ), Format::number( $job['done'] ), Format::bytes( $job['bytes'] ) );
+				if ( $job['kept'] > 0 ) {
+					/* translators: %s: Anzahl Bilder. */
+					$label .= ' ' . sprintf( _n( '%s Original bleibt, die Gegenprobe hat seine alte Adresse noch gefunden.', '%s Originale bleiben, die Gegenprobe hat ihre alte Adresse noch gefunden.', $job['kept'], 'akuma-webp-umwandler' ), Format::number( $job['kept'] ) );
+				}
+				return $label;
 			}
 			/* translators: %s: Anzahl Bilder. */
 			return sprintf( _n( '%s Bild zurückgesetzt.', '%s Bilder zurückgesetzt.', $job['done'], 'akuma-webp-umwandler' ), Format::number( $job['done'] ) );
+		}
+
+		if ( 'verify' === $job['phase'] ) {
+			return __( 'Gegenprobe vor dem Löschen: Wird eine alte Adresse noch verwendet?', 'akuma-webp-umwandler' );
 		}
 
 		return 'purge' === $job['type']

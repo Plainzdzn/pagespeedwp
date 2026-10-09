@@ -284,6 +284,19 @@ final class Log_Table {
 	}
 
 	/**
+	 * Löscht alle Zeilen eines Anhangs.
+	 *
+	 * @param int $attachment_id Anhang.
+	 * @return void
+	 */
+	public static function delete_attachment( $attachment_id ) {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Eigene Tabelle.
+		$wpdb->delete( self::name(), array( 'attachment_id' => (int) $attachment_id ), array( '%d' ) );
+	}
+
+	/**
 	 * Zeilen nach ID.
 	 *
 	 * @param int[] $ids Zeilen-IDs.

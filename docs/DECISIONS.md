@@ -97,7 +97,7 @@ Der Bericht (`Report`) nimmt je Anhang die letzte Zeile im Protokoll, ohne `pend
 
 ### ADR-023 – Rückgängig und Originale löschen als Job
 **Status:** angenommen · 2026-10-09
-Beides läuft als `Job` in Schritten per REST oder WP-CLI. Die Ziele (Log-Zeilen) stehen beim Start fest, der Stand liegt in der Option `akwu_job`. Bereits erledigte Zeilen werden nach einem Abbruch erkannt. Während eines Jobs startet keine Umwandlung und umgekehrt. Originale löschen verlangt das Eintippen der Anzahl (Briefing §4.7) und behält Originale, deren alte Adresse noch unter „Bitte prüfen“ steht. Gelöscht wird nur, was der Anhang nicht mehr nutzt und kein anderer Anhang als Datei führt. Elementor-Thumbs nur, wenn ihr Dateiname eindeutig einem Anhang gehört.
+Beides läuft als `Job` in Schritten per REST oder WP-CLI. Die Ziele (Log-Zeilen) stehen beim Start fest, der Stand liegt in der Option `akwu_job`. Bereits erledigte Zeilen werden nach einem Abbruch erkannt. Während eines Jobs startet keine Umwandlung und umgekehrt. Originale löschen verlangt das Eintippen der Anzahl (Briefing §4.7). Vor dem Löschen läuft eine frische Gegenprobe (`Verifier`, dieselbe wie am Ende der Umwandlung), und jedes Original, dessen alte Adresse noch irgendwo steht, bleibt. Die Menge dieser Bilder wird ungekappt gespeichert. Lässt sich eine Datei nicht löschen, wird das Bild nicht als bereinigt markiert. Gelöscht wird nur, was der Anhang nicht mehr nutzt und kein anderer Anhang als Datei führt. Elementor-Thumbs nur, wenn ihr Dateiname eindeutig einem Anhang gehört.
 
 ### ADR-024 – Gelöschte Bilder nehmen ihre Originale mit
 **Status:** angenommen · 2026-10-09

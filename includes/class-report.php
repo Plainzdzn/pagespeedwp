@@ -44,14 +44,23 @@ final class Report {
 	private $by_attachment = array();
 
 	/**
+	 * Alle Anhänge mit alter Adresse laut Gegenprobe, ungekappt.
+	 *
+	 * @var int[]
+	 */
+	private $referenced;
+
+	/**
 	 * Konstruktor.
 	 *
-	 * @param array<int, array> $rows      Letzte Zeile je Anhang.
-	 * @param array[]           $leftovers Restfundstellen.
+	 * @param array<int, array> $rows       Letzte Zeile je Anhang.
+	 * @param array[]           $leftovers  Restfundstellen (für die Anzeige gekappt).
+	 * @param int[]|null        $referenced Alle Anhänge mit Restfundstellen, null wenn unbekannt.
 	 */
-	public function __construct( array $rows, array $leftovers ) {
-		$this->rows      = $rows;
-		$this->leftovers = $leftovers;
+	public function __construct( array $rows, array $leftovers, $referenced = null ) {
+		$this->rows       = $rows;
+		$this->leftovers  = $leftovers;
+		$this->referenced = null === $referenced ? array_map( 'intval', wp_list_pluck( $leftovers, 'attachment' ) ) : array_map( 'intval', $referenced );
 
 		foreach ( $leftovers as $hit ) {
 			$this->by_attachment[ (int) $hit['attachment'] ][] = $hit;
@@ -75,17 +84,18 @@ final class Report {
 
 		$saved = get_option( self::LEFTOVERS_OPTION );
 		$hits  = ( is_array( $saved ) && isset( $saved['hits'] ) ) ? (array) $saved['hits'] : array();
+		$ids   = ( is_array( $saved ) && isset( $saved['ids'] ) ) ? (array) $saved['ids'] : null;
 
-		return new self( $rows, $hits );
+		return new self( $rows, $hits, $ids );
 	}
 
 	/**
-	 * Nur Anhänge, die es noch gibt. In der Mediathek gelöschte Bilder fallen aus dem Bericht.
+	 * Nur Anhänge, die es noch gibt. In der Mediathek gelöschte Bilder fallen aus Bericht und Gegenprobe.
 	 *
 	 * @param array<int, array> $rows Zeilen je Anhang.
 	 * @return array<int, array>
 	 */
-	private static function existing( array $rows ) {
+	public static function existing( array $rows ) {
 		global $wpdb;
 
 		$found = array();
@@ -103,15 +113,17 @@ final class Report {
 	/**
 	 * Speichert die Restfundstellen einer vollständigen Gegenprobe.
 	 *
-	 * @param array[] $hits Fundstellen.
+	 * @param array[] $hits Fundstellen für die Anzeige (gekappt).
+	 * @param int[]   $ids  Alle Anhänge mit Fundstellen (nicht gekappt).
 	 * @return void
 	 */
-	public static function save_leftovers( array $hits ) {
+	public static function save_leftovers( array $hits, array $ids ) {
 		update_option(
 			self::LEFTOVERS_OPTION,
 			array(
 				'time' => time(),
 				'hits' => array_values( $hits ),
+				'ids'  => array_values( array_map( 'intval', $ids ) ),
 			),
 			false
 		);
@@ -244,7 +256,14 @@ final class Report {
 	 * @return int[]
 	 */
 	public function referenced_ids() {
-		return array_values( array_unique( wp_list_pluck( $this->leftovers(), 'attachment' ) ) );
+		$ids = array();
+		foreach ( array_unique( $this->referenced ) as $attachment_id ) {
+			if ( isset( $this->rows[ $attachment_id ] ) && 'done' === $this->rows[ $attachment_id ]['status'] ) {
+				$ids[] = $attachment_id;
+			}
+		}
+
+		return $ids;
 	}
 
 	/**

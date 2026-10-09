@@ -30,7 +30,11 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
   - Bleiben: Originale, deren alte Adresse noch in CSS, Snippets oder Theme steht, und Dateien, die ein anderer Anhang führt.
   - Danach ist Rückgängig für diese Bilder gesperrt, mit Grund in der Liste.
 - **Rückgängig** als eigene Seite: alle Bilder auf einmal oder einzeln, mit Fortschritt. Läuft nach einer Unterbrechung beim Öffnen der Seite weiter.
-- **Bild löschen** in der Mediathek nimmt jetzt auch die alten Originale mit (ADR-024).
+- **Bild löschen** in der Mediathek nimmt jetzt auch die alten Originale mit (ADR-024). Seine Protokollzeilen werden dabei entfernt.
+- **Review (Codex) umgesetzt:**
+  - Vor dem Löschen der Originale läuft immer eine frische Gegenprobe (`Verifier`). Wurde eine alte Adresse nach der Umwandlung wieder eingefügt, bleibt das Original.
+  - Die Menge der noch verwendeten Bilder wird vollständig gespeichert, nur die Fundstellen für die Anzeige sind auf 500 gekappt.
+  - Lässt sich eine Datei nicht löschen, gilt das Bild nicht als bereinigt und kann erneut versucht werden.
 - **WP-CLI:** `wp akwu report [--format=summary|table|csv|json]`, `wp akwu rollback [--ids] [--dry-run] [--yes]`, `wp akwu purge-originals [--dry-run] [--yes]`.
 
 **Entscheidungen:** ADR-022 bis ADR-024. Ergänzung zum Briefing: Das Löschen eines Bilds nimmt die Originale mit. Ohne das blieben nach der Umwandlung verwaiste JPG/PNG auf dem Server.
@@ -46,6 +50,7 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
   - Originale von 4 Bildern gelöscht (auch `-scaled`-Quelle und die Größe aus dem alten Theme). `bild.png` und `bild.jpg` bleiben, weil sie in CSS stehen.
   - Alle WebP-Dateien sind noch da, alle Bilder der Testseiten abrufbar.
   - Rückgängig ist für gelöschte Originale gesperrt, für die behaltenen möglich.
+  - Eine nach der Umwandlung eingefügte alte Adresse findet die Gegenprobe vor dem Löschen, das Original bleibt.
 - Im Browser:
   - Bericht, CSV-Download (BOM geprüft).
   - Originale löschen mit falscher, dann richtiger Zahl.

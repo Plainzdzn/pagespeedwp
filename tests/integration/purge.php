@@ -8,6 +8,8 @@
  * Prüft:
  * - Gelöscht werden Original, -scaled-Quelle, alte Größen (auch die aus einem alten Theme).
  * - Originale, deren alte Adresse noch in CSS steht, bleiben samt Größen.
+ * - Wird eine alte Adresse nach der Umwandlung wieder eingefügt, findet die Gegenprobe vor dem
+ *   Löschen sie, und das Original bleibt.
  * - Die WebP-Dateien bleiben, alle Bilder der Testseiten sind abrufbar.
  * - Danach ist Rückgängig für die gelöschten Bilder gesperrt, der Bericht zählt sie.
  *
@@ -76,6 +78,17 @@ function main() {
 	$purgeable = $report->purgeable();
 	check( 2 === $purgeable['kept'], 'Zwei Originale bleiben (in Customizer-CSS und Elementor-CSS verwendet)' );
 
+	// Nach der Gegenprobe wird die alte Adresse des Logos wieder eingefügt, z. B. aus einer alten Vorlage kopiert.
+	$late = wp_insert_post(
+		array(
+			'post_type'    => 'page',
+			'post_status'  => 'publish',
+			'post_title'   => 'Später eingefügt',
+			'post_content' => '<img src="' . trailingslashit( Attachment_Files::baseurl() ) . '2019/05/logo-transparent.png" alt="">',
+		)
+	);
+	update_post_meta( $late, '_akwu_seed', 1 );
+
 	WP_CLI::log( 'Originale löschen …' );
 	check( is_wp_error( Job::targets( 'purge', array(), $purgeable['count'] + 1 ) ), 'Falsche Bestätigungszahl wird abgelehnt' );
 	$job = Job::start( 'purge', Job::targets( 'purge', array(), $purgeable['count'] ) );
@@ -83,13 +96,14 @@ function main() {
 		$job = Job::step( 30 );
 	} while ( 'done' !== $job['status'] );
 
-	check( 0 === $job['failed'] && $purgeable['count'] === $job['done'], sprintf( 'Originale von %d Bildern gelöscht', $job['done'] ) );
+	check( 0 === $job['failed'] && $purgeable['count'] - 1 === $job['done'], sprintf( 'Originale von %d Bildern gelöscht', $job['done'] ) );
+	check( 1 === $job['kept'], 'Gegenprobe vor dem Löschen hat die später eingefügte Adresse gefunden' );
 	check( $job['bytes'] > 0, 'Speicher freigegeben: ' . size_format( $job['bytes'] ) );
 
-	foreach ( array( 'praxis-empfang.jpg', 'praxis-empfang-640x427.jpg', 'praxis-empfang-300x200.jpg', 'panorama.jpg', 'panorama-scaled.jpg', 'team-header.png', 'logo-transparent.png' ) as $name ) {
+	foreach ( array( 'praxis-empfang.jpg', 'praxis-empfang-640x427.jpg', 'praxis-empfang-300x200.jpg', 'panorama.jpg', 'panorama-scaled.jpg', 'team-header.png' ) as $name ) {
 		check( ! is_file( $dir . $name ), 'gelöscht: ' . $name );
 	}
-	foreach ( array( 'bild.png', 'bild-300x200.png', 'bild.jpg', 'bild-300x200.jpg', 'bereits-optimiert.jpg', 'ohne-metadaten.png' ) as $name ) {
+	foreach ( array( 'logo-transparent.png', 'bild.png', 'bild-300x200.png', 'bild.jpg', 'bild-300x200.jpg', 'bereits-optimiert.jpg', 'ohne-metadaten.png' ) as $name ) {
 		check( is_file( $dir . $name ), 'bleibt: ' . $name );
 	}
 	foreach ( array( 'praxis-empfang.webp', 'praxis-empfang-640x427.webp', 'panorama-scaled.webp', 'panorama.webp', 'team-header.webp', 'bild.webp', 'bild-1.webp' ) as $name ) {
@@ -97,7 +111,8 @@ function main() {
 	}
 
 	$report = Report::load();
-	check( 4 === $report->totals()['purged'], 'Bericht zählt 4 Bilder ohne Original' );
+	check( 3 === $report->totals()['purged'], 'Bericht zählt 3 Bilder ohne Original' );
+	check( in_array( 'logo-transparent.png', wp_list_pluck( $report->leftovers(), 'file' ), true ), 'Bericht listet die später eingefügte Adresse unter „Bitte prüfen“' );
 	check(
 		is_wp_error(
 			Job::targets(
@@ -116,7 +131,7 @@ function main() {
 		),
 		'Rückgängig für gelöschte Originale gesperrt'
 	);
-	check( 2 === count( Job::targets( 'rollback' ) ), 'Rückgängig für die zwei behaltenen Originale möglich' );
+	check( 3 === count( Job::targets( 'rollback' ) ), 'Rückgängig für die drei behaltenen Originale möglich' );
 
 	$posts = get_posts(
 		array(

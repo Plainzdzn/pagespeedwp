@@ -42,6 +42,7 @@ final class Originals {
 		$files   = array_merge( $files, self::elementor_thumbs( $row ) );
 		$bytes   = 0;
 		$deleted = 0;
+		$failed  = array();
 
 		foreach ( array_unique( $files ) as $relative ) {
 			$path = Attachment_Files::path( $relative );
@@ -51,11 +52,27 @@ final class Originals {
 
 			$size = (int) filesize( $path );
 			wp_delete_file( $path );
+			clearstatcache( true, $path );
 
-			if ( ! is_file( $path ) ) {
+			if ( is_file( $path ) ) {
+				$failed[] = wp_basename( $relative );
+			} else {
 				$bytes += $size;
 				++$deleted;
 			}
+		}
+
+		// Nicht als gelöscht markieren, solange Dateien übrig sind. So lässt es sich wiederholen.
+		if ( $failed ) {
+			Log_Table::update(
+				$row['id'],
+				array(
+					/* translators: %s: Dateinamen. */
+					'message' => sprintf( __( 'Nicht löschbar (Dateirechte?): %s', 'akuma-webp-umwandler' ), implode( ', ', $failed ) ),
+				)
+			);
+			/* translators: %s: Dateinamen. */
+			return new \WP_Error( 'akwu_purge_failed', sprintf( __( 'Diese Dateien ließen sich nicht löschen, bitte die Dateirechte prüfen: %s', 'akuma-webp-umwandler' ), implode( ', ', $failed ) ) );
 		}
 
 		Log_Table::update(
@@ -89,6 +106,9 @@ final class Originals {
 		if ( isset( $rows[ $attachment_id ] ) && empty( $rows[ $attachment_id ]['purged_at'] ) ) {
 			self::purge( $rows[ $attachment_id ] );
 		}
+
+		// Ohne Bild gibt es nichts mehr zurückzusetzen.
+		Log_Table::delete_attachment( (int) $attachment_id );
 	}
 
 	/**
