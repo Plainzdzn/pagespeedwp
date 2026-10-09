@@ -55,6 +55,7 @@ final class System_Check {
 					$this->check_memory(),
 					$this->check_environment(),
 					$this->check_elementor(),
+					$this->check_cache(),
 				),
 				$this->check_conflicts()
 			);
@@ -399,6 +400,32 @@ final class System_Check {
 			/* translators: %s: Elementor-Version. */
 			sprintf( __( 'Version %s', 'akuma-webp-umwandler' ), ELEMENTOR_VERSION ),
 			__( 'Das Elementor-CSS wird nach der Umwandlung neu erzeugt.', 'akuma-webp-umwandler' )
+		);
+	}
+
+	/**
+	 * Welche Caches nach der Umwandlung geleert werden. Auf Raidboxes ohne FastPixel ein Hinweis,
+	 * den Server-Cache im Dashboard zu leeren.
+	 *
+	 * @return array
+	 */
+	private function check_cache() {
+		$label  = __( 'Cache', 'akuma-webp-umwandler' );
+		$caches = Cache_Purger::detect();
+		$value  = $caches ? implode( ', ', $caches ) : __( 'Kein Cache-Plugin erkannt', 'akuma-webp-umwandler' );
+
+		if ( Cache_Purger::needs_raidboxes_hint() ) {
+			return self::row( 'cache', $label, self::INFO, $value, __( 'Raidboxes erkannt. Den Server-Cache nach der Umwandlung bitte im Raidboxes-Dashboard leeren, das Plugin kann ihn ohne FastPixel nicht selbst leeren.', 'akuma-webp-umwandler' ) );
+		}
+
+		return self::row(
+			'cache',
+			$label,
+			self::OK,
+			$value,
+			$caches
+				? __( 'Diese Caches und der WordPress-Objekt-Cache werden nach der Umwandlung geleert.', 'akuma-webp-umwandler' )
+				: __( 'Nach der Umwandlung wird der WordPress-Objekt-Cache geleert.', 'akuma-webp-umwandler' )
 		);
 	}
 

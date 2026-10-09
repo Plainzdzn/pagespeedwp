@@ -26,6 +26,8 @@ final class Plugin {
 			return;
 		}
 
+		add_action( 'init', array( __CLASS__, 'load_textdomain' ) );
+
 		( new Rest_Controller() )->register();
 
 		// Wird ein umgewandeltes Bild aus der Mediathek gelöscht, die alten Originale mitnehmen.
@@ -39,6 +41,16 @@ final class Plugin {
 			$admin = new Admin( new System_Check() );
 			$admin->register();
 		}
+	}
+
+	/**
+	 * Übersetzungen aus /languages laden. Die Texte im Code sind deutsch (ADR-010),
+	 * die POT-Datei erlaubt weitere Sprachen.
+	 *
+	 * @return void
+	 */
+	public static function load_textdomain() {
+		load_plugin_textdomain( 'akuma-webp-umwandler', false, dirname( plugin_basename( AKWU_FILE ) ) . '/languages' );
 	}
 
 	/**

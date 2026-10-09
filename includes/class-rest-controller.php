@@ -60,6 +60,39 @@ final class Rest_Controller {
 
 		$this->convert_routes();
 		$this->job_routes();
+
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/pagespeed',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'pagespeed' ),
+				'permission_callback' => array( $this, 'can_manage' ),
+				'args'                => array(
+					'which' => array(
+						'type'     => 'string',
+						'enum'     => array( 'before', 'after' ),
+						'required' => true,
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Misst die Startseite mit PageSpeed Insights (optional, nur mit API-Schlüssel).
+	 *
+	 * @param \WP_REST_Request $request Anfrage.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function pagespeed( \WP_REST_Request $request ) {
+		$result = PageSpeed::measure( $request['which'] );
+		if ( is_wp_error( $result ) ) {
+			$result->add_data( array( 'status' => 400 ) );
+			return $result;
+		}
+
+		return rest_ensure_response( $result );
 	}
 
 	/**

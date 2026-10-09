@@ -122,6 +122,7 @@ final class Inventory {
 			'missing' => array(),
 			'alpha'   => null,
 			'thumbs'  => 0,
+			'no_meta' => empty( $meta['file'] ),
 		);
 
 		if ( null === $files ) {

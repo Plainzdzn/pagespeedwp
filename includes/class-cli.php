@@ -367,6 +367,37 @@ final class Cli {
 	}
 
 	/**
+	 * Misst die Startseite mobil mit PageSpeed Insights (optional, API-Schlüssel in den Einstellungen).
+	 *
+	 * ## OPTIONS
+	 *
+	 * <wann>
+	 * : vorher oder nachher.
+	 * ---
+	 * options:
+	 *   - vorher
+	 *   - nachher
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp akwu pagespeed vorher
+	 *
+	 * @param array $args       Positionsargumente.
+	 * @param array $assoc_args Optionen.
+	 * @return void
+	 */
+	public function pagespeed( $args, $assoc_args ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- Signatur von WP-CLI.
+		$result = PageSpeed::measure( 'nachher' === $args[0] ? 'after' : 'before' );
+		if ( is_wp_error( $result ) ) {
+			WP_CLI::error( $result->get_error_message() );
+		}
+
+		/* translators: 1: Punktzahl, 2: LCP. */
+		WP_CLI::success( sprintf( __( 'PageSpeed mobil: %1$s, LCP %2$s.', 'akuma-webp-umwandler' ), $result['score'], '' === $result['lcp'] ? '–' : $result['lcp'] ) );
+	}
+
+	/**
 	 * Führt einen Job bis zum Ende aus.
 	 *
 	 * @param string $type rollback oder purge.

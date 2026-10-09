@@ -180,9 +180,28 @@ final class Report {
 
 		$totals['saved']   = max( 0, $totals['before'] - $totals['after'] );
 		$totals['percent'] = $totals['before'] > 0 ? (int) round( 100 * $totals['saved'] / $totals['before'] ) : 0;
-		$totals['places']  = count( $places );
+		$totals['places']  = self::count_pages( array_keys( $places ) );
 
 		return $totals;
+	}
+
+	/**
+	 * Anzahl Seiten, Beiträge und Vorlagen unter den Fundstellen, ohne Revisionen.
+	 *
+	 * @param int[] $ids Post-IDs.
+	 * @return int
+	 */
+	private static function count_pages( array $ids ) {
+		global $wpdb;
+
+		$count = 0;
+		foreach ( array_chunk( $ids, 500 ) as $chunk ) {
+			$list = implode( ',', array_map( 'intval', $chunk ) );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- IDs als int.
+			$count += (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE ID IN ({$list}) AND post_type NOT IN ('revision', 'attachment')" );
+		}
+
+		return $count;
 	}
 
 	/**

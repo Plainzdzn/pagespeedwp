@@ -162,10 +162,25 @@
 			element.disabled = true;
 		} );
 
-		post( 'convert/start', {
-			mode: button.getAttribute( 'data-akwu-convert' ),
-			backup: true,
-		} )
+		// Mit PageSpeed-Schlüssel und ohne Vorher-Wert: erst messen. Fehler halten den Start nicht auf.
+		var measured = config.measureFirst
+			? post( 'pagespeed', { which: 'before' } ).catch( function () {
+					return null;
+			  } )
+			: window.Promise.resolve( null );
+
+		if ( config.measureFirst && error ) {
+			error.textContent = i18n.measuring;
+			error.hidden = false;
+		}
+
+		measured
+			.then( function () {
+				return post( 'convert/start', {
+					mode: button.getAttribute( 'data-akwu-convert' ),
+					backup: true,
+				} );
+			} )
 			.then( function () {
 				window.location.href = config.convertUrl;
 			} )
@@ -456,6 +471,38 @@
 			event.preventDefault();
 			form.hidden = true;
 			document.querySelector( '[data-akwu-purge-open]' ).hidden = false;
+		}
+	} );
+
+	/**
+	 * PageSpeed messen und die Seite mit dem Ergebnis neu laden.
+	 *
+	 * @param {HTMLElement} button Auslöser mit data-akwu-pagespeed (before oder after).
+	 */
+	function measure( button ) {
+		var label = button.textContent;
+
+		button.disabled = true;
+		button.textContent = i18n.measuring;
+
+		post( 'pagespeed', {
+			which: button.getAttribute( 'data-akwu-pagespeed' ),
+		} )
+			.then( function () {
+				window.location.reload();
+			} )
+			.catch( function ( exception ) {
+				button.disabled = false;
+				button.textContent = label;
+				window.alert( exception.message ); // eslint-disable-line no-alert
+			} );
+	}
+
+	document.addEventListener( 'click', function ( event ) {
+		var button = event.target.closest( '[data-akwu-pagespeed]' );
+		if ( button ) {
+			event.preventDefault();
+			measure( button );
 		}
 	} );
 

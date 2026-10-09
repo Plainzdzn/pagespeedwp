@@ -230,16 +230,18 @@ final class Admin {
 			'akwu-admin',
 			'window.akwuAdmin = ' . wp_json_encode(
 				array(
-					'restUrl'    => esc_url_raw( rest_url( Rest_Controller::NAMESPACE_V1 . '/' ) ),
-					'convertUrl' => esc_url_raw( self::page_url( 'akwu-umwandlung' ) ),
-					'nonce'      => wp_create_nonce( 'wp_rest' ),
-					'i18n'       => array(
+					'restUrl'      => esc_url_raw( rest_url( Rest_Controller::NAMESPACE_V1 . '/' ) ),
+					'convertUrl'   => esc_url_raw( self::page_url( 'akwu-umwandlung' ) ),
+					'measureFirst' => PageSpeed::enabled() && null === PageSpeed::result( 'before' ),
+					'nonce'        => wp_create_nonce( 'wp_rest' ),
+					'i18n'         => array(
 						'error'     => __( 'Das hat nicht geklappt. Bitte die Seite neu laden und noch einmal versuchen.', 'akuma-webp-umwandler' ),
 						'scanDone'  => __( 'Scan abgeschlossen. Seite wird neu geladen …', 'akuma-webp-umwandler' ),
 						'scanStart' => __( 'Scan startet …', 'akuma-webp-umwandler' ),
 						'backup'    => __( 'Bitte zuerst bestätigen, dass ein Backup erstellt ist.', 'akuma-webp-umwandler' ),
 						'cancel'    => __( 'Umwandlung abbrechen und alle Bilder dieses Laufs zurück ins Original setzen?', 'akuma-webp-umwandler' ),
 						'retry'     => __( 'Verbindung unterbrochen. Neuer Versuch in wenigen Sekunden …', 'akuma-webp-umwandler' ),
+						'measuring' => __( 'PageSpeed misst die Startseite, das dauert bis zu einer Minute …', 'akuma-webp-umwandler' ),
 					),
 				)
 			) . ';',
@@ -373,7 +375,7 @@ final class Admin {
 			return $notices;
 		}
 
-		if ( self::MENU_SLUG === $current && null !== $result && null !== $run && $run['finished'] > $result->finished() ) {
+		if ( in_array( $current, array( self::MENU_SLUG, 'akwu-bilder' ), true ) && null !== $result && null !== $run && $run['finished'] > $result->finished() ) {
 			$notices[] = array(
 				'type'    => 'info',
 				'title'   => __( 'Zahlen vom Scan vor der Umwandlung.', 'akuma-webp-umwandler' ),

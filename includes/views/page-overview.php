@@ -13,6 +13,7 @@ use Akuma\WebpUmwandler\Admin;
 use Akuma\WebpUmwandler\Conversion;
 use Akuma\WebpUmwandler\Format;
 use Akuma\WebpUmwandler\Icons;
+use Akuma\WebpUmwandler\PageSpeed;
 use Akuma\WebpUmwandler\Scan_Result;
 use Akuma\WebpUmwandler\Settings;
 use Akuma\WebpUmwandler\System_Check;
@@ -262,6 +263,34 @@ if ( null !== $scan_totals && $scan_totals['bytes'] > 0 ) :
 				<div>
 					<?php echo esc_html( $disk['value'] ); ?>
 					<span class="akwu-meta"><?php echo esc_html( $disk['detail'] ); ?></span>
+				</div>
+			</div>
+		<?php endif; ?>
+
+		<?php if ( PageSpeed::enabled() ) : ?>
+			<?php $speed = PageSpeed::result( 'before' ); ?>
+			<div class="akwu-check">
+				<?php View::status_pill( null === $speed ? System_Check::INFO : System_Check::OK ); ?>
+				<div>
+					<?php
+					echo esc_html(
+						null === $speed
+							? __( 'PageSpeed mobil noch nicht gemessen', 'akuma-webp-umwandler' )
+							/* translators: %s: Punktzahl 0 bis 100. */
+							: sprintf( __( 'PageSpeed mobil vorher: %s', 'akuma-webp-umwandler' ), $speed['score'] )
+					);
+					?>
+					<span class="akwu-meta">
+						<?php
+						echo esc_html(
+							null === $speed
+								? __( 'Wird beim Start automatisch gemessen.', 'akuma-webp-umwandler' )
+								/* translators: %s: Zeitpunkt. */
+								: sprintf( __( 'Startseite, %s', 'akuma-webp-umwandler' ), Format::time_label( $speed['time'] ) )
+						);
+						?>
+						<button type="button" class="akwu-link akwu-link--inline" data-akwu-pagespeed="before"><?php echo esc_html( null === $speed ? __( 'Jetzt messen', 'akuma-webp-umwandler' ) : __( 'Neu messen', 'akuma-webp-umwandler' ) ); ?></button>
+					</span>
 				</div>
 			</div>
 		<?php endif; ?>

@@ -14,6 +14,44 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
+## 2026-10-09 20:47 – M5 Abschluss, Version 1.0.0 (Claude Code)
+
+**Stand:** M5 – fertig. Version 1.0.0, alle Meilensteine abgeschlossen.
+
+**Für Felix:** Die ZIP liegt nach dem Merge unter Releases (`v1.0.0`). Installation: Plugins → Installieren → Plugin hochladen. Ablauf für Niovo steht in `README.md` (Staging zuerst).
+
+**Erledigt:**
+- M4 gemergt ([Plainzdzn/pagespeedwp#4](https://github.com/Plainzdzn/pagespeedwp/pull/4)).
+- **PageSpeed (optional):** Mit API-Schlüssel misst das Plugin die Startseite mobil (Punktzahl, LCP, Seitengewicht).
+  - Vorher: automatisch beim Start der Umwandlung oder auf der Übersicht per Knopf.
+  - Nachher: im Bericht per Knopf.
+  - WP-CLI: `wp akwu pagespeed vorher|nachher`.
+- **Cache:** Die Systemprüfung zeigt die erkannten Cache-Plugins und auf Raidboxes ohne FastPixel den Hinweis zum Server-Cache.
+- **Revisionen des Customizer-CSS** werden nicht mehr ersetzt (ADR-026). „Seiten und Beiträge“ im Bericht zählt keine Revisionen mehr.
+- **Scan:** Bilder ohne Metadaten heißen „Metadaten fehlen“ und werden nicht eingeplant. „Alle Bilder“ weist nach einer Umwandlung auf den alten Scan hin.
+- **i18n:** POT-Datei in `languages/` (487 Texte), `Domain Path` im Header, `load_plugin_textdomain`. Keine Ausrufezeichen in den Texten.
+- **README** mit Anleitung für Niovo, WP-CLI und dem, was das Plugin nie tut.
+- **Deinstallation** geprüft: Optionen und Protokoll weg, Bilder bleiben WebP, alle Bilder im Frontend erreichbar.
+
+**Entscheidungen:** ADR-025 (PageSpeed nur mit Schlüssel und auf Anlass), ADR-026 (Revisionen).
+
+**TODO (nicht verifiziert):**
+- Raidboxes-Server-Cache ohne FastPixel, siehe M3.
+- Die PageSpeed-API ist aus der Cloud-Sitzung nicht erreichbar. Getestet wurde mit einer simulierten Antwort im Format der API v5. Beim ersten echten Einsatz bitte einmal „Jetzt messen“ klicken und den Wert mit pagespeed.web.dev vergleichen.
+
+**Offen / Nächster Schritt:** Einsatz auf einer Staging-Seite. Ideen für später: Anleitung und Protokoll als Kopfzeilen-Knöpfe auf der Übersicht (Mockup), AVIF.
+
+**Fragen an Felix:** keine.
+
+**Getestet** (Cloud-Sitzung, WordPress 7.1.3, Elementor 4.3.4, GD):
+- PHPCS sauber, PHPUnit 71 Tests grün (neu: Auslesen der PageSpeed-Antwort).
+- `tests/integration/roundtrip.php` (jetzt auch: Revisionen des Customizer-CSS unverändert, Bild ohne Metadaten nicht angefasst) und `tests/integration/purge.php` bestanden.
+- Browser: PageSpeed vorher automatisch beim Start, nachher per Knopf, „54 → 81“ im Bericht. Rundgang über alle sieben Seiten ohne Konsolenfehler.
+- `wp plugin uninstall --skip-delete` nach einer Umwandlung: keine `akwu_*`-Optionen, keine Tabelle, 7 Anhänge WebP, alle 25 Bilder der Testseiten vorhanden.
+- Screenshots: `docs/screenshots/m5/`.
+
+---
+
 ## 2026-10-09 20:30 – M4 Bericht, Rückgängig, Originale löschen (Claude Code)
 
 **Stand:** M4 – fertig (Version 0.4.0). M5 folgt direkt.

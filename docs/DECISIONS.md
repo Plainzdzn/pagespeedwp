@@ -102,3 +102,11 @@ Beides läuft als `Job` in Schritten per REST oder WP-CLI. Die Ziele (Log-Zeilen
 ### ADR-024 – Gelöschte Bilder nehmen ihre Originale mit
 **Status:** angenommen · 2026-10-09
 Wird ein umgewandeltes Bild aus der Mediathek gelöscht, löscht WordPress nur die WebP-Dateien, denn die alten JPG/PNG stehen nicht mehr in den Metadaten. Der Hook `delete_attachment` löscht deshalb die alten Originale mit (gleiche Regeln wie ADR-023), damit keine verwaisten Dateien bleiben. Nach der Deinstallation greift das nicht mehr. Wer die Originale behalten will, löscht das Bild nicht.
+
+### ADR-025 – PageSpeed nur mit Schlüssel und auf Anlass
+**Status:** angenommen · 2026-10-09
+`PageSpeed` ruft die PageSpeed Insights API v5 (`runPagespeed`, `strategy=mobile`, `category=performance`) für die Startseite auf. Gespeichert werden Punktzahl, LCP und Seitengewicht vorher und nachher in `akwu_pagespeed`. Das ist die einzige Anfrage nach außen. Sie läuft nur mit API-Schlüssel und nur auf Knopfdruck oder einmal beim Start der Umwandlung, wenn noch kein Vorher-Wert existiert. Schlägt die Messung fehl, startet die Umwandlung trotzdem. Die Seite muss öffentlich erreichbar sein, eine Staging-Seite mit Passwortschutz liefert eine Fehlermeldung der API.
+
+### ADR-026 – Revisionen: ersetzen, außer beim Customizer-CSS
+**Status:** angenommen · 2026-10-09
+Revisionen von Beiträgen und Elementor-Seiten werden mit ersetzt. Eine wiederhergestellte Revision bringt so keine alten Adressen zurück, die nach dem Löschen der Originale ins Leere zeigen würden. Revisionen des Customizer-CSS bleiben wie das CSS selbst unangetastet (Briefing §4.2). In Bericht und Scan zählen Revisionen nicht als Verwendung.
