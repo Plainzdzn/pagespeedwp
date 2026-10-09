@@ -26,7 +26,7 @@ final class Scanner {
 	/**
 	 * Version des gespeicherten Formats. Ältere Ergebnisse werden verworfen.
 	 */
-	const FORMAT = 1;
+	const FORMAT = 2;
 
 	/**
 	 * Anhänge pro Bestandsaufnahme-Runde.

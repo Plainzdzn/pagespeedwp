@@ -61,6 +61,19 @@ final class PageSpeed {
 	}
 
 	/**
+	 * Verwirft den Nachher-Wert, z. B. wenn ein neuer Lauf startet. Der Vorher-Wert bleibt der Ausgangspunkt.
+	 *
+	 * @return void
+	 */
+	public static function reset_after() {
+		$results = self::results();
+		if ( isset( $results['after'] ) ) {
+			unset( $results['after'] );
+			update_option( self::OPTION, $results, false );
+		}
+	}
+
+	/**
 	 * Misst die Startseite und speichert das Ergebnis.
 	 *
 	 * @param string $which before oder after.
@@ -100,7 +113,11 @@ final class PageSpeed {
 		$parsed['time'] = time();
 		$parsed['url']  = $page;
 
-		$results           = self::results();
+		$results = self::results();
+		if ( 'before' === $which ) {
+			// Neuer Ausgangswert: ein älterer Nachher-Wert passt nicht mehr dazu.
+			unset( $results['after'] );
+		}
 		$results[ $which ] = $parsed;
 		update_option( self::OPTION, $results, false );
 

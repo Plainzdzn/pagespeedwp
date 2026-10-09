@@ -31,6 +31,7 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 - **Scan:** Bilder ohne Metadaten heißen „Metadaten fehlen“ und werden nicht eingeplant. „Alle Bilder“ weist nach einer Umwandlung auf den alten Scan hin.
 - **i18n:** POT-Datei in `languages/` (487 Texte), `Domain Path` im Header, `load_plugin_textdomain`. Keine Ausrufezeichen in den Texten.
 - **README** mit Anleitung für Niovo, WP-CLI und dem, was das Plugin nie tut.
+- **Review (Codex) umgesetzt:** Eine neue Vorher-Messung oder ein neuer Lauf verwirft den alten Nachher-Wert von PageSpeed. Das Scan-Format ist auf Version 2 erhöht, ältere Scans ohne Metadaten-Prüfung verlangen einen neuen Scan.
 - **Deinstallation** geprüft: Optionen und Protokoll weg, Bilder bleiben WebP, alle Bilder im Frontend erreichbar.
 
 **Entscheidungen:** ADR-025 (PageSpeed nur mit Schlüssel und auf Anlass), ADR-026 (Revisionen).
