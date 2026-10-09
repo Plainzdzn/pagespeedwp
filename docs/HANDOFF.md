@@ -27,6 +27,7 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
   - Pausieren, Fortsetzen, „Abbrechen und zurücksetzen“ (nimmt alle Bilder des Laufs zurück). Abgebrochene Requests werden beim nächsten Paket aufgeräumt, ein Bild, das zweimal abbricht, wird übersprungen.
 - **Oberfläche:** Umwandlungsseite wie im Mockup (Fortschritt, Kacheln mit „Bild-IDs verändert“, Ablauf, Live-Protokoll), nach dem Lauf „Erneuert“ und „Gegenprobe“. Knöpfe in der Kopfzeile, Fortschritt in der Admin-Leiste, Hinweis auf allen Plugin-Seiten, solange ein Lauf offen ist. Auf der Übersicht „Erst 10 testen“ (die 10 meistgenutzten Bilder) und „Umwandlung starten“, beides nur mit Backup-Häkchen und bestandener Systemprüfung.
 - **WP-CLI:** `wp akwu convert [--dry-run] [--limit=<n>] [--ids=<ids>] [--test] [--resume] [--yes]`.
+- **Release-Workflow repariert:** `release.yml` war kein gültiges YAML (`: ` in einem ungequoteten Wert), deshalb gab es nach M2 kein Release v0.2.0. Das erste Release entsteht mit dem Merge von M3 (v0.3.0).
 
 **Entscheidungen:** ADR-018 bis ADR-021, im Briefing unter „Änderungen“ vermerkt:
 - MIME-Typ direkt per `$wpdb` statt `wp_update_post()` (keine fremden Hooks, kein kses).
