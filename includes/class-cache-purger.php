@@ -51,42 +51,73 @@ final class Cache_Purger {
 	public static function purge_all() {
 		$purged = array();
 
-		// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound, WordPress.NamingConventions.ValidHookName.UseUnderscores -- Hooks anderer Plugins.
-		if ( has_action( 'fastpixel/purge/all' ) ) {
-			do_action( 'fastpixel/purge/all' );
-			$purged[] = 'FastPixel';
-		}
-
-		if ( function_exists( 'rocket_clean_domain' ) ) {
-			rocket_clean_domain();
-			$purged[] = 'WP Rocket';
-		}
-
-		if ( has_action( 'litespeed_purge_all' ) ) {
-			do_action( 'litespeed_purge_all', 'WebP-Umwandler' );
-			$purged[] = 'LiteSpeed Cache';
-		}
-		// phpcs:enable
-
-		if ( function_exists( 'w3tc_flush_all' ) ) {
-			w3tc_flush_all();
-			$purged[] = 'W3 Total Cache';
-		}
-
-		if ( function_exists( 'wp_cache_clear_cache' ) ) {
-			wp_cache_clear_cache();
-			$purged[] = 'WP Super Cache';
-		}
-
-		if ( class_exists( 'autoptimizeCache' ) && method_exists( 'autoptimizeCache', 'clearall' ) ) {
-			\autoptimizeCache::clearall();
-			$purged[] = 'Autoptimize';
+		foreach ( self::available() as $name => $purge ) {
+			$purge();
+			$purged[] = $name;
 		}
 
 		wp_cache_flush();
 		$purged[] = __( 'WordPress-Objekt-Cache', 'akuma-webp-umwandler' );
 
 		return $purged;
+	}
+
+	/**
+	 * Namen der erkannten Cache-Plugins, ohne etwas zu leeren. Für die Systemprüfung.
+	 *
+	 * @return string[]
+	 */
+	public static function detect() {
+		return array_keys( self::available() );
+	}
+
+	/**
+	 * Vorhandene Caches und wie sie geleert werden.
+	 *
+	 * @return array<string, callable> Name => Aufruf.
+	 */
+	private static function available() {
+		$caches = array();
+
+		// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound, WordPress.NamingConventions.ValidHookName.UseUnderscores -- Hooks anderer Plugins.
+		if ( has_action( 'fastpixel/purge/all' ) ) {
+			$caches['FastPixel'] = static function () {
+				do_action( 'fastpixel/purge/all' );
+			};
+		}
+
+		if ( function_exists( 'rocket_clean_domain' ) ) {
+			$caches['WP Rocket'] = static function () {
+				rocket_clean_domain();
+			};
+		}
+
+		if ( has_action( 'litespeed_purge_all' ) ) {
+			$caches['LiteSpeed Cache'] = static function () {
+				do_action( 'litespeed_purge_all', 'WebP-Umwandler' );
+			};
+		}
+		// phpcs:enable
+
+		if ( function_exists( 'w3tc_flush_all' ) ) {
+			$caches['W3 Total Cache'] = static function () {
+				w3tc_flush_all();
+			};
+		}
+
+		if ( function_exists( 'wp_cache_clear_cache' ) ) {
+			$caches['WP Super Cache'] = static function () {
+				wp_cache_clear_cache();
+			};
+		}
+
+		if ( class_exists( 'autoptimizeCache' ) && method_exists( 'autoptimizeCache', 'clearall' ) ) {
+			$caches['Autoptimize'] = static function () {
+				\autoptimizeCache::clearall();
+			};
+		}
+
+		return $caches;
 	}
 
 	/**

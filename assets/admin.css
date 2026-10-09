@@ -1433,3 +1433,21 @@
 	flex-basis: 100%;
 	margin: 0;
 }
+
+/* ---------- PageSpeed ---------- */
+
+.akwu .akwu-accent {
+	color: var(--akwu-green-dark);
+}
+
+.akwu button.akwu-link--inline {
+	min-height: 0;
+	margin-left: 6px;
+	font-size: inherit;
+}
+
+.akwu-report-stats button.akwu-link--inline {
+	align-self: flex-start;
+	margin-left: 0;
+	font-size: 12px;
+}

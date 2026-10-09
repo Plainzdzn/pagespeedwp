@@ -26,7 +26,7 @@ final class Scanner {
 	/**
 	 * Version des gespeicherten Formats. Ältere Ergebnisse werden verworfen.
 	 */
-	const FORMAT = 1;
+	const FORMAT = 2;
 
 	/**
 	 * Anhänge pro Bestandsaufnahme-Runde.
@@ -377,6 +377,9 @@ final class Scanner {
 				if ( empty( $item['source'] ) ) {
 					$item['status'] = 'missing';
 					++$totals['missing'];
+				} elseif ( ! empty( $item['no_meta'] ) ) {
+					// Ohne Metadaten lehnt der Converter das Bild ab (kein Zustand für Rückgängig).
+					$item['status'] = 'nometa';
 				} else {
 					$measured = isset( $state['samples'][ $attachment_id ] ) && $state['samples'][ $attachment_id ]['source'] > 0
 						? $state['samples'][ $attachment_id ]['webp'] / $state['samples'][ $attachment_id ]['source']

@@ -138,6 +138,14 @@ final class Replacer {
 		$cursor = 0;
 		$where  = '(' . self::like_clause( 'post_content', $likes ) . ' OR ' . self::like_clause( 'post_excerpt', $likes ) . ')';
 
+		// Customizer-CSS bleibt unangetastet, auch in seinen Revisionen. Andere Revisionen werden mit ersetzt,
+		// damit eine wiederhergestellte Revision keine alten Adressen zurückbringt.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Wenige IDs, einmal je Durchgang.
+		$css_ids = array_map( 'intval', (array) $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'custom_css'" ) );
+		if ( $css_ids ) {
+			$where .= " AND NOT ( post_type = 'revision' AND post_parent IN (" . implode( ',', $css_ids ) . ') )';
+		}
+
 		do {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where aus vorbereiteten Teilen.
 			$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT ID, post_type, post_content, post_excerpt FROM {$wpdb->posts} WHERE ID > %d AND post_type <> 'custom_css' AND {$where} ORDER BY ID ASC LIMIT %d", $cursor, self::BATCH ) );

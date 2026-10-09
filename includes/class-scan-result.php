@@ -267,7 +267,7 @@ final class Scan_Result {
 			case 'modern':
 				return in_array( $item['status'], array( 'modern', 'ignored' ), true );
 			case 'check':
-				return ! empty( $item['warnings'] ) || 'missing' === $item['status'] || ! empty( $item['unknown'] ) || ! empty( $item['missing'] );
+				return ! empty( $item['warnings'] ) || in_array( $item['status'], array( 'missing', 'nometa' ), true ) || ! empty( $item['unknown'] ) || ! empty( $item['missing'] );
 			case 'unused':
 				// Bilder, die nur in CSS, Snippets oder Theme-Dateien vorkommen, gelten als gefunden.
 				return 0 === (int) $item['uses'] && empty( $item['warnings'] ) && isset( Inventory::CONVERTIBLE[ $item['mime'] ] );
@@ -331,6 +331,8 @@ final class Scan_Result {
 				return array( __( 'Überspringen', 'akuma-webp-umwandler' ), 'info' );
 			case 'missing':
 				return array( __( 'Datei fehlt', 'akuma-webp-umwandler' ), 'error' );
+			case 'nometa':
+				return array( __( 'Metadaten fehlen', 'akuma-webp-umwandler' ), 'warn' );
 			case 'modern':
 				return array( __( 'Schon modern', 'akuma-webp-umwandler' ), 'ok' );
 			default:

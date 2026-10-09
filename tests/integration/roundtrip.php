@@ -20,6 +20,7 @@ use Akuma\WebpUmwandler\Attachment_Files;
 use Akuma\WebpUmwandler\Conversion;
 use Akuma\WebpUmwandler\Job;
 use Akuma\WebpUmwandler\Log_Table;
+use Akuma\WebpUmwandler\Scan_Result;
 use Akuma\WebpUmwandler\Scanner;
 use WP_CLI;
 
@@ -92,6 +93,17 @@ function snapshot() {
 }
 
 /**
+ * Inhalt aller Revisionen des Customizer-CSS.
+ *
+ * @return string[] Revisions-ID => Inhalt.
+ */
+function css_revisions() {
+	$css_post = wp_get_custom_css_post();
+
+	return $css_post ? wp_list_pluck( wp_get_post_revisions( $css_post->ID ), 'post_content', 'ID' ) : array();
+}
+
+/**
  * Der Rundlauf.
  *
  * @return void
@@ -103,7 +115,8 @@ function main() {
 	WP_CLI::runcommand( 'eval-file ' . escapeshellarg( dirname( __DIR__ ) . '/seed/seed.php' ), array( 'return' => true ) );
 	wp_cache_flush();
 
-	$before = snapshot();
+	$before        = snapshot();
+	$css_revisions = css_revisions();
 
 	WP_CLI::log( 'Scan …' );
 	Scanner::start();
@@ -126,11 +139,17 @@ function main() {
 	WP_CLI::log( 'Nach der Umwandlung:' );
 	check( count( $rows ) >= 5, sprintf( '%d Bilder umgewandelt', count( $rows ) ) );
 	check( 0 === $progress['ids_changed'], 'Bild-IDs unverändert' );
-	$errors = Log_Table::rows( $run['id'], array( 'error' ) );
-	check( 1 === count( $errors ) && 'ohne-metadaten.png' === wp_basename( (string) get_post_meta( $errors[0]['attachment_id'], '_wp_attached_file', true ) ), 'nur das Bild ohne Metadaten abgelehnt' );
-	foreach ( $errors as $row ) {
-		check( 'image/png' === get_post_mime_type( $row['attachment_id'] ) && ! wp_get_attachment_metadata( $row['attachment_id'] ), 'Bild ohne Metadaten unverändert' );
-	}
+	check( 0 === $progress['errors'], 'keine Fehler' );
+	$no_meta = get_posts(
+		array(
+			'post_type'   => 'attachment',
+			'title'       => 'PNG ohne Metadaten',
+			'numberposts' => 1,
+			'fields'      => 'ids',
+		)
+	)[0];
+	check( 'nometa' === Scan_Result::load()->item( $no_meta )['status'], 'Scan erkennt das Bild ohne Metadaten' );
+	check( 'image/png' === get_post_mime_type( $no_meta ) && ! wp_get_attachment_metadata( $no_meta ), 'Bild ohne Metadaten nicht angefasst' );
 
 	foreach ( $rows as $row ) {
 		check( 'image/webp' === get_post_mime_type( $row['attachment_id'] ) && is_file( Attachment_Files::path( $row['new_file'] ) ), sprintf( 'Anhang %d ist WebP, Datei vorhanden', $row['attachment_id'] ) );
@@ -158,6 +177,7 @@ function main() {
 	$settings = get_post_meta( $page->ID, '_elementor_page_settings', true );
 	check( false !== strpos( $settings['custom_css'], 'bild.jpg' ), 'Custom CSS in Elementor unverändert' );
 	check( false !== strpos( wp_get_custom_css(), 'bild.png' ), 'Customizer-CSS unverändert' );
+	check( css_revisions() === $css_revisions, sprintf( 'Revisionen des Customizer-CSS unverändert (%d)', count( $css_revisions ) ) );
 	check( false !== strpos( (string) get_theme_mod( 'background_image' ), '.webp' ), 'Theme-Mod ersetzt' );
 
 	$leftovers = array_filter(

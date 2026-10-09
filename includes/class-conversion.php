@@ -109,6 +109,9 @@ final class Conversion {
 		Log_Table::add_pending( $run['id'], $queue );
 		self::save( $run );
 
+		// Ein Nachher-Wert von PageSpeed gehört zum vorigen Stand.
+		PageSpeed::reset_after();
+
 		return $run;
 	}
 
