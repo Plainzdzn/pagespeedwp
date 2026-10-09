@@ -1,0 +1,778 @@
+/**
+ * WebP-Umwandler – Admin-Styles im Look von Akuma Digital.
+ *
+ * Wird nur auf den Plugin-Seiten geladen. Alle Regeln greifen nur innerhalb von .akwu,
+ * der WordPress-Rahmen bleibt unverändert. Vorlage: design/*.dc.html.
+ */
+
+/* Schriften, lokal ausgeliefert (siehe assets/fonts/README.md). */
+@font-face {
+	font-family: "Outfit";
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url("fonts/outfit-latin-500-normal.woff2") format("woff2");
+}
+
+@font-face {
+	font-family: "Inter";
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url("fonts/inter-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+	font-family: "Inter";
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url("fonts/inter-latin-500-normal.woff2") format("woff2");
+}
+
+@font-face {
+	font-family: "Inter";
+	font-style: normal;
+	font-weight: 600;
+	font-display: swap;
+	src: url("fonts/inter-latin-600-normal.woff2") format("woff2");
+}
+
+/* ---------- Grundlagen ---------- */
+
+.akwu {
+	--akwu-green: #1c805d;
+	--akwu-green-dark: #176247;
+	--akwu-accent: #408062;
+	--akwu-heading: #263730;
+	--akwu-text: #53615a;
+	--akwu-strong: #2c302e;
+	--akwu-meta: #5b605e;
+	--akwu-muted: #62826c;
+	--akwu-caption: #4e7164;
+	--akwu-link: #17684c;
+	--akwu-nav: #2e5b4b;
+	--akwu-line: #dde0de;
+	--akwu-line-soft: #e1e4e2;
+	--akwu-line-faint: #eef0ef;
+	--akwu-border: #dbe4dc;
+	--akwu-surface: #f8f9f9;
+	--akwu-tint: #e5eee4;
+	--akwu-tint-border: #d3dfd4;
+	--akwu-warn-bg: #f5efdf;
+	--akwu-warn-text: #6e5418;
+	--akwu-error-bg: #fbf4f2;
+	--akwu-error-border: #d9b8b2;
+	--akwu-error-text: #8a3a2f;
+	--akwu-font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+	--akwu-font-display: "Outfit", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+	--akwu-shadow-card: 0 2px 2px rgba(23, 46, 33, 0.05), 0 12px 20px -17px rgba(23, 60, 48, 0.35);
+	--akwu-shadow-panel: 0 2px 3px rgba(92, 120, 100, 0.18), 0 13px 20px -13px rgba(54, 83, 60, 0.3), 0 36px 40px -30px rgba(77, 119, 87, 0.3);
+
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+	margin-top: 22px;
+	font-family: var(--akwu-font);
+	font-size: 13px;
+	line-height: 1.5;
+	color: var(--akwu-text);
+}
+
+.akwu *,
+.akwu *::before,
+.akwu *::after {
+	box-sizing: border-box;
+}
+
+.akwu p {
+	margin: 0;
+	font-size: inherit;
+	line-height: inherit;
+}
+
+.akwu a {
+	color: var(--akwu-link);
+}
+
+.akwu a:hover {
+	color: var(--akwu-green-dark);
+}
+
+.akwu a:focus,
+.akwu button:focus,
+.akwu input:focus {
+	box-shadow: none;
+	outline: none;
+}
+
+.akwu a:focus-visible,
+.akwu button:focus-visible,
+.akwu input:focus-visible {
+	outline: 2px solid var(--akwu-green);
+	outline-offset: 2px;
+}
+
+.akwu-icon {
+	flex: 0 0 auto;
+}
+
+/* WordPress setzt Hinweise hinter .wp-header-end; die Lücke kommt vom gap. */
+.akwu > .wp-header-end {
+	display: none;
+}
+
+.akwu > .notice,
+.akwu > .updated,
+.akwu > .error {
+	margin: 0;
+}
+
+.akwu-num {
+	font-family: var(--akwu-font-display);
+	font-weight: 500;
+	letter-spacing: -0.03em;
+	color: var(--akwu-heading);
+}
+
+.akwu-small {
+	font-size: 12px;
+	color: var(--akwu-meta);
+}
+
+.akwu-meta {
+	display: block;
+	font-size: 11px;
+	color: var(--akwu-meta);
+}
+
+.akwu-caption {
+	font-size: 11px;
+	letter-spacing: 0.11em;
+	text-transform: uppercase;
+	color: var(--akwu-caption);
+}
+
+/* ---------- Kopfzeile ---------- */
+
+.akwu-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 16px 22px;
+	background: #fff;
+	border: 1px solid var(--akwu-border);
+	border-radius: 16px;
+	box-shadow: var(--akwu-shadow-card);
+}
+
+.akwu-brand {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.akwu-logo {
+	display: grid;
+	flex: 0 0 40px;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	border-radius: 11px;
+	background: var(--akwu-green);
+	color: #fff;
+	box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 4px 10px -4px rgba(28, 128, 93, 0.6);
+}
+
+.akwu .akwu-brand__name {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-family: var(--akwu-font-display);
+	font-size: 21px;
+	font-weight: 500;
+	line-height: 1.2;
+	letter-spacing: -0.02em;
+	color: var(--akwu-heading);
+}
+
+.akwu-version {
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: var(--akwu-tint);
+	font-family: var(--akwu-font);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0;
+	color: var(--akwu-green-dark);
+}
+
+.akwu .akwu-brand__by {
+	font-size: 12px;
+	color: var(--akwu-muted);
+}
+
+/* ---------- Panel mit Navigation ---------- */
+
+.akwu-panel {
+	display: flex;
+	flex-wrap: wrap;
+	overflow: hidden;
+	background: #fff;
+	border: 1px solid var(--akwu-border);
+	border-radius: 18px;
+	box-shadow: var(--akwu-shadow-panel);
+}
+
+.akwu-nav {
+	display: flex;
+	flex: 0 0 248px;
+	flex-direction: column;
+	gap: 2px;
+	padding: 22px 14px;
+	border-right: 1px solid var(--akwu-line-soft);
+	background: linear-gradient(#fbfcfb, #f5f8f4);
+}
+
+.akwu-nav__list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.akwu-nav__list li {
+	margin: 0;
+}
+
+.akwu .akwu-nav__heading {
+	padding: 10px 12px 6px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--akwu-muted);
+}
+
+.akwu .akwu-nav__item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 40px;
+	padding: 0 12px;
+	border-radius: 12px;
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--akwu-nav);
+	text-decoration: none;
+}
+
+.akwu .akwu-nav__item .akwu-icon {
+	color: var(--akwu-muted);
+}
+
+.akwu .akwu-nav__item:hover {
+	background: rgba(229, 238, 228, 0.6);
+	color: var(--akwu-green-dark);
+}
+
+.akwu .akwu-nav__item.is-current {
+	background: linear-gradient(140deg, #fff, #e0edde);
+	color: var(--akwu-green-dark);
+	box-shadow: 0 2px 2px rgba(82, 123, 81, 0.18), inset 0 0 0 1px var(--akwu-tint-border);
+}
+
+.akwu .akwu-nav__item.is-current .akwu-icon {
+	color: var(--akwu-green);
+}
+
+.akwu .akwu-nav__note {
+	margin-top: auto;
+	padding: 18px 12px 0;
+	font-size: 12px;
+	color: var(--akwu-muted);
+}
+
+.akwu-content {
+	display: flex;
+	flex: 999 1 560px;
+	flex-direction: column;
+	gap: 22px;
+	min-width: 0;
+	padding: 28px clamp(18px, 2.6vw, 34px) 34px;
+}
+
+@media (max-width: 960px) {
+	.akwu-nav {
+		flex-basis: 100%;
+		border-right: 0;
+		border-bottom: 1px solid var(--akwu-line-soft);
+	}
+
+	.akwu .akwu-nav__note {
+		margin-top: 8px;
+	}
+}
+
+/* ---------- Seitenkopf ---------- */
+
+.akwu-page-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.akwu-page-head__text {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.akwu .akwu-eyebrow {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.13em;
+	text-transform: uppercase;
+	color: var(--akwu-green-dark);
+}
+
+.akwu .akwu-eyebrow::before {
+	content: "";
+	width: 22px;
+	height: 1px;
+	background: currentColor;
+}
+
+.akwu .akwu-title {
+	margin: 0;
+	padding: 0;
+	font-family: var(--akwu-font-display);
+	font-size: 30px;
+	font-weight: 500;
+	line-height: 1.1;
+	letter-spacing: -0.03em;
+	color: var(--akwu-heading);
+}
+
+.akwu-title__accent {
+	color: var(--akwu-accent);
+}
+
+.akwu .akwu-page-head__meta {
+	font-size: 12px;
+	color: var(--akwu-meta);
+}
+
+/* ---------- Karten ---------- */
+
+.akwu-card {
+	min-width: 0;
+	padding: 16px 18px;
+	background: #fff;
+	border: 1px solid var(--akwu-line-soft);
+	border-radius: 16px;
+}
+
+.akwu-card__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 6px;
+}
+
+.akwu .akwu-card__title {
+	margin: 0 0 6px;
+	padding: 0;
+	font-family: var(--akwu-font);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+	color: var(--akwu-heading);
+}
+
+.akwu-card__head .akwu-card__title {
+	margin: 0;
+}
+
+.akwu .akwu-empty {
+	color: var(--akwu-meta);
+}
+
+.akwu-card--table {
+	overflow: hidden;
+	padding: 0;
+}
+
+/* Kennzahlen */
+.akwu-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+	gap: 12px;
+}
+
+.akwu-stat {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.akwu-stat__value {
+	font-size: 30px;
+	line-height: 1.2;
+}
+
+.akwu-stat--highlight {
+	background: linear-gradient(150deg, #f4f9f3, var(--akwu-tint));
+	border-color: var(--akwu-tint-border);
+}
+
+.akwu-stat--highlight .akwu-caption,
+.akwu-stat--highlight .akwu-stat__value {
+	color: var(--akwu-green-dark);
+}
+
+/* Zwei Spalten */
+.akwu-columns {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 18px;
+}
+
+.akwu-columns__main {
+	flex: 999 1 420px;
+	min-width: 0;
+}
+
+.akwu-columns__side {
+	flex: 1 1 298px;
+	min-width: 0;
+}
+
+/* ---------- Pillen ---------- */
+
+.akwu-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 9px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.5;
+	white-space: nowrap;
+}
+
+.akwu-pill--ok {
+	background: #e3efe4;
+	color: var(--akwu-green-dark);
+}
+
+.akwu-pill--warn {
+	background: var(--akwu-warn-bg);
+	color: var(--akwu-warn-text);
+}
+
+.akwu-pill--error {
+	background: var(--akwu-error-bg);
+	color: var(--akwu-error-text);
+	box-shadow: inset 0 0 0 1px var(--akwu-error-border);
+}
+
+.akwu-pill--info {
+	background: var(--akwu-line-faint);
+	color: var(--akwu-text);
+}
+
+/* ---------- Checkliste „Vor dem Start“ ---------- */
+
+.akwu-checklist {
+	display: flex;
+	flex-direction: column;
+	padding-bottom: 8px;
+}
+
+.akwu-check {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 10px 0;
+	border-top: 1px solid var(--akwu-line-faint);
+	font-size: 13px;
+	color: var(--akwu-strong);
+}
+
+.akwu-check .akwu-pill {
+	justify-content: center;
+	min-width: 28px;
+}
+
+.akwu-check--input {
+	cursor: pointer;
+}
+
+.akwu .akwu-check--input input[type="checkbox"] {
+	width: 16px;
+	min-width: 16px;
+	height: 16px;
+	margin: 2px 0 0;
+	accent-color: var(--akwu-green);
+}
+
+/* ---------- Links und Buttons ---------- */
+
+.akwu .akwu-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 44px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--akwu-link);
+	text-decoration: none;
+}
+
+.akwu .akwu-link:hover {
+	text-decoration: underline;
+}
+
+.akwu .akwu-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 14px;
+	min-height: 50px;
+	padding: 6px 7px 6px 20px;
+	border: 0;
+	border-radius: 999px;
+	background: linear-gradient(160deg, #fff 5%, #fcfdfb 41%, var(--akwu-tint) 100%);
+	box-shadow: 0 3px 0 0 #99b59f, 0 5px 4px rgba(41, 62, 48, 0.16), 0 13px 16px -9px rgba(39, 74, 51, 0.4), inset 0 2px 2px #fff;
+	font-family: var(--akwu-font);
+	font-size: 14px;
+	font-weight: 600;
+	color: #23543f;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.akwu .akwu-button:hover {
+	color: var(--akwu-green-dark);
+}
+
+.akwu .akwu-button:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+.akwu-button__medal {
+	display: grid;
+	flex: 0 0 38px;
+	place-items: center;
+	width: 38px;
+	height: 38px;
+	border-radius: 999px;
+	background: var(--akwu-green);
+	color: #fff;
+}
+
+/* ---------- Startbereich ---------- */
+
+.akwu-cta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 18px;
+	padding: 20px 22px;
+	border: 1px solid var(--akwu-tint-border);
+	border-radius: 18px;
+	background: radial-gradient(at 85% 0%, #f8fcf7 0, var(--akwu-tint) 65%, #eef4ec 100%);
+}
+
+.akwu-cta__text {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-width: 520px;
+}
+
+.akwu .akwu-cta__title {
+	margin: 0;
+	padding: 0;
+	font-family: var(--akwu-font-display);
+	font-size: 22px;
+	font-weight: 500;
+	line-height: 1.2;
+	letter-spacing: -0.03em;
+	color: var(--akwu-heading);
+}
+
+.akwu-cta__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 20px;
+}
+
+/* ---------- Fortschritt und Ablauf ---------- */
+
+.akwu-progress {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.akwu-progress__track {
+	overflow: hidden;
+	height: 14px;
+	border-radius: 999px;
+	background: var(--akwu-line-soft);
+	box-shadow: inset 0 1px 2px rgba(23, 46, 33, 0.12);
+}
+
+.akwu-progress__fill {
+	width: 0;
+	height: 100%;
+	border-radius: 999px;
+	background: linear-gradient(90deg, #2e5b4b, var(--akwu-green) 70%, #3c9a74);
+}
+
+.akwu-progress__meta {
+	display: flex;
+	justify-content: space-between;
+	font-size: 12px;
+}
+
+.akwu-progress__meta .akwu-num {
+	font-size: 14px;
+}
+
+.akwu-steps {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.akwu-step {
+	display: grid;
+	grid-template-columns: 34px 1fr auto;
+	gap: 12px;
+	align-items: center;
+	margin: 0;
+	padding: 11px 0;
+	border-top: 1px solid var(--akwu-line-faint);
+	font-size: 13px;
+}
+
+.akwu-step__number {
+	font-family: var(--akwu-font-display);
+	font-size: 17px;
+	font-weight: 500;
+	color: #50785f;
+}
+
+.akwu-step__label {
+	color: var(--akwu-strong);
+}
+
+/* ---------- Tabellen ---------- */
+
+.akwu-table-wrap {
+	overflow-x: auto;
+}
+
+.akwu-table {
+	width: 100%;
+	min-width: 640px;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.akwu-table thead th {
+	padding: 12px 14px;
+	border-bottom: 1px solid var(--akwu-line-soft);
+	background: var(--akwu-surface);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.09em;
+	text-align: left;
+	text-transform: uppercase;
+	color: var(--akwu-caption);
+}
+
+.akwu-table td,
+.akwu-table tbody th {
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--akwu-line-faint);
+	text-align: left;
+	vertical-align: top;
+	color: var(--akwu-strong);
+}
+
+.akwu-table tbody th {
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.akwu-table tbody tr:last-child td,
+.akwu-table tbody tr:last-child th {
+	border-bottom: 0;
+}
+
+.akwu-table__detail {
+	color: var(--akwu-meta);
+}
+
+/* ---------- Standardwerte ---------- */
+
+.akwu-defaults {
+	margin: 0;
+}
+
+.akwu-defaults__row {
+	display: grid;
+	grid-template-columns: minmax(160px, 240px) 1fr;
+	gap: 12px;
+	padding: 10px 0;
+	border-top: 1px solid var(--akwu-line-faint);
+}
+
+.akwu-defaults dt {
+	font-weight: 600;
+	color: var(--akwu-strong);
+}
+
+.akwu-defaults dd {
+	margin: 0;
+}
+
+/* ---------- Hinweisboxen ---------- */
+
+.akwu-callout {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 16px 20px;
+	border-radius: 16px;
+}
+
+.akwu-callout--warn {
+	border: 1px dashed var(--akwu-error-border);
+	background: #fdfaf9;
+}
+
+.akwu .akwu-callout__title {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--akwu-heading);
+}

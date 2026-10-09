@@ -21,14 +21,16 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
 | Capability | `manage_options` |
 | WP-CLI | `wp akwu scan\|convert\|report\|rollback\|purge-originals` |
 
-## Architektur (geplant, Stand M0)
+## Architektur (Stand M1)
 
-- `akuma-webp-umwandler.php` – Bootstrap, Konstanten, eigener Autoloader (keine Composer-Laufzeitabhängigkeit).
-- `includes/` – Kernklassen: `Scanner`, `Converter`, `Replacer`, `Rollback`, `Report`, `Cache_Purger`, `System_Check`; Eingänge `Rest_Controller`, `Admin`, `Cli`. Admin-UI und WP-CLI rufen **dieselben** Kernklassen auf, keine Logik in Controllern.
-- `assets/` – `admin.css`, `admin.js` (Vanilla JS, kein Build), `fonts/` (Outfit, Inter lokal, WOFF2).
-- `uninstall.php` – löscht nur Plugin-Optionen und die Log-Tabelle, nie Bilder.
-- `design/` – Referenz-Mockups (Main, Umwandlung, Bericht), siehe `design/README.md`.
-- `tests/` – PHPUnit, Seed-Script für Testdaten.
+- `akuma-webp-umwandler.php` – Bootstrap, Konstanten (`AKWU_VERSION`, `AKWU_DIR`, `AKWU_URL`), eigener Autoloader (keine Composer-Laufzeitabhängigkeit).
+- `includes/` – vorhanden: `Plugin` (Start, Multisite-Abbruch), `Admin` (Menü, sieben Seiten, Assets), `System_Check`, `Conflict_Detector`, `Format` (deutsche Zahlen), `View`, `Icons`. Geplant: `Scanner`, `Converter`, `Replacer`, `Rollback`, `Report`, `Cache_Purger`, `Rest_Controller`, `Cli`. Admin-UI und WP-CLI rufen **dieselben** Kernklassen auf, keine Logik in Controllern.
+- `includes/views/` – Templates, eingebunden über `View::render( $name, $data )`. Im Template steht nur `$data` bereit. Variablen dort nicht wie WP-Globals benennen (`$page`, `$title` …), PHPCS meldet das.
+- `assets/` – `admin.css` (Design-Tokens als CSS-Variablen unter `.akwu`), `fonts/` (Outfit 500, Inter 400/500/600, WOFF2, OFL). Noch kein JS.
+- `uninstall.php` – löscht nur `akwu_*`-Optionen, Transients und die Log-Tabelle, nie Bilder.
+- `design/` – Referenz-Mockups, siehe `design/README.md`.
+- `tests/unit/` – PHPUnit ohne WordPress, `tests/seed/seed.php` – Testdaten.
+- `bin/setup-env.sh` – Testinstallation in der Cloud-Sitzung, `bin/screenshots.cjs` – Screenshots aller Seiten und Mockups.
 
 ## Harte Regeln
 
@@ -45,11 +47,28 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
 
 - WordPress Coding Standards (PHPCS, WPCS 3), keine Fehler. Dateinamen nach WPCS: `Akuma\WebpUmwandler\Scanner` → `includes/class-scanner.php`, `Cache_Purger` → `class-cache-purger.php` (WP-Klassennamen mit Unterstrich).
 - PHP-Syntax kompatibel zu 7.4 (keine `match`, Enums, Union-Types, Named Arguments, `readonly`), muss auf 8.1–8.3 laufen. WordPress ≥ 6.0.
-- Alle Strings übersetzbar mit Text-Domain `akuma-webp-umwandler`. UI-Sprache Deutsch, ruhig und kurz, keine Ausrufezeichen, keine Emojis.
+- Alle Strings deutsch direkt in `__()` und Co. mit Text-Domain `akuma-webp-umwandler`, keine .po-Dateien (ADR-010). Ruhig und kurz, keine Ausrufezeichen, keine Emojis. Zahlen und Größen über `Format`.
 - Jeder AJAX-/REST-Aufruf: Capability-Prüfung und Nonce.
 - Plugin-CSS nur innerhalb des Plugin-Wrappers, Assets nur auf Plugin-Seiten laden. WP-Rahmen bleibt Standard.
 - Farben: Grün `#1c805d`, dunkel `#176247`, Headline-Akzent `#408062`, Überschriften `#263730`, Text `#53615a`, Linien `#dde0de` / `#e1e4e2`, Flächen `#f8f9f9`. Outfit 500 (letter-spacing −0.03em) für Überschriften, Inter für Text.
 
 ## Testen
 
-Noch keine Tests (M0). Ab M1 kommen hier die Befehle für Testumgebung, Seed-Daten, PHPUnit und PHPCS hin.
+```bash
+composer install                 # Dev-Tools (PHPUnit, PHPCS). Composer-Plugins dürfen fehlen, das Ruleset setzt die Pfade selbst.
+composer lint                    # PHPCS, muss ohne Fehler und Warnungen durchlaufen
+composer test                    # PHPUnit (Unit-Tests ohne WordPress)
+
+bin/setup-env.sh --serve         # MariaDB, WordPress de_DE, Elementor, Testdaten; Server auf http://localhost:8080 (admin/admin)
+NODE_PATH="$(npm root -g)" node bin/screenshots.cjs <ordner>   # Screenshots aller Plugin-Seiten und Mockups
+php ~/akwu-env/wp-cli.phar --path=$HOME/akwu-env/wordpress --allow-root <befehl>   # WP-CLI in der Testinstallation
+```
+
+- Die Testumgebung liegt außerhalb des Repos in `~/akwu-env` und geht mit der Cloud-Sitzung verloren. Bei jeder Sitzung neu einrichten, das Script ist wiederholbar.
+- Das Plugin ist per Symlink eingebunden. `wp plugin uninstall` nur mit `--skip-delete`, sonst löscht WordPress das Repo.
+- Imagick gibt es in der Cloud-Sitzung nicht, getestet wird mit GD.
+- CI: GitHub Actions (`.github/workflows/ci.yml`) mit PHPCS und PHPUnit auf PHP 7.4, 8.1 und 8.3.
+
+## Git
+
+`main` ist der stabile Stand. Jede Sitzung arbeitet auf ihrem Branch und öffnet einen Pull Request nach `main`. Der Merge ist Felix' Okay zum Meilenstein.

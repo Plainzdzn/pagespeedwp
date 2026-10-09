@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<ruleset name="WebP-Umwandler">
+	<description>WordPress Coding Standards für den WebP-Umwandler.</description>
+
+	<file>.</file>
+	<exclude-pattern>/vendor/*</exclude-pattern>
+	<exclude-pattern>/node_modules/*</exclude-pattern>
+	<exclude-pattern>/design/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="cache" value=".phpcs-cache"/>
+	<arg name="parallel" value="8"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+
+	<!-- Pfade direkt setzen, damit PHPCS auch ohne Composer-Plugin die Standards findet (z. B. in Cloud-Sitzungen). -->
+	<config name="installed_paths" value="vendor/wp-coding-standards/wpcs,vendor/phpcsstandards/phpcsutils,vendor/phpcsstandards/phpcsextra,vendor/phpcompatibility/php-compatibility,vendor/phpcompatibility/phpcompatibility-paragonie,vendor/phpcompatibility/phpcompatibility-wp"/>
+	<config name="minimum_wp_version" value="6.0"/>
+	<config name="testVersion" value="7.4-"/>
+
+	<rule ref="WordPress"/>
+	<rule ref="PHPCompatibilityWP"/>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="akuma-webp-umwandler"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="akwu"/>
+				<element value="Akuma\WebpUmwandler"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Views werden nur innerhalb von View::render() eingebunden, ihre Variablen sind lokal. -->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound">
+		<exclude-pattern>/includes/views/*</exclude-pattern>
+	</rule>
+</ruleset>

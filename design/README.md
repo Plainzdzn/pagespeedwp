@@ -23,4 +23,6 @@ Für die späteren Meilensteine vorgemerkt, Umsetzung nach Rücksprache:
 - **Übersicht:** Pro Bild eine geschätzte WebP-Größe und ein Status („Bereit“, „Hintergrundbild“, „Überspringen“ bei zu wenig Ersparnis). Hinweis „Bild-IDs bleiben erhalten“ im Notice.
 - **Umwandlung:** Kachel „Bild-IDs verändert: 0“ als Kontrollwert, Ablauf in vier Schritten (umwandeln, Verweise ersetzen, Elementor-CSS, Cache), Live-Protokoll neueste zuerst.
 - **Bericht:** PageSpeed mobil vorher/nachher als Kachel. „Bitte prüfen“ kennt die Typen Code Snippet, Zusätzliches CSS und „Externe Einbindung“ (Original „behalten“). Originale löschen mit Hinweis „erst nach einigen Tagen ohne Auffälligkeiten“.
-- **WP-Menü:** Das Mockup zeigt im WordPress-Untermenü nur Übersicht, Bericht und Einstellungen, die Plugin-Navigation alle sieben Bereiche.
+- **WP-Menü:** Das Mockup zeigt im WordPress-Untermenü nur Übersicht, Bericht und Einstellungen. Entschieden (ADR-011): Alle sieben Bereiche erscheinen im WordPress-Menü, WordPress zeigt sie selbst an.
+- **WP-Rahmen:** Im Mockup ist der aktive WordPress-Menüpunkt grün. Laut Briefing bleibt der WP-Rahmen Standard, im Plugin ist er deshalb im Farbschema des Benutzers (meist blau).
+- **Breiten:** Die Mockups rechnen Breiten ohne Innenabstand (`content-box`). Im Plugin gilt `border-box`, die Navigation ist deshalb 248 px und die Seitenspalte 298 px breit.
