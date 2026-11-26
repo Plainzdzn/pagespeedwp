@@ -43,13 +43,13 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 **Entscheidungen:**
 - Kein `loading="eager"` mehr an Bildern ohne `loading`-Attribut (ADR-041). `data-no-lazy` und `skip-lazy` bleiben.
-- Der Heyflow-Lader ist eine Einstellung der einzelnen Website, kein Teil von WebP-Umwandler. Er bleibt als Versuch auf der Demo.
+- Der Heyflow-Lader ist eine Einstellung der einzelnen Website, kein Teil von WebP-Umwandler. **Nachtrag 22:40:** Felix hat entschieden, ihn nicht weiterzuverfolgen. Vorgabe: nur offensichtliche Probleme über das eigene Plugin beheben, kein Eingriff in fremde Plugins, keine Sonderlösung je Website, kein Risiko für Heyflow. Der Versuch ist auf der Demo deaktiviert, das HTML ist wieder gleich dem Vergleichszustand.
 - Mediane stehen weiter mit Einzelwerten und Messrechner-Wert in den Nachweisen. Zuschreibungen nur, wo HTML oder Rohdaten sie tragen.
 
 **Offen / Nächster Schritt:**
 - Merge und Release nur auf Felix' Freigabe.
 - 1.2.1 mit WP Rocket nachmessen (DarumPflanzlich war kein Ziel dieser Serie). Dass `data-no-lazy` und `skip-lazy` ohne `eager` reichen, ist dort nur am Quelltext von WP Rocket belegt.
-- Heyflow-Lader auf Solarengel live: Entscheidung von Felix und dem Kunden. Folge: Heyflow zählt einen Aufruf des Formulars auf der Startseite erst, wenn es in die Nähe des sichtbaren Bereichs kommt.
+- Heyflow-Lader: entschieden, wird nicht eingebaut und geht nicht zum Kunden (Nachtrag oben). Naheliegender nächster Baustein im eigenen Plugin bleibt „erstes großes Bild sofort laden“.
 - Der Versuch hat 3 Läufe je Seite, die Vergleichsarme je 6. Kein Rücktausch nach dem Versuch gemessen.
 - Formularseite mobil bleibt unter 80: Das LCP-Element ist die Überschrift im Heyflow-Formular, sie erscheint erst nach Skript und Formulardaten (simuliert rund 9 s).
 - Jeder Aufruf der Solarengel-Demo meldet einen Besuch an das Heyflow-Konto des Kunden (Host der Demo), auch jeder PSI-Lauf. Das war schon in Serie 4 so und liegt am Skript der Seite, nicht am Plugin. Mit dem Versuch entfällt es auf der Startseite, solange niemand zum Formular scrollt.
@@ -61,7 +61,7 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 - PHPCS sauber, PHPUnit 110 Tests und 266 Prüfungen. Integration `header-images.php` mit dem neuen Block lokal bestanden, gegen den Fix-Code aus 1.2.0 schlägt er fehl.
 - Solarengel #299741: Ladeattribute aller Bilder im gerenderten HTML und Netzwerk vor dem Scrollen in drei Zuständen (Fix aus, Fix 1.2.0, Fix 1.2.1), Desktop und Mobil. Versuch: HTML unterscheidet sich vom Vergleichszustand nur im ersetzten Skript-Tag. Funktions-Stichprobe ohne Fehler. Formular nicht durchgeklickt und nicht abgeschickt.
 - Oelsner #299755: HTML der Zielseite vor und nach der Installation gleich bis auf CSS-Stempel und Zufallswerte im Formular. Funktions-Stichprobe ohne Fehler, kein Formular abgeschickt.
-- Endstand der Demos: Solarengel 1.2.1 aktiv, Fix aus, Versuchs-Plugin aktiv, Server-Cache ein. Oelsner 1.2.0 aktiv, nichts umgewandelt. Kinberger und Finanzierungswerkstatt nur mit Isolations-Plugin.
+- Endstand der Demos: Solarengel 1.2.1 aktiv, Fix aus, Versuchs-Plugin deaktiviert (seit 22:38), Server-Cache ein. Oelsner 1.2.0 aktiv, nichts umgewandelt. Kinberger und Finanzierungswerkstatt nur mit Isolations-Plugin.
 - Grenzen: Die Baselines der drei neuen Demos sind je 3 Läufe. Kinberger (77–82) und Finanzierungswerkstatt (81–83) liegen knapp über der Schwelle, auf Google lagen die Live-Seiten laut Felix bei 77 und 78.
 
 ---
