@@ -151,7 +151,7 @@ function create_images() {
 		'panorama'    => array( 'panorama.jpg', 3200, 1800, 'jpg', 'JPG über 2560 px (ergibt -scaled)' ),
 		'bild_png'    => array( 'bild.png', 1200, 800, 'png', 'Namenskollision PNG' ),
 		'bild_jpg'    => array( 'bild.jpg', 1200, 800, 'jpg', 'Namenskollision JPG' ),
-		'optimiert'   => array( 'bereits-optimiert.jpg', 800, 600, 'jpg-low', 'Bereits stark komprimierte JPG' ),
+		'optimiert'   => array( 'bereits-optimiert.jpg', 800, 600, 'jpg-low', 'Bereits stark komprimierte JPG' ), // Wird bei jeder Einstellung übersprungen.
 		'gif'         => array( 'animation.gif', 300, 200, 'gif', 'GIF (wird ignoriert)' ),
 		'webp'        => array( 'schon-modern.webp', 800, 600, 'webp', 'WebP (schon modern)' ),
 	);
@@ -277,6 +277,22 @@ function create_without_metadata( $dir, $url ) {
 function write_image( $file, $width, $height, $kind ) {
 	$image = imagecreatetruecolor( $width, $height );
 
+	if ( 'jpg-low' === $kind ) {
+		// Festes Rauschen, als JPG mit Qualität 8: Die Blockartefakte kann WebP bei keiner sinnvollen
+		// Qualität billiger abbilden (gemessen mit GD und Imagick, 35 bis 100: WebP 2- bis 5-mal größer).
+		// So wird das Bild bei jeder Einstellung und Bibliothek sicher übersprungen.
+		mt_srand( 20261126 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.rand_seeding_mt_srand -- Fester Startwert, gleiche Pixel in jedem Lauf.
+		for ( $y = 0; $y < $height; $y++ ) {
+			for ( $x = 0; $x < $width; $x++ ) {
+				imagesetpixel( $image, $x, $y, imagecolorallocate( $image, mt_rand( 0, 255 ), mt_rand( 0, 255 ), mt_rand( 0, 255 ) ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.rand_mt_rand -- Fester Startwert.
+			}
+		}
+		mt_srand(); // phpcs:ignore WordPress.WP.AlternativeFunctions.rand_seeding_mt_srand -- Zufall wieder freigeben.
+		imagejpeg( $image, $file, 8 );
+		imagedestroy( $image );
+		return;
+	}
+
 	if ( 'png-alpha' === $kind ) {
 		imagealphablending( $image, false );
 		imagesavealpha( $image, true );
@@ -310,9 +326,6 @@ function write_image( $file, $width, $height, $kind ) {
 			break;
 		case 'jpg':
 			imagejpeg( $image, $file, 92 );
-			break;
-		case 'jpg-low':
-			imagejpeg( $image, $file, 45 );
 			break;
 		case 'gif':
 			imagetruecolortopalette( $image, true, 128 );

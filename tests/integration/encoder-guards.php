@@ -304,9 +304,9 @@ function quality_imagick( $dir ) {
 				check( null !== $entry && $quality === $entry['image'] && $quality === $entry['wand'] && $quality === $entry['editor'], "{$kind}/{$png} q{$quality}: Qualität der zweiten Fassung am Kodierpunkt " . ( $entry ? "{$entry['image']}/{$entry['wand']}/{$entry['editor']}" : 'fehlt' ) . ", erwartet {$quality}" );
 
 				$temp_saves = Guard_Editor::$temp_saves;
-				$candidate = $temp_saves ? (int) $temp_saves[ count( $temp_saves ) - 1 ]['bytes'] : 0;
-				$lossless  = (int) $result['lossless_bytes'];
-				$wins      = $candidate > 0 && $lossless > 0 && $candidate <= $lossless * Encoder::LOSSY_ALPHA_MAX_RATIO;
+				$candidate  = $temp_saves ? (int) $temp_saves[ count( $temp_saves ) - 1 ]['bytes'] : 0;
+				$lossless   = (int) $result['lossless_bytes'];
+				$wins       = $candidate > 0 && $lossless > 0 && $candidate <= $lossless * Encoder::LOSSY_ALPHA_MAX_RATIO;
 
 				check( $lossless > 0 && $candidate > 0, "{$kind}/{$png} q{$quality}: beide Fassungen erzeugt (verlustfrei {$lossless} B, zweite {$candidate} B)" );
 				if ( $wins ) {

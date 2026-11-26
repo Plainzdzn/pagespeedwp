@@ -21,7 +21,9 @@ namespace Akuma\WebpUmwandler\Tests\Integration;
 use Akuma\WebpUmwandler\Attachment_Files;
 use Akuma\WebpUmwandler\Conversion;
 use Akuma\WebpUmwandler\Job;
+use Akuma\WebpUmwandler\Log_Table;
 use Akuma\WebpUmwandler\Report;
+use Akuma\WebpUmwandler\Scan_Result;
 use Akuma\WebpUmwandler\Scanner;
 use WP_CLI;
 
@@ -73,6 +75,29 @@ function main() {
 	do {
 		$progress = Conversion::progress( Conversion::step( 30 ) );
 	} while ( ! $progress['finished'] );
+
+	// Skip-Schutz: Das Seed-Bild „Bereits stark komprimierte JPG“ ist so gebaut, dass WebP bei jeder
+	// Qualität größer wäre. Es muss mit Grund übersprungen sein, sonst sind die Zahlen unten bedeutungslos.
+	$optimized = (int) get_posts(
+		array(
+			'post_type'   => 'attachment',
+			'title'       => 'Bereits stark komprimierte JPG',
+			'numberposts' => 1,
+			'fields'      => 'ids',
+		)
+	)[0];
+	$skip_rows = Log_Table::latest_by_attachment( array( $optimized ) );
+	$skip_row  = isset( $skip_rows[ $optimized ] ) ? $skip_rows[ $optimized ] : null;
+	$scan_item = Scan_Result::load() ? Scan_Result::load()->item( $optimized ) : null;
+	// Zwei Wege sind richtig: Der Scan hat das Bild in der Stichprobe gemessen und gar nicht erst
+	// angeboten, oder er hat geschätzt, und die Umwandlung hat es mit Grund übersprungen.
+	$by_scan       = $scan_item && 'skip' === $scan_item['status'] && null === $skip_row;
+	$by_conversion = $skip_row && 'skipped' === $skip_row['status'] && false !== strpos( (string) $skip_row['message'], 'nicht kleiner' );
+	check(
+		$by_scan || $by_conversion,
+		'Bereits optimierte JPG wird übersprungen: ' . ( $by_scan ? 'Scan „Überspringen“' . ( ! empty( $scan_item['measured'] ) ? ' (gemessen, Verhältnis ' . round( (float) $scan_item['ratio'], 2 ) . ')' : '' ) : ( $skip_row ? $skip_row['status'] . ', ' . $skip_row['message'] : 'Scan ' . ( $scan_item ? $scan_item['status'] : 'ohne Eintrag' ) . ', keine Umwandlung' ) )
+	);
+	check( 'image/jpeg' === get_post_mime_type( $optimized ) && ! is_file( $dir . 'bereits-optimiert.webp' ), 'Übersprungenes Bild bleibt JPG, kein WebP daneben' );
 
 	$report    = Report::load();
 	$purgeable = $report->purgeable();

@@ -7,8 +7,9 @@
 #   AKWU_SQLITE_DIR=~/akwu-sqlite bin/integration-sqlite.sh   # Ordner wiederverwenden
 #   AKWU_TESTS="png-transparency roundtrip" bin/integration-sqlite.sh   # nur diese Tests
 #
-# png-transparency braucht Imagick und überspringt sich ohne. encoder-guards prüft ohne Imagick nur den GD-Teil. purge setzt GD voraus: Die Testdatei
-# „bereits-optimiert.jpg“ ist nur für GD schon optimiert, Imagick macht daraus noch ein kleineres WebP.
+# png-transparency braucht Imagick und überspringt sich ohne. encoder-guards prüft ohne Imagick nur den GD-Teil.
+# purge braucht ein Bild, das sicher übersprungen wird: „bereits-optimiert.jpg“ im Seed ist festes Rauschen als
+# JPG mit Qualität 8, als WebP bei jeder Qualität größer (GD und Imagick).
 #
 # Die Tests legen nur eigene, entbehrliche Testbilder an und räumen sie wieder ab.
 
