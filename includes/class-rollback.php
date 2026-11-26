@@ -65,17 +65,29 @@ final class Rollback {
 		$owners = array();
 		$ready  = array();
 
+		// Einträge mit derselben Datei gehen nur gemeinsam zurück. Scheitert die Prüfung bei einem, bleibt die ganze Gruppe.
+		$rows    = self::with_members( $rows );
+		$blocked = array();
 		foreach ( $rows as $row ) {
 			$check = self::check( $row );
 			if ( is_wp_error( $check ) ) {
-				$result['errors'][ $row['attachment_id'] ] = $check->get_error_message();
+				$blocked[ (string) $row['run_id'] . '|' . (string) $row['new_file'] ] = $check->get_error_message();
+			}
+		}
+
+		foreach ( $rows as $row ) {
+			$group = (string) $row['run_id'] . '|' . (string) $row['new_file'];
+			if ( isset( $blocked[ $group ] ) ) {
+				$result['errors'][ $row['attachment_id'] ] = $blocked[ $group ];
 				continue;
 			}
 
 			$fullres = isset( $row['old_files']['original_image'] ) ? $row['old_files']['original_image'] : $row['old_files']['full'];
 			foreach ( Url_Map::reverse( $row['url_map'], $fullres ) as $from => $to ) {
-				$map[ $from ]    = $to;
-				$owners[ $from ] = (int) $row['attachment_id'];
+				$map[ $from ] = $to;
+				if ( ! isset( $owners[ $from ] ) ) {
+					$owners[ $from ] = (int) $row['attachment_id'];
+				}
 			}
 			$ready[] = $row;
 		}
@@ -102,6 +114,28 @@ final class Rollback {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Ergänzt Protokollzeilen um die übrigen Einträge ihrer Gruppe (gleiche Datei, gleicher Lauf).
+	 *
+	 * @param array[] $rows Protokollzeilen.
+	 * @return array[] Zeilen ohne Doppelte.
+	 */
+	public static function with_members( array $rows ) {
+		$all = array();
+		foreach ( $rows as $row ) {
+			$all[ (int) $row['id'] ] = $row;
+		}
+		foreach ( $rows as $row ) {
+			foreach ( Aliases::members( $row ) as $member ) {
+				if ( ! isset( $all[ (int) $member['id'] ] ) ) {
+					$all[ (int) $member['id'] ] = $member;
+				}
+			}
+		}
+
+		return array_values( $all );
 	}
 
 	/**
@@ -136,6 +170,11 @@ final class Rollback {
 		update_post_meta( $attachment_id, '_wp_attached_file', $row['old_file'] );
 		wp_update_attachment_metadata( $attachment_id, $row['old_meta'] );
 		Converter::set_mime( $attachment_id, $row['old_mime'] );
+
+		// Zeigt noch ein anderer Eintrag auf die WebP-Datei, bleiben die Dateien liegen. Der letzte Eintrag der Gruppe räumt auf.
+		if ( ! empty( $row['new_file'] ) && (string) $row['new_file'] !== (string) $row['old_file'] && Aliases::attached_elsewhere( (string) $row['new_file'], $attachment_id ) > 0 ) {
+			return true;
+		}
 
 		$old_files = array_values( (array) $row['old_files'] );
 		foreach ( array_unique( $new_files ) as $relative ) {

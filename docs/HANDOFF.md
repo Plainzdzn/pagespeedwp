@@ -14,6 +14,30 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
+## 2026-11-26 02:30 – Version 1.1.0: HEIC-Uploads, gemeinsame Dateien, Tour erst bei Bedarf (Claude Chat)
+
+**Stand:** Feature-Stand auf Basis von `20677fb` (v1.0.0). Nicht gemergt, nicht veröffentlicht.
+
+**Anlass:** Test auf der JBZ-Kopie (25.11.2026): 903 Mediathek-Einträge, nichts umwandelbar. Sechs als HEIC hochgeladene Fotos lagen als JPG auf dem Server und wurden nicht erkannt, WPML führt viele Dateien unter zwei Bild-IDs. Auf der Startseite kam der größte Teil der Bytes von einer 3D-Tour weit unten.
+
+**Erledigt:**
+- **HEIC-Einträge mit echter JPG-Datei** werden erkannt und umgewandelt, der HEIC-Master bleibt (ADR-027). Echte HEIC bleibt unberührt.
+- **Gemeinsame Dateien** (WPML-Duplikate): Scan, Umwandlung, Verweise, Wiederholung nach Abbruch, Rückgängig und „Originale löschen“ behandeln die Einträge als Gruppe oder lassen sie mit Grund aus (ADR-028).
+- **Neue Seite „Einbettungen“:** Matterport-Tour weit unten erst bei Bedarf laden, je Tour einzeln, zeichengenau zurücknehmbar (ADR-029).
+- Scan-Format 3: Nach dem Update ist ein neuer Scan nötig.
+
+**Entscheidungen:** ADR-027 bis ADR-029.
+
+**Offen / Nächster Schritt:**
+- Wird ein Lauf genau zwischen der Umstellung eines Bildes und seiner Zweiteinträge unterbrochen, wandelt der zweite Versuch den Zweiteintrag einzeln um (eigene WebP-Dateien). Das ist sicher und einzeln rückgängig zu machen, aber nicht deckungsgleich. Abhilfe wäre, einem schon umgestellten Eintrag nachträglich zu folgen.
+- Sites, die mit 1.0.0 umgewandelt wurden und Zweiteinträge haben: „Originale löschen“ ist jetzt geschützt, die Zweiteinträge selbst werden nicht nachgezogen.
+- Kein CSV-Export des Scans. Der LCP-Hintergrund der Startseite (späte Entdeckung im CSS) bleibt Sache des Themes bzw. eines Laufzeit-Plugins.
+
+**Getestet:**
+- PHPCS sauber, PHPUnit 83 Tests.
+- Integration lokal (WordPress 7.1.5, PHP 8.3, SQLite, GD): `roundtrip.php`, `purge.php`, neu `heic-alias.php` und `embeds.php`, alle bestanden.
+- Demo-Kopie JBZ (Raidboxes, WPML, Imagick): siehe Projektbericht vom 26.11.2026.
+
 ## 2026-10-09 20:47 – M5 Abschluss, Version 1.0.0 (Claude Code)
 
 **Stand:** M5 – fertig. Version 1.0.0, alle Meilensteine abgeschlossen.

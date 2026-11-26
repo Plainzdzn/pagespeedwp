@@ -34,9 +34,17 @@ final class Converter {
 	public static function convert( array $row, array $settings ) {
 		$attachment_id = (int) $row['attachment_id'];
 		$mime          = (string) get_post_mime_type( $attachment_id );
+		$attached      = (string) get_post_meta( $attachment_id, '_wp_attached_file', true );
+		$kind          = Inventory::real( $mime, Attachment_Files::relative( $attached ) );
 
-		if ( ! isset( Inventory::CONVERTIBLE[ $mime ] ) ) {
-			return self::finish( $row, 'skipped', __( 'Kein JPG oder PNG mehr, nichts zu tun.', 'akuma-webp-umwandler' ) );
+		if ( null === $kind ) {
+			return self::finish(
+				$row,
+				'skipped',
+				isset( Inventory::CONTAINERS[ $mime ] )
+					? __( 'HEIC-Eintrag ohne JPG- oder PNG-Datei. Echte HEIC-Dateien werden nicht umgewandelt.', 'akuma-webp-umwandler' )
+					: __( 'Kein JPG oder PNG mehr, nichts zu tun.', 'akuma-webp-umwandler' )
+			);
 		}
 
 		$meta = wp_get_attachment_metadata( $attachment_id, true );
@@ -57,6 +65,17 @@ final class Converter {
 			return self::finish( $row, 'error', __( 'Die Originaldatei fehlt auf dem Server.', 'akuma-webp-umwandler' ) );
 		}
 
+		// Hinter einem HEIC-Eintrag zählt nur, was die Datei wirklich ist. Eine echte HEIC wird nie als JPG gelesen.
+		if ( isset( Inventory::CONTAINERS[ $mime ] ) && ! in_array( Attachment_Files::real_kind( $source ), array( 'jpg', 'png' ), true ) ) {
+			return self::finish( $row, 'skipped', __( 'HEIC-Eintrag ohne JPG- oder PNG-Datei. Echte HEIC-Dateien werden nicht umgewandelt.', 'akuma-webp-umwandler' ) );
+		}
+
+		// Weitere Einträge mit derselben Datei (WPML-Duplikate) gehen nur gemeinsam mit, sonst wird nichts geschrieben.
+		$plan = Aliases::plan( $attachment_id, $attached, $old_files, $kind );
+		if ( '' !== $plan['reason'] ) {
+			return self::finish( $row, 'skipped', $plan['reason'] );
+		}
+
 		$dir    = dirname( $source );
 		$target = trailingslashit( $dir ) . wp_unique_filename( $dir, pathinfo( $source, PATHINFO_FILENAME ) . '.webp' );
 
@@ -64,7 +83,7 @@ final class Converter {
 		$state = array(
 			'status'       => 'working',
 			'attempts'     => (int) $row['attempts'] + 1,
-			'old_file'     => (string) get_post_meta( $attachment_id, '_wp_attached_file', true ),
+			'old_file'     => $attached,
 			'old_mime'     => $mime,
 			'old_meta'     => $meta,
 			'old_files'    => $old_files,
@@ -73,12 +92,14 @@ final class Converter {
 			'message'      => '',
 		);
 		Log_Table::update( $row['id'], $state );
-		$row = array_merge( $row, $state );
+		$row       = array_merge( $row, $state );
+		$followers = Aliases::begin( $row, $plan['states'] );
 
 		$encoded = Encoder::encode( $source, $target, $settings );
 
 		if ( is_wp_error( $encoded ) ) {
 			self::delete_new_file( $target, $old_files );
+			Aliases::abort( $followers, 'error', $encoded->get_error_message(), false );
 			return self::finish( $row, 'error', $encoded->get_error_message() );
 		}
 
@@ -86,14 +107,12 @@ final class Converter {
 		if ( Estimator::would_skip( $ratio, (int) $settings['min_savings'] ) ) {
 			self::delete_new_file( $encoded['path'], $old_files );
 			$saving = (int) round( ( 1 - $ratio ) * 100 );
-			return self::finish(
-				$row,
-				'skipped',
-				$saving > 0
-					/* translators: 1: Ersparnis in Prozent, 2: Mindestersparnis in Prozent. */
-					? sprintf( __( 'Nur %1$s %% kleiner, Mindestersparnis %2$s %%. Bild bleibt unverändert.', 'akuma-webp-umwandler' ), $saving, (int) $settings['min_savings'] )
-					: __( 'Als WebP nicht kleiner. Bild bleibt unverändert.', 'akuma-webp-umwandler' )
-			);
+			$reason = $saving > 0
+				/* translators: 1: Ersparnis in Prozent, 2: Mindestersparnis in Prozent. */
+				? sprintf( __( 'Nur %1$s %% kleiner, Mindestersparnis %2$s %%. Bild bleibt unverändert.', 'akuma-webp-umwandler' ), $saving, (int) $settings['min_savings'] )
+				: __( 'Als WebP nicht kleiner. Bild bleibt unverändert.', 'akuma-webp-umwandler' );
+			Aliases::abort( $followers, 'skipped', $reason, false );
+			return self::finish( $row, 'skipped', $reason );
 		}
 
 		try {
@@ -104,6 +123,7 @@ final class Converter {
 
 		if ( is_wp_error( $result ) ) {
 			Rollback::restore_attachment( $row );
+			Aliases::abort( $followers, 'error', $result->get_error_message(), true );
 			return self::finish( $row, 'error', $result->get_error_message() );
 		}
 
@@ -114,7 +134,9 @@ final class Converter {
 		if ( $mapping['missing'] ) {
 			Rollback::restore_attachment( array_merge( $row, array( 'new_files' => $new_files ) ) );
 			/* translators: %s: Liste von Größennamen. */
-			return self::finish( $row, 'error', sprintf( __( 'Diese Größen ließen sich nicht als WebP erzeugen: %s. Bild bleibt im Original.', 'akuma-webp-umwandler' ), implode( ', ', $mapping['missing'] ) ) );
+			$reason = sprintf( __( 'Diese Größen ließen sich nicht als WebP erzeugen: %s. Bild bleibt im Original.', 'akuma-webp-umwandler' ), implode( ', ', $mapping['missing'] ) );
+			Aliases::abort( $followers, 'error', $reason, true );
+			return self::finish( $row, 'error', $reason );
 		}
 
 		$message = sprintf(
@@ -133,8 +155,11 @@ final class Converter {
 			'message'     => $message,
 		);
 		Log_Table::update( $row['id'], $update );
+		$row = array_merge( $row, $update );
 
-		return array_merge( $row, $update );
+		Aliases::follow( $row, $followers );
+
+		return $row;
 	}
 
 	/**
@@ -166,10 +191,38 @@ final class Converter {
 		}
 
 		$meta = self::add_old_sizes( $file, $meta, $old_meta );
+		$meta = self::keep_master( $file, $meta, $old_meta );
 
 		wp_update_attachment_metadata( $attachment_id, $meta );
 
 		return true;
+	}
+
+	/**
+	 * Behält einen HEIC-Master als Original des Anhangs, wenn er nicht die Quelle der Umwandlung war.
+	 *
+	 * WordPress führt ihn in original_image. Ohne den Eintrag wäre die Datei nach der Umwandlung verwaist
+	 * und würde beim Löschen der alten Dateien mit entfernt.
+	 *
+	 * @param string $file     Absoluter Pfad der WebP-Datei.
+	 * @param array  $meta     Neue Metadaten.
+	 * @param array  $old_meta Metadaten vor der Umwandlung.
+	 * @return array
+	 */
+	private static function keep_master( $file, array $meta, array $old_meta ) {
+		if ( ! empty( $meta['original_image'] ) || empty( $old_meta['original_image'] ) || ! is_string( $old_meta['original_image'] ) ) {
+			return $meta;
+		}
+
+		$relative = (string) Attachment_Files::relative( $file );
+		$dir      = dirname( $relative );
+		$master   = ( '.' === $dir || '' === $dir ? '' : $dir . '/' ) . wp_basename( $old_meta['original_image'] );
+
+		if ( Attachment_Files::is_foreign_master( $master ) ) {
+			$meta['original_image'] = wp_basename( $old_meta['original_image'] );
+		}
+
+		return $meta;
 	}
 
 	/**

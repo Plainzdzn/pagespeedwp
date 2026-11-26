@@ -36,6 +36,13 @@ final class Originals {
 			return new \WP_Error( 'akwu_purge_changed', __( 'Das Bild wurde seit der Umwandlung verändert. Die alten Dateien bleiben.', 'akuma-webp-umwandler' ) );
 		}
 
+		// Gehört die alte Hauptdatei noch zu einem anderen Eintrag, hängen auch ihre Größen daran. Dann bleibt alles liegen.
+		$shared = Aliases::attached_elsewhere( (string) $row['old_file'], $attachment_id );
+		if ( $shared > 0 ) {
+			/* translators: %d: Attachment-ID. */
+			return new \WP_Error( 'akwu_purge_shared', sprintf( __( 'Die alte Datei gehört noch zu Bild-ID %d. Die alten Dateien bleiben.', 'akuma-webp-umwandler' ), $shared ) );
+		}
+
 		$current = Attachment_Files::of( $attachment_id );
 		$current = null === $current ? array() : array_values( $current );
 		$files   = array_diff( array_unique( array_values( (array) $row['old_files'] ) ), $current );
@@ -103,7 +110,8 @@ final class Originals {
 		}
 
 		$rows = Log_Table::latest_by_attachment( array( (int) $attachment_id ), array( 'done' ) );
-		if ( isset( $rows[ $attachment_id ] ) && empty( $rows[ $attachment_id ]['purged_at'] ) ) {
+		// Teilen sich weitere Einträge die Datei, brauchen sie die Originale noch für Rückgängig.
+		if ( isset( $rows[ $attachment_id ] ) && empty( $rows[ $attachment_id ]['purged_at'] ) && empty( Aliases::members( $rows[ $attachment_id ] ) ) ) {
 			self::purge( $rows[ $attachment_id ] );
 		}
 

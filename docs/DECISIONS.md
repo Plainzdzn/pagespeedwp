@@ -110,3 +110,16 @@ Wird ein umgewandeltes Bild aus der Mediathek gelöscht, löscht WordPress nur d
 ### ADR-026 – Revisionen: ersetzen, außer beim Customizer-CSS
 **Status:** angenommen · 2026-10-09
 Revisionen von Beiträgen und Elementor-Seiten werden mit ersetzt. Eine wiederhergestellte Revision bringt so keine alten Adressen zurück, die nach dem Löschen der Originale ins Leere zeigen würden. Revisionen des Customizer-CSS bleiben wie das CSS selbst unangetastet (Briefing §4.2). In Bericht und Scan zählen Revisionen nicht als Verwendung.
+
+### ADR-027 – HEIC-Einträge nach Dateiinhalt beurteilen
+**Status:** angenommen · 2026-11-26
+WordPress wandelt HEIC-Uploads in JPG um (`…-scaled.jpg` plus Größen), lässt den MIME-Typ des Anhangs aber auf `image/heic` und führt den HEIC-Master in `original_image`. Version 1.0.0 hielt solche Bilder für „Sonstige“. Jetzt entscheidet bei HEIC-Einträgen der Dateiinhalt (erste Bytes): Ist die Hauptdatei nachweislich JPG oder PNG, wird sie umgewandelt. Der HEIC-Master ist nie die Quelle, bleibt als `original_image` eingetragen und überlebt auch „Originale löschen“. Echte HEIC-Dateien, auch mit JPG-Endung, bleiben unberührt. Für gewöhnliche JPG- und PNG-Anhänge ändert sich nichts.
+
+### ADR-028 – Anhänge mit gemeinsamer Datei gehen nur zusammen
+**Status:** angenommen · 2026-11-26
+Mehrere Anhänge können auf dieselbe Datei zeigen (WPML legt je Sprache einen Eintrag an). Wird nur einer umgestellt, zeigen die anderen auf Dateien, die „Originale löschen“ später entfernt. Deshalb: Vor dem Schreiben werden alle Einträge mit derselben Hauptdatei gesucht. Haben sie dieselben Dateien, bekommt jeder eine eigene Protokollzeile mit eigenem altem Zustand, die Datei wird einmal umgewandelt und alle zeigen danach auf dieselben WebP-Dateien. Passen die Metadaten nicht zusammen, wird nichts geschrieben und der Grund steht im Protokoll. Rückgängig nimmt immer die ganze Gruppe (gleicher Lauf, gleiche neue Datei), der letzte Eintrag löscht die WebP-Dateien. „Originale löschen“ lässt alte Dateien liegen, solange ein anderer Anhang darauf zeigt. Keine neue Tabellenspalte. Der Scan zählt die Bytes gemeinsamer Dateien einmal (Scan-Format 3, ein neuer Scan ist nötig).
+
+### ADR-029 – 3D-Tour weit unten erst bei Bedarf laden, als gespeicherte Änderung
+**Status:** angenommen · 2026-11-26
+Messung auf einer Kundenkopie: Eine Matterport-Tour im neunten Abschnitt der Startseite machte beim Seitenaufruf rund zwei Drittel der übertragenen Bytes und Anfragen aus, zweimal geladen (Desktop- und Handy-Variante). Das größte sichtbare Element (LCP) war dagegen ein CSS-Hintergrund, der schon WebP ist. Ein Preload dafür bräuchte Logik bei jeder Auslieferung und je Gerät andere Dateien, das widerspricht dem Grundsatz „kein Eingriff zur Laufzeit“ und wurde verworfen. Stattdessen setzt die neue Seite „Einbettungen“ auf Wunsch `loading="lazy"` an genau dem einen iframe im Elementor-HTML-Widget: je Tour einzeln, nur Matterport (Filter `akwu_embed_hosts`), nur ab dem dritten Abschnitt, mit gesichertem alten Tag und zeichengenauem Zurücknehmen. Kein Platzhalter, kein Klick, kein Skript: Das echte iframe bleibt, der Browser lädt es von selbst in der Nähe des Sichtbereichs. Die Änderung wirkt auch ohne das Plugin weiter.
+

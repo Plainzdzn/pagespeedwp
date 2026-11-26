@@ -59,6 +59,54 @@ final class Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar' ), 100 );
 		add_action( 'admin_post_akwu_report_csv', array( $this, 'download_csv' ) );
+		add_action( 'admin_post_akwu_embed', array( $this, 'handle_embed' ) );
+	}
+
+	/**
+	 * Eine eingebettete Tour verzögert laden lassen oder die Änderung zurücknehmen. Nur für Admins, mit Nonce.
+	 *
+	 * @return void
+	 */
+	public function handle_embed() {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			wp_die( esc_html__( 'Dafür fehlen die Rechte.', 'akuma-webp-umwandler' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'akwu_embed' );
+
+		$key    = isset( $_POST['akwu_key'] ) ? sanitize_text_field( wp_unslash( $_POST['akwu_key'] ) ) : '';
+		$revert = isset( $_POST['akwu_do'] ) && 'revert' === sanitize_key( wp_unslash( $_POST['akwu_do'] ) );
+
+		$changes = Embeds::changes();
+		$before  = isset( $changes[ $key ] ) ? $changes[ $key ] : null;
+		$result  = $revert ? Embeds::revert( $key ) : Embeds::apply( $key );
+
+		if ( is_wp_error( $result ) ) {
+			$notice = array(
+				'type'    => 'error',
+				'title'   => __( 'Nichts geändert.', 'akuma-webp-umwandler' ),
+				'message' => $result->get_error_message(),
+			);
+		} elseif ( $revert ) {
+			$notice = array(
+				'type'    => 'success',
+				'title'   => __( 'Änderung zurückgenommen.', 'akuma-webp-umwandler' ),
+				'message' => ( null !== $before && Embeds::matches( $before['post'], $before['hash'] ) )
+					? __( 'Der gespeicherte Seiteninhalt entspricht wieder zeichengenau dem Stand vor der Änderung. Die Tour lädt wieder sofort.', 'akuma-webp-umwandler' )
+					: __( 'Das Attribut ist entfernt, die Tour lädt wieder sofort. Die Seite wurde seit der Änderung an anderer Stelle bearbeitet.', 'akuma-webp-umwandler' ),
+			);
+		} else {
+			$notice = array(
+				'type'    => 'success',
+				'title'   => __( 'Die Tour lädt jetzt erst, wenn man in ihre Nähe scrollt.', 'akuma-webp-umwandler' ),
+				'message' => Cache_Purger::needs_raidboxes_hint()
+					? __( 'Elementor-Cache ist erneuert. Bitte noch den Raidboxes-Cache im Dashboard leeren, dann die Seite prüfen.', 'akuma-webp-umwandler' )
+					: __( 'Elementor-Cache und Seiten-Cache sind erneuert. Bitte die Seite einmal prüfen.', 'akuma-webp-umwandler' ),
+			);
+		}
+
+		set_transient( 'akwu_embed_notice_' . get_current_user_id(), $notice, 120 );
+		wp_safe_redirect( self::page_url( 'akwu-einbettungen' ) );
+		exit;
 	}
 
 	/**
@@ -154,6 +202,12 @@ final class Admin {
 				'menu'  => __( 'Alle Bilder', 'akuma-webp-umwandler' ),
 				'view'  => 'page-images',
 				'icon'  => 'image',
+				'group' => 'main',
+			),
+			'akwu-einbettungen'   => array(
+				'menu'  => __( 'Einbettungen', 'akuma-webp-umwandler' ),
+				'view'  => 'page-embeds',
+				'icon'  => 'play',
 				'group' => 'main',
 			),
 			'akwu-einstellungen'  => array(
@@ -298,6 +352,16 @@ final class Admin {
 	 */
 	private function notices( $current, $result, $run, $job, $report ) {
 		$notices = array();
+
+		if ( 'akwu-einbettungen' === $current ) {
+			$notice = get_transient( 'akwu_embed_notice_' . get_current_user_id() );
+			if ( is_array( $notice ) && isset( $notice['type'], $notice['title'], $notice['message'] ) ) {
+				delete_transient( 'akwu_embed_notice_' . get_current_user_id() );
+				$notices[] = $notice;
+			}
+
+			return $notices;
+		}
 
 		if ( Job::is_active( $job ) ) {
 			$page = self::job_page( $job );

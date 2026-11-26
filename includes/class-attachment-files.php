@@ -120,17 +120,105 @@ final class Attachment_Files {
 	}
 
 	/**
-	 * Quelle für die Umwandlung: das Original vor dem Verkleinern, sonst die angehängte Datei.
+	 * Tatsächlicher Bildtyp einer Datei anhand der ersten Bytes, unabhängig von Endung und MIME-Typ.
 	 *
-	 * @param array<string, string> $files Ergebnis von of().
-	 * @return string Pfad relativ zum Upload-Ordner.
+	 * WordPress wandelt HEIC-Uploads in JPG um, lässt den MIME-Typ des Anhangs aber auf image/heic.
+	 * Umgekehrt darf eine echte HEIC-Datei nie als JPG behandelt werden, nur weil sie so heißt.
+	 *
+	 * @param string $path Absoluter Pfad.
+	 * @return string|null jpg, png, webp, gif, heic, avif oder null, wenn unbekannt oder nicht lesbar.
+	 */
+	public static function real_kind( $path ) {
+		if ( ! is_string( $path ) || ! is_file( $path ) || ! is_readable( $path ) ) {
+			return null;
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Nur die ersten 16 Bytes einer lokalen Datei.
+		$head = file_get_contents( $path, false, null, 0, 16 );
+		if ( ! is_string( $head ) || strlen( $head ) < 12 ) {
+			return null;
+		}
+
+		if ( 0 === strncmp( $head, "\xFF\xD8\xFF", 3 ) ) {
+			return 'jpg';
+		}
+		if ( 0 === strncmp( $head, "\x89PNG\r\n\x1A\n", 8 ) ) {
+			return 'png';
+		}
+		if ( 'RIFF' === substr( $head, 0, 4 ) && 'WEBP' === substr( $head, 8, 4 ) ) {
+			return 'webp';
+		}
+		if ( 'GIF8' === substr( $head, 0, 4 ) ) {
+			return 'gif';
+		}
+		if ( 'ftyp' === substr( $head, 4, 4 ) ) {
+			$brand = substr( $head, 8, 4 );
+			if ( in_array( $brand, array( 'avif', 'avis' ), true ) ) {
+				return 'avif';
+			}
+			if ( in_array( $brand, array( 'heic', 'heix', 'heim', 'heis', 'hevc', 'hevx', 'hevm', 'hevs', 'mif1', 'msf1' ), true ) ) {
+				return 'heic';
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Die Datei, aus der umgewandelt wird: das Original in voller Auflösung, sonst die Hauptdatei.
+	 *
+	 * Ein Original, das nachweislich kein JPG oder PNG ist (HEIC-Master eines iPhone-Uploads), scheidet aus.
+	 * Dann ist die von WordPress erzeugte Hauptdatei die Quelle, der Master bleibt unangetastet.
+	 *
+	 * @param array<string, string> $files Dateien aus of().
+	 * @return string Relativer Pfad.
 	 */
 	public static function source( array $files ) {
-		if ( isset( $files['original_image'] ) && file_exists( self::path( $files['original_image'] ) ) ) {
+		if ( isset( $files['original_image'] ) && file_exists( self::path( $files['original_image'] ) ) && ! self::is_foreign_master( $files['original_image'] ) ) {
 			return $files['original_image'];
 		}
 
 		return $files['full'];
+	}
+
+	/**
+	 * Ist die Datei nachweislich weder JPG noch PNG (z. B. ein HEIC-Master)?
+	 *
+	 * Unbekannter Inhalt gilt nicht als fremd, damit sich für gewöhnliche Anhänge nichts ändert.
+	 *
+	 * @param string $relative Relativer Pfad.
+	 * @return bool
+	 */
+	public static function is_foreign_master( $relative ) {
+		$kind = self::real_kind( self::path( $relative ) );
+
+		return null !== $kind && ! in_array( $kind, array( 'jpg', 'png' ), true );
+	}
+
+	/**
+	 * Andere Anhänge, die auf dieselbe Hauptdatei zeigen (WPML-Duplikate, doppelte Einträge).
+	 *
+	 * @param int    $attachment_id Attachment-ID.
+	 * @param string $attached      Wert von _wp_attached_file.
+	 * @return int[] Attachment-IDs, aufsteigend, ohne die eigene.
+	 */
+	public static function aliases( $attachment_id, $attached ) {
+		global $wpdb;
+
+		if ( '' === (string) $attached ) {
+			return array();
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Sicherheitsprüfung vor dem Schreiben, ohne Cache.
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT m.post_id FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE m.meta_key = '_wp_attached_file' AND m.meta_value = %s AND m.post_id <> %d AND p.post_type = 'attachment' ORDER BY m.post_id ASC",
+				(string) $attached,
+				(int) $attachment_id
+			)
+		);
+
+		return array_values( array_unique( array_map( 'intval', (array) $ids ) ) );
 	}
 
 	/**

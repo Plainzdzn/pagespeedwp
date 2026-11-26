@@ -41,6 +41,16 @@ WordPress-Plugin von Akuma Digital. Ersetzt PNG- und JPG-Bilder in der Mediathek
 
 Optional misst das Plugin die Startseite mobil mit PageSpeed Insights vorher und nachher. Dafür unter **Einstellungen** einen API-Schlüssel eintragen. Ohne Schlüssel stellt das Plugin keine Anfragen nach außen.
 
+## HEIC-Uploads und doppelte Einträge (ab 1.1.0)
+
+- Fotos, die als HEIC hochgeladen wurden, liegen in WordPress als JPG auf dem Server. Sie werden wie JPGs umgewandelt, in der Liste steht „als HEIC hochgeladen, Datei ist JPG“. Die HEIC-Datei selbst bleibt immer erhalten.
+- Zeigen mehrere Mediathek-Einträge auf dieselbe Datei (WPML legt je Sprache einen an), werden sie gemeinsam umgestellt und gemeinsam zurückgesetzt. In der Liste steht „gleiche Datei wie ID …“. Passen die Einträge nicht zusammen, bleibt das Bild unverändert, der Grund steht im Protokoll.
+- Nach dem Update von 1.0.0 einmal neu scannen.
+
+## Einbettungen (ab 1.1.0)
+
+Eine Matterport-Tour lädt beim Seitenaufruf mehrere Megabyte, auch wenn sie weit unten steht. Unter **WebP-Umwandler → Einbettungen** lässt sich je Tour festlegen, dass der Browser sie erst lädt, wenn man in ihre Nähe scrollt. Die Tour bleibt unverändert bedienbar, es gibt keinen Platzhalter und keinen zusätzlichen Klick. „Zurücknehmen“ stellt den gespeicherten Inhalt zeichengenau wieder her. Danach den Server-Cache leeren (Raidboxes: im Dashboard).
+
 ## Rückgängig
 
 Unter **Rückgängig** lassen sich alle Bilder oder einzelne zurücksetzen: Datei, Metadaten und Verweise wie vorher, die WebP-Dateien werden gelöscht, die IDs bleiben. Das geht, solange die Originale existieren und das Plugin installiert ist. Mit dem Löschen des Plugins verschwindet das Protokoll, danach ist kein Rückgängig mehr möglich.

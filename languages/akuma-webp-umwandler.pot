@@ -2,21 +2,21 @@
 # This file is distributed under the same license as the WebP-Umwandler plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: WebP-Umwandler 1.0.0\n"
-"Report-Msgid-Bugs-To: \n"
-"Last-Translator: Akuma Digital\n"
-"Language-Team: \n"
+"Project-Id-Version: WebP-Umwandler 1.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/pagespeedwp\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-09T18:47:18+00:00\n"
+"POT-Creation-Date: 2026-11-26T01:16:02+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: akuma-webp-umwandler\n"
 
 #. Plugin Name of the plugin
 #: akuma-webp-umwandler.php
-#: includes/class-admin.php:189
+#: includes/class-admin.php:243
 #: includes/class-plugin.php:65
 #: includes/views/layout.php:36
 msgid "WebP-Umwandler"
@@ -32,219 +32,265 @@ msgstr ""
 msgid "Akuma Digital"
 msgstr ""
 
-#: includes/class-admin.php:71
-#: includes/class-admin.php:261
+#: includes/class-admin.php:72
+#: includes/class-admin.php:119
+#: includes/class-admin.php:315
 msgid "Dafür fehlen die Rechte."
 msgstr ""
 
-#: includes/class-admin.php:77
+#: includes/class-admin.php:86
+msgid "Nichts geändert."
+msgstr ""
+
+#: includes/class-admin.php:92
+msgid "Änderung zurückgenommen."
+msgstr ""
+
+#: includes/class-admin.php:94
+msgid "Der gespeicherte Seiteninhalt entspricht wieder zeichengenau dem Stand vor der Änderung. Die Tour lädt wieder sofort."
+msgstr ""
+
+#: includes/class-admin.php:95
+msgid "Das Attribut ist entfernt, die Tour lädt wieder sofort. Die Seite wurde seit der Änderung an anderer Stelle bearbeitet."
+msgstr ""
+
+#: includes/class-admin.php:100
+msgid "Die Tour lädt jetzt erst, wenn man in ihre Nähe scrollt."
+msgstr ""
+
+#: includes/class-admin.php:102
+msgid "Elementor-Cache ist erneuert. Bitte noch den Raidboxes-Cache im Dashboard leeren, dann die Seite prüfen."
+msgstr ""
+
+#: includes/class-admin.php:103
+msgid "Elementor-Cache und Seiten-Cache sind erneuert. Bitte die Seite einmal prüfen."
+msgstr ""
+
+#: includes/class-admin.php:125
 msgid "Es gibt noch keinen Bericht."
 msgstr ""
 
 #. translators: %s: Fortschritt in Prozent.
-#: includes/class-admin.php:122
+#: includes/class-admin.php:170
 #: includes/class-run-presenter.php:38
 #, php-format
 msgid "WebP-Umwandler · %s %%"
 msgstr ""
 
-#: includes/class-admin.php:136
+#: includes/class-admin.php:184
 #: includes/views/page-overview.php:51
 #: includes/views/page-overview.php:63
 #: includes/views/page-overview.php:69
 msgid "Übersicht"
 msgstr ""
 
-#: includes/class-admin.php:142
+#: includes/class-admin.php:190
 #: includes/class-run-presenter.php:58
 #: includes/views/page-conversion.php:32
 msgid "Umwandlung"
 msgstr ""
 
-#: includes/class-admin.php:148
+#: includes/class-admin.php:196
 #: includes/views/page-report.php:28
 #: includes/views/page-report.php:70
 msgid "Bericht"
 msgstr ""
 
-#: includes/class-admin.php:154
+#: includes/class-admin.php:202
 #: includes/views/page-images.php:26
 #: includes/views/page-images.php:60
 #: includes/views/page-report.php:135
 msgid "Alle Bilder"
 msgstr ""
 
-#: includes/class-admin.php:160
+#: includes/class-admin.php:208
+#: includes/views/page-embeds.php:35
+msgid "Einbettungen"
+msgstr ""
+
+#: includes/class-admin.php:214
 #: includes/views/page-settings.php:39
 msgid "Einstellungen"
 msgstr ""
 
-#: includes/class-admin.php:166
+#: includes/class-admin.php:220
 #: includes/views/page-system.php:36
 msgid "Systemprüfung"
 msgstr ""
 
-#: includes/class-admin.php:172
+#: includes/class-admin.php:226
 #: includes/views/page-rollback.php:26
 msgid "Rückgängig"
 msgstr ""
 
 #. translators: 1: Seitenname, 2: Plugin-Name.
-#: includes/class-admin.php:205
+#: includes/class-admin.php:259
 #, php-format
 msgid "%1$s – %2$s"
 msgstr ""
 
-#: includes/class-admin.php:238
+#: includes/class-admin.php:292
 msgid "Das hat nicht geklappt. Bitte die Seite neu laden und noch einmal versuchen."
 msgstr ""
 
-#: includes/class-admin.php:239
+#: includes/class-admin.php:293
 msgid "Scan abgeschlossen. Seite wird neu geladen …"
 msgstr ""
 
-#: includes/class-admin.php:240
+#: includes/class-admin.php:294
 #: includes/views/part-scan-progress.php:30
 msgid "Scan startet …"
 msgstr ""
 
-#: includes/class-admin.php:241
+#: includes/class-admin.php:295
 msgid "Bitte zuerst bestätigen, dass ein Backup erstellt ist."
 msgstr ""
 
-#: includes/class-admin.php:242
+#: includes/class-admin.php:296
 msgid "Umwandlung abbrechen und alle Bilder dieses Laufs zurück ins Original setzen?"
 msgstr ""
 
-#: includes/class-admin.php:243
+#: includes/class-admin.php:297
 msgid "Verbindung unterbrochen. Neuer Versuch in wenigen Sekunden …"
 msgstr ""
 
-#: includes/class-admin.php:244
+#: includes/class-admin.php:298
 msgid "PageSpeed misst die Startseite, das dauert bis zu einer Minute …"
 msgstr ""
 
-#: includes/class-admin.php:307
+#: includes/class-admin.php:371
 msgid "Originale werden gelöscht."
 msgstr ""
 
-#: includes/class-admin.php:307
+#: includes/class-admin.php:371
 msgid "Rückgängig läuft."
 msgstr ""
 
-#: includes/class-admin.php:308
-#: includes/class-admin.php:361
+#: includes/class-admin.php:372
+#: includes/class-admin.php:425
 msgid "Bitte dieses Fenster geöffnet lassen. Bei einer Unterbrechung geht es beim nächsten Paket weiter."
 msgstr ""
 
-#: includes/class-admin.php:313
+#: includes/class-admin.php:377
 msgid "Das Löschen der Originale ist offen."
 msgstr ""
 
-#: includes/class-admin.php:313
+#: includes/class-admin.php:377
 msgid "Ein Rückgängig ist offen."
 msgstr ""
 
-#: includes/class-admin.php:314
+#: includes/class-admin.php:378
 msgid "Es läuft nur weiter, solange die Seite dazu geöffnet ist."
 msgstr ""
 
-#: includes/class-admin.php:317
+#: includes/class-admin.php:381
 msgid "Zur Seite"
 msgstr ""
 
-#: includes/class-admin.php:330
+#: includes/class-admin.php:394
 msgid "Originale gelöscht."
 msgstr ""
 
-#: includes/class-admin.php:330
+#: includes/class-admin.php:394
 msgid "Rückgängig abgeschlossen."
 msgstr ""
 
 #. translators: %s: Anzahl Bilder.
-#: includes/class-admin.php:333
+#: includes/class-admin.php:397
 #, php-format
 msgid "%s Bild ging nicht, Gründe stehen in der Liste."
 msgid_plural "%s Bilder gingen nicht, Gründe stehen in der Liste."
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-admin.php:343
+#: includes/class-admin.php:407
 #: includes/class-run-presenter.php:73
 #: includes/views/page-report.php:71
 msgid "Fertig."
 msgstr ""
 
 #. translators: %s: Anzahl Bilder.
-#: includes/class-admin.php:345
+#: includes/class-admin.php:409
 #, php-format
 msgid "%s Bild umgewandelt, Elementor-CSS neu erzeugt, Cache geleert."
 msgid_plural "%s Bilder umgewandelt, Elementor-CSS neu erzeugt, Cache geleert."
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-admin.php:348
+#: includes/class-admin.php:412
 msgid "Website ansehen"
 msgstr ""
 
-#: includes/class-admin.php:358
+#: includes/class-admin.php:422
 msgid "Umwandlung pausiert."
 msgstr ""
 
-#: includes/class-admin.php:358
+#: includes/class-admin.php:422
 msgid "Umwandlung läuft."
 msgstr ""
 
-#: includes/class-admin.php:360
+#: includes/class-admin.php:424
 msgid "Mit „Fortsetzen“ geht es beim nächsten Paket weiter."
 msgstr ""
 
-#: includes/class-admin.php:366
+#: includes/class-admin.php:430
 msgid "Eine Umwandlung ist offen."
 msgstr ""
 
-#: includes/class-admin.php:367
+#: includes/class-admin.php:431
 msgid "Sie läuft nur weiter, solange die Seite der Umwandlung geöffnet ist."
 msgstr ""
 
-#: includes/class-admin.php:370
+#: includes/class-admin.php:434
 msgid "Zur Umwandlung"
 msgstr ""
 
-#: includes/class-admin.php:381
+#: includes/class-admin.php:445
 msgid "Zahlen vom Scan vor der Umwandlung."
 msgstr ""
 
-#: includes/class-admin.php:382
+#: includes/class-admin.php:446
 msgid "Ein neuer Scan zeigt den aktuellen Stand."
 msgstr ""
 
-#: includes/class-admin.php:388
+#: includes/class-admin.php:452
 msgid "Scan abgeschlossen."
 msgstr ""
 
-#: includes/class-admin.php:389
+#: includes/class-admin.php:453
 msgid "Es wurde nur gelesen, nichts verändert. Bild-IDs bleiben bei der Umwandlung erhalten."
 msgstr ""
 
-#: includes/class-admin.php:410
+#: includes/class-admin.php:474
 msgid "CSV exportieren"
 msgstr ""
 
-#: includes/class-admin.php:416
+#: includes/class-admin.php:480
 msgid "Rückgängig machen"
 msgstr ""
 
-#: includes/class-admin.php:431
+#: includes/class-admin.php:495
 msgid "Fortsetzen"
 msgstr ""
 
-#: includes/class-admin.php:437
+#: includes/class-admin.php:501
 msgid "Pausieren"
 msgstr ""
 
-#: includes/class-admin.php:443
+#: includes/class-admin.php:507
 msgid "Abbrechen und zurücksetzen"
+msgstr ""
+
+#. translators: %d: Attachment-ID.
+#: includes/class-aliases.php:43
+#, php-format
+msgid "Bild-ID %d nutzt dieselbe Datei, hat aber andere Metadaten oder Größen. Damit beide Einträge zusammenpassen, bleibt das Bild unverändert."
+msgstr ""
+
+#. translators: %d: Attachment-ID.
+#: includes/class-aliases.php:151
+#, php-format
+msgid "Gleiche Datei wie Bild-ID %d, zusammen umgestellt."
 msgstr ""
 
 #: includes/class-cache-purger.php:60
@@ -428,94 +474,136 @@ msgstr ""
 msgid "Gerade läuft schon ein Scan oder eine Umwandlung. Bitte kurz warten."
 msgstr ""
 
-#: includes/class-conversion.php:140
+#: includes/class-conversion.php:143
 msgid "Keine Bilder zum Umwandeln. Es zählen nur Anhänge im Format JPG oder PNG."
 msgstr ""
 
-#: includes/class-conversion.php:141
+#: includes/class-conversion.php:144
 msgid "Keine Bilder zum Umwandeln. Falls seitdem Bilder hochgeladen wurden, bitte neu scannen."
 msgstr ""
 
-#: includes/class-conversion.php:158
+#: includes/class-conversion.php:161
 msgid "Bitte zuerst den Bestand scannen."
 msgstr ""
 
-#: includes/class-conversion.php:195
+#: includes/class-conversion.php:198
 msgid "Es läuft keine Umwandlung."
 msgstr ""
 
-#: includes/class-conversion.php:204
+#: includes/class-conversion.php:207
 msgid "Ein anderes Fenster arbeitet gerade an diesem Lauf. Bitte kurz warten."
 msgstr ""
 
-#: includes/class-conversion.php:291
+#: includes/class-conversion.php:294
 msgid "Die Umwandlung brach wiederholt ab, vermutlich zu wenig Arbeitsspeicher oder Zeit. Bild bleibt im Original."
 msgstr ""
 
-#: includes/class-conversion.php:295
+#: includes/class-conversion.php:298
 msgid "Nach Unterbrechung zurückgesetzt, neuer Versuch."
 msgstr ""
 
-#: includes/class-conversion.php:444
+#: includes/class-conversion.php:454
 msgid "Lauf abgebrochen, nicht umgewandelt."
 msgstr ""
 
-#: includes/class-conversion.php:501
+#: includes/class-conversion.php:511
 msgid "Das geht im aktuellen Zustand der Umwandlung nicht."
 msgstr ""
 
-#: includes/class-converter.php:39
-msgid "Kein JPG oder PNG mehr, nichts zu tun."
+#: includes/class-converter.php:45
+#: includes/class-converter.php:70
+msgid "HEIC-Eintrag ohne JPG- oder PNG-Datei. Echte HEIC-Dateien werden nicht umgewandelt."
 msgstr ""
 
 #: includes/class-converter.php:46
+msgid "Kein JPG oder PNG mehr, nichts zu tun."
+msgstr ""
+
+#: includes/class-converter.php:54
 msgid "Für dieses Bild fehlen die Metadaten. Bitte zuerst die Vorschaubilder neu erzeugen lassen, dann erneut scannen."
 msgstr ""
 
-#: includes/class-converter.php:52
+#: includes/class-converter.php:60
 msgid "Keine Datei angehängt oder Datei außerhalb des Upload-Ordners."
 msgstr ""
 
-#: includes/class-converter.php:57
+#: includes/class-converter.php:65
 msgid "Die Originaldatei fehlt auf dem Server."
 msgstr ""
 
 #. translators: 1: Ersparnis in Prozent, 2: Mindestersparnis in Prozent.
-#: includes/class-converter.php:94
+#: includes/class-converter.php:112
 #, php-format
 msgid "Nur %1$s %% kleiner, Mindestersparnis %2$s %%. Bild bleibt unverändert."
 msgstr ""
 
-#: includes/class-converter.php:95
+#: includes/class-converter.php:113
 msgid "Als WebP nicht kleiner. Bild bleibt unverändert."
 msgstr ""
 
 #. translators: %s: Liste von Größennamen.
-#: includes/class-converter.php:117
+#: includes/class-converter.php:137
 #, php-format
 msgid "Diese Größen ließen sich nicht als WebP erzeugen: %s. Bild bleibt im Original."
 msgstr ""
 
 #. translators: 1: lossy oder lossless, 2: Qualität, 3: imagick oder gd.
-#: includes/class-converter.php:122
+#: includes/class-converter.php:144
 #, php-format
 msgid "WebP %1$s, Qualität %2$d, %3$s."
 msgstr ""
 
-#: includes/class-converter.php:123
+#: includes/class-converter.php:145
 msgid "verlustfrei"
 msgstr ""
 
-#: includes/class-converter.php:123
+#: includes/class-converter.php:145
 msgid "verlustbehaftet"
 msgstr ""
 
-#: includes/class-converter.php:152
+#: includes/class-converter.php:177
 msgid "Der Datei-Pointer konnte nicht umgestellt werden."
 msgstr ""
 
-#: includes/class-converter.php:160
+#: includes/class-converter.php:185
 msgid "Die Metadaten des WebP-Bildes konnten nicht erzeugt werden."
+msgstr ""
+
+#: includes/class-embeds.php:253
+msgid "Vorlage: Die Position auf den Seiten ist hier nicht bekannt."
+msgstr ""
+
+#: includes/class-embeds.php:255
+msgid "Steht weit oben auf der Seite und soll sofort laden."
+msgstr ""
+
+#: includes/class-embeds.php:257
+msgid "Das Ladeverhalten ist im Widget schon festgelegt."
+msgstr ""
+
+#: includes/class-embeds.php:302
+msgid "Die Einbettung wurde nicht mehr gefunden. Wurde die Seite inzwischen geändert?"
+msgstr ""
+
+#: includes/class-embeds.php:305
+msgid "Diese Einbettung lädt bereits verzögert."
+msgstr ""
+
+#: includes/class-embeds.php:313
+msgid "Das iframe steht mehrfach gleich auf der Seite oder ließ sich nicht eindeutig finden. Es wurde nichts geändert."
+msgstr ""
+
+#: includes/class-embeds.php:334
+#: includes/class-embeds.php:363
+msgid "Die Seite ließ sich nicht speichern. Es wurde nichts geändert."
+msgstr ""
+
+#: includes/class-embeds.php:352
+msgid "Zu dieser Einbettung ist keine Änderung gespeichert."
+msgstr ""
+
+#: includes/class-embeds.php:360
+msgid "Das iframe wurde seit der Änderung bearbeitet. Bitte das Attribut loading im Widget von Hand entfernen."
 msgstr ""
 
 #. translators: %s: Dateiname.
@@ -604,38 +692,44 @@ msgstr ""
 msgid "Das Bild wurde seit der Umwandlung verändert. Die alten Dateien bleiben."
 msgstr ""
 
+#. translators: %d: Attachment-ID.
+#: includes/class-originals.php:43
+#, php-format
+msgid "Die alte Datei gehört noch zu Bild-ID %d. Die alten Dateien bleiben."
+msgstr ""
+
 #. translators: %s: Dateinamen.
-#: includes/class-originals.php:71
+#: includes/class-originals.php:78
 #, php-format
 msgid "Nicht löschbar (Dateirechte?): %s"
 msgstr ""
 
 #. translators: %s: Dateinamen.
-#: includes/class-originals.php:75
+#: includes/class-originals.php:82
 #, php-format
 msgid "Diese Dateien ließen sich nicht löschen, bitte die Dateirechte prüfen: %s"
 msgstr ""
 
 #. translators: %s: Anzahl Dateien.
-#: includes/class-originals.php:83
+#: includes/class-originals.php:90
 #, php-format
 msgid "Original gelöscht (%s Datei)."
 msgid_plural "Originale gelöscht (%s Dateien)."
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-pagespeed.php:71
+#: includes/class-pagespeed.php:84
 msgid "Für die Messung fehlt der PageSpeed-API-Schlüssel in den Einstellungen."
 msgstr ""
 
 #. translators: %s: Fehlermeldung.
-#: includes/class-pagespeed.php:91
+#: includes/class-pagespeed.php:104
 #, php-format
 msgid "PageSpeed ist nicht erreichbar: %s"
 msgstr ""
 
 #. translators: %s: Fehlermeldung der API.
-#: includes/class-pagespeed.php:97
+#: includes/class-pagespeed.php:110
 #, php-format
 msgid "PageSpeed meldet: %s"
 msgstr ""
@@ -707,7 +801,7 @@ msgid "Das Original %s fehlt. Rückgängig ist nicht mehr möglich."
 msgstr ""
 
 #. translators: %s: Anzahl.
-#: includes/class-rollback.php:96
+#: includes/class-rollback.php:108
 #, php-format
 msgid "Rückgängig gemacht, %s Verweise zurückgesetzt."
 msgstr ""
@@ -845,78 +939,78 @@ msgid "Alle"
 msgstr ""
 
 #: includes/class-scan-result.php:25
-#: includes/class-scan-result.php:329
+#: includes/class-scan-result.php:330
 msgid "Bereit"
 msgstr ""
 
 #: includes/class-scan-result.php:26
-#: includes/class-scan-result.php:331
+#: includes/class-scan-result.php:332
 msgid "Überspringen"
 msgstr ""
 
 #: includes/class-scan-result.php:27
-#: includes/class-scan-result.php:337
+#: includes/class-scan-result.php:338
 msgid "Schon modern"
 msgstr ""
 
 #: includes/class-scan-result.php:28
-#: includes/class-scan-result.php:325
+#: includes/class-scan-result.php:326
 #: includes/class-view.php:45
 #: includes/views/page-report.php:199
 msgid "Bitte prüfen"
 msgstr ""
 
 #: includes/class-scan-result.php:29
-#: includes/class-scan-result.php:312
+#: includes/class-scan-result.php:313
 msgid "Nicht gefunden"
 msgstr ""
 
-#: includes/class-scan-result.php:290
+#: includes/class-scan-result.php:291
 #: includes/views/part-pagespeed-tile.php:34
 msgid "Startseite"
 msgstr ""
 
 #. translators: %s: Anzahl Seiten.
-#: includes/class-scan-result.php:301
+#: includes/class-scan-result.php:302
 #, php-format
 msgid "%s Seite"
 msgid_plural "%s Seiten"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-scan-result.php:328
+#: includes/class-scan-result.php:329
 msgid "Hintergrundbild"
 msgstr ""
 
-#: includes/class-scan-result.php:333
+#: includes/class-scan-result.php:334
 msgid "Datei fehlt"
 msgstr ""
 
-#: includes/class-scan-result.php:335
+#: includes/class-scan-result.php:336
 msgid "Metadaten fehlen"
 msgstr ""
 
-#: includes/class-scan-result.php:339
+#: includes/class-scan-result.php:340
 msgid "Bleibt"
 msgstr ""
 
-#: includes/class-scan-result.php:351
+#: includes/class-scan-result.php:352
 msgid "Zusätzliches CSS"
 msgstr ""
 
-#: includes/class-scan-result.php:352
+#: includes/class-scan-result.php:353
 msgid "Custom CSS in Elementor"
 msgstr ""
 
-#: includes/class-scan-result.php:353
+#: includes/class-scan-result.php:354
 msgid "Code Snippet"
 msgstr ""
 
-#: includes/class-scan-result.php:354
+#: includes/class-scan-result.php:355
 msgid "Datei im Theme"
 msgstr ""
 
-#: includes/class-scan-result.php:393
+#: includes/class-scan-result.php:394
 #: includes/views/page-overview.php:137
 msgid "Sonstige"
 msgstr ""
@@ -1394,6 +1488,119 @@ msgstr ""
 #: includes/views/page-conversion.php:267
 #: includes/views/page-overview.php:334
 msgid "Zum Bericht"
+msgstr ""
+
+#: includes/views/page-embeds.php:27
+msgid "Desktop"
+msgstr ""
+
+#: includes/views/page-embeds.php:28
+msgid "Tablet"
+msgstr ""
+
+#: includes/views/page-embeds.php:29
+msgid "Handy"
+msgstr ""
+
+#: includes/views/page-embeds.php:37
+msgid "Keine 3D-Tour gefunden."
+msgstr ""
+
+#. translators: %s: Anzahl.
+#: includes/views/page-embeds.php:39
+#, php-format
+msgid "%s eingebettete Tour gefunden."
+msgid_plural "%s eingebettete Touren gefunden."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: Anzahl.
+#: includes/views/page-embeds.php:43
+#, php-format
+msgid "%s lädt erst bei Bedarf."
+msgid_plural "%s laden erst bei Bedarf."
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/views/page-embeds.php:48
+msgid "Was hier passiert"
+msgstr ""
+
+#: includes/views/page-embeds.php:49
+msgid "Eine 3D-Tour lädt beim Seitenaufruf mehrere Megabyte, auch wenn sie weit unten steht und niemand hinscrollt. Hier lässt sich je Tour festlegen, dass der Browser sie erst lädt, wenn man in ihre Nähe kommt. Die Tour selbst bleibt unverändert auf der Seite: gleiche Bedienung mit Maus, Tastatur und Touch, keine Vorschaukachel, kein zusätzlicher Klick."
+msgstr ""
+
+#: includes/views/page-embeds.php:50
+msgid "Geändert wird nur das eine iframe im HTML-Widget (Attribut loading=\"lazy\"). Das lässt sich hier jederzeit zurücknehmen und bleibt auch ohne dieses Plugin wirksam."
+msgstr ""
+
+#: includes/views/page-embeds.php:59
+msgid "Seite"
+msgstr ""
+
+#: includes/views/page-embeds.php:60
+msgid "Position"
+msgstr ""
+
+#: includes/views/page-embeds.php:61
+msgid "Anbieter"
+msgstr ""
+
+#: includes/views/page-embeds.php:62
+msgid "Lädt"
+msgstr ""
+
+#: includes/views/page-embeds.php:63
+#: includes/views/page-rollback.php:96
+msgid "Aktion"
+msgstr ""
+
+#. translators: 1: Beitrags-ID, 2: Widget-ID.
+#: includes/views/page-embeds.php:77
+#, php-format
+msgid "ID %1$d · Widget %2$s"
+msgstr ""
+
+#. translators: 1: Nummer des Abschnitts, 2: Anzahl Abschnitte.
+#: includes/views/page-embeds.php:84
+#, php-format
+msgid "Abschnitt %1$d von %2$d"
+msgstr ""
+
+#: includes/views/page-embeds.php:90
+msgid "auf allen Geräten sichtbar"
+msgstr ""
+
+#. translators: %s: Gerätenamen.
+#: includes/views/page-embeds.php:92
+#, php-format
+msgid "sichtbar auf: %s"
+msgstr ""
+
+#: includes/views/page-embeds.php:101
+msgid "sofort beim Seitenaufruf"
+msgstr ""
+
+#: includes/views/page-embeds.php:103
+msgid "erst bei Bedarf (hier eingestellt)"
+msgstr ""
+
+#. translators: %s: Wert des Attributs loading.
+#: includes/views/page-embeds.php:106
+#, php-format
+msgid "im Widget festgelegt: %s"
+msgstr ""
+
+#: includes/views/page-embeds.php:120
+msgid "Zurücknehmen"
+msgstr ""
+
+#: includes/views/page-embeds.php:122
+msgid "Erst bei Bedarf laden"
+msgstr ""
+
+#: includes/views/page-embeds.php:139
+msgid "Gesucht wird nur nach Matterport-Touren in Elementor-HTML-Widgets veröffentlichter Seiten. Andere Einbettungen, Videos und Karten bleiben unberührt. Touren in den ersten beiden Abschnitten einer Seite werden nicht angeboten, sie sollen sofort laden."
 msgstr ""
 
 #: includes/views/page-images.php:27
@@ -1938,10 +2145,6 @@ msgstr ""
 msgid "Nach ID sortiert"
 msgstr ""
 
-#: includes/views/page-rollback.php:96
-msgid "Aktion"
-msgstr ""
-
 #. translators: %s: alter Dateiname.
 #: includes/views/page-rollback.php:107
 #, php-format
@@ -2064,29 +2267,39 @@ msgid_plural "%s Elementor-Vorschaubilder"
 msgstr[0] ""
 msgstr[1] ""
 
+#: includes/views/part-image-row.php:45
+msgid "als HEIC hochgeladen, Datei ist JPG"
+msgstr ""
+
+#. translators: %s: Attachment-IDs.
+#: includes/views/part-image-row.php:49
+#, php-format
+msgid "gleiche Datei wie ID %s"
+msgstr ""
+
 #. translators: %s: Ersparnis in Prozent.
-#: includes/views/part-image-row.php:61
+#: includes/views/part-image-row.php:68
 #, php-format
 msgid "nur %s kleiner"
 msgstr ""
 
-#: includes/views/part-image-row.php:62
+#: includes/views/part-image-row.php:69
 msgid "nicht kleiner"
 msgstr ""
 
-#: includes/views/part-image-row.php:86
+#: includes/views/part-image-row.php:93
 msgid "Hintergrund"
 msgstr ""
 
-#: includes/views/part-image-row.php:88
+#: includes/views/part-image-row.php:95
 msgid "Beitragsbild"
 msgstr ""
 
-#: includes/views/part-image-row.php:90
+#: includes/views/part-image-row.php:97
 msgid "unbekannte Größe"
 msgstr ""
 
-#: includes/views/part-image-row.php:95
+#: includes/views/part-image-row.php:102
 msgid "und weitere"
 msgstr ""
 

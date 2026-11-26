@@ -26,7 +26,7 @@ final class Scanner {
 	/**
 	 * Version des gespeicherten Formats. Ältere Ergebnisse werden verworfen.
 	 */
-	const FORMAT = 2;
+	const FORMAT = 3;
 
 	/**
 	 * Anhänge pro Bestandsaufnahme-Runde.
@@ -366,14 +366,18 @@ final class Scanner {
 			'warnings'    => array(),
 		);
 
+		self::mark_shared( $state );
+
 		foreach ( $state['items'] as $attachment_id => &$item ) {
 			$kind = $item['kind'];
+			// Zweiter Eintrag derselben Datei: zählt als Bild, seine Bytes stehen schon beim ersten.
+			$twin = ! empty( $item['duplicate'] );
 
 			$item['estimate'] = $item['bytes'];
 			$item['ratio']    = 1.0;
 			$item['measured'] = false;
 
-			if ( isset( Inventory::CONVERTIBLE[ $item['mime'] ] ) ) {
+			if ( Inventory::convertible( $item ) ) {
 				if ( empty( $item['source'] ) ) {
 					$item['status'] = 'missing';
 					++$totals['missing'];
@@ -395,13 +399,13 @@ final class Scanner {
 					} else {
 						$item['status']   = 'ready';
 						$item['estimate'] = $estimate['bytes'];
-						$totals['webp']  += $estimate['bytes'];
+						$totals['webp']  += $twin ? 0 : $estimate['bytes'];
 						++$totals['ready'];
 					}
 
 					++$totals['convertible'][ $kind ];
-					$totals['source'] += $item['bytes'];
-					if ( 0 === $item['uses'] && empty( $item['warnings'] ) ) {
+					$totals['source'] += $twin ? 0 : $item['bytes'];
+					if ( 0 === $item['uses'] && empty( $item['warnings'] ) && empty( $item['shared_used'] ) ) {
 						++$totals['unused'];
 					}
 				}
@@ -410,9 +414,9 @@ final class Scanner {
 			}
 
 			++$totals['images'];
-			$totals['sizes'] += max( 0, count( array_unique( $item['files'] ) ) - 1 );
-			$totals['bytes'] += $item['bytes'];
-			$totals['after'] += $item['estimate'];
+			$totals['sizes'] += $twin ? 0 : max( 0, count( array_unique( $item['files'] ) ) - 1 );
+			$totals['bytes'] += $twin ? 0 : $item['bytes'];
+			$totals['after'] += $twin ? 0 : $item['estimate'];
 
 			if ( ! isset( $totals['by_kind'][ $kind ] ) ) {
 				$totals['by_kind'][ $kind ] = array(
@@ -421,7 +425,7 @@ final class Scanner {
 				);
 			}
 			++$totals['by_kind'][ $kind ]['count'];
-			$totals['by_kind'][ $kind ]['bytes'] += $item['bytes'];
+			$totals['by_kind'][ $kind ]['bytes'] += $twin ? 0 : $item['bytes'];
 		}
 		unset( $item );
 
@@ -438,6 +442,46 @@ final class Scanner {
 		$state['status']   = 'done';
 		$state['finished'] = time();
 		$state['queue']    = array();
+	}
+
+	/**
+	 * Markiert Einträge, die sich eine Hauptdatei teilen (WPML-Duplikate, doppelte Mediathek-Einträge).
+	 *
+	 * `shared` nennt die anderen Einträge, `duplicate` alle außer dem ersten (ihre Bytes zählen nicht noch einmal),
+	 * `shared_used` gilt, sobald einer der Einträge auf der Website gefunden wurde.
+	 *
+	 * @param array $state Stand.
+	 * @return void
+	 */
+	private static function mark_shared( array &$state ) {
+		$groups = array();
+		foreach ( $state['items'] as $attachment_id => $item ) {
+			if ( '' !== (string) $item['file'] ) {
+				$groups[ $item['file'] ][] = (int) $attachment_id;
+			}
+		}
+
+		foreach ( $groups as $ids ) {
+			if ( count( $ids ) < 2 ) {
+				continue;
+			}
+			sort( $ids );
+
+			$used = false;
+			foreach ( $ids as $attachment_id ) {
+				$used = $used || $state['items'][ $attachment_id ]['uses'] > 0 || ! empty( $state['items'][ $attachment_id ]['warnings'] );
+			}
+
+			foreach ( $ids as $index => $attachment_id ) {
+				$state['items'][ $attachment_id ]['shared'] = array_values( array_diff( $ids, array( $attachment_id ) ) );
+				if ( $index > 0 ) {
+					$state['items'][ $attachment_id ]['duplicate'] = true;
+				}
+				if ( $used ) {
+					$state['items'][ $attachment_id ]['shared_used'] = true;
+				}
+			}
+		}
 	}
 
 	/**

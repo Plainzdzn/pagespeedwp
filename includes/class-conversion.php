@@ -177,7 +177,7 @@ final class Conversion {
 		$queue = array();
 
 		foreach ( array_unique( array_map( 'intval', $ids ) ) as $attachment_id ) {
-			if ( 'attachment' === get_post_type( $attachment_id ) && isset( Inventory::CONVERTIBLE[ (string) get_post_mime_type( $attachment_id ) ] ) ) {
+			if ( 'attachment' === get_post_type( $attachment_id ) && null !== Inventory::real_of( $attachment_id ) ) {
 				$queue[] = $attachment_id;
 			}
 		}
@@ -319,13 +319,17 @@ final class Conversion {
 		}
 
 		if ( $converted ) {
-			self::replace_references( $converted );
+			// Frisch lesen: Einträge mit derselben Datei wurden mit umgestellt und haben eigene Zeilen.
+			self::replace_references( Log_Table::rows( $run['id'], array( 'converted' ) ) );
 			++$run['batches'];
 		}
 
 		$run['seconds'] += microtime( true ) - $started;
 
 		$counts = Log_Table::counts( $run['id'] );
+
+		// Mit umgestellte Einträge standen nicht zwingend in der Warteschlange.
+		$run['total'] = max( (int) $run['total'], $counts['pending'] + $counts['working'] + $counts['converted'] + $counts['done'] + $counts['skipped'] + $counts['error'] + $counts['rolled_back'] + $counts['cancelled'] );
 		if ( 0 === $counts['pending'] && 0 === $counts['working'] && 0 === $counts['converted'] ) {
 			$run['phase'] = 'finalize';
 		}
@@ -343,8 +347,11 @@ final class Conversion {
 
 		foreach ( $rows as $row ) {
 			foreach ( $row['url_map'] as $from => $to ) {
-				$map[ $from ]    = $to;
-				$owners[ $from ] = (int) $row['attachment_id'];
+				$map[ $from ] = $to;
+				// Bei gemeinsamer Datei zählen die Verweise beim zuerst umgestellten Eintrag.
+				if ( ! isset( $owners[ $from ] ) ) {
+					$owners[ $from ] = (int) $row['attachment_id'];
+				}
 			}
 		}
 
