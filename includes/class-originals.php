@@ -51,9 +51,14 @@ final class Originals {
 		$deleted = 0;
 		$failed  = array();
 
+		// Ein HEIC-Master wurde nie umgewandelt und bleibt immer liegen, auch wenn er nicht mehr als Original eingetragen ist.
+		$master = isset( $row['old_files']['original_image'] ) && Attachment_Files::is_foreign_master( (string) $row['old_files']['original_image'] )
+			? (string) $row['old_files']['original_image']
+			: '';
+
 		foreach ( array_unique( $files ) as $relative ) {
 			$path = Attachment_Files::path( $relative );
-			if ( ! is_file( $path ) || self::used_elsewhere( $relative, $attachment_id ) ) {
+			if ( $relative === $master || ! is_file( $path ) || self::used_elsewhere( $relative, $attachment_id ) ) {
 				continue;
 			}
 

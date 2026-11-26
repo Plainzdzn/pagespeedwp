@@ -76,6 +76,16 @@ final class Converter {
 			return self::finish( $row, 'skipped', $plan['reason'] );
 		}
 
+		// Die Pixelmaße der Hauptdatei bleiben, auch wenn die Website inzwischen eine andere Obergrenze für große Bilder hat.
+		// Aus dem Original entsteht wieder eine verkleinerte Fassung in den alten Maßen. War die Hauptdatei selbst die Quelle
+		// (kein Original oder ein HEIC-Master), wird gar nicht verkleinert.
+		$from_original = isset( $old_files['original_image'] ) && Attachment_Files::path( $old_files['original_image'] ) === $source;
+		$threshold     = false;
+		if ( $from_original ) {
+			$threshold = max( isset( $meta['width'] ) ? (int) $meta['width'] : 0, isset( $meta['height'] ) ? (int) $meta['height'] : 0 );
+			$threshold = $threshold > 0 ? $threshold : null;
+		}
+
 		$dir    = dirname( $source );
 		$target = trailingslashit( $dir ) . wp_unique_filename( $dir, pathinfo( $source, PATHINFO_FILENAME ) . '.webp' );
 
@@ -116,7 +126,7 @@ final class Converter {
 		}
 
 		try {
-			$result = self::switch_attachment( $attachment_id, $encoded['path'], $meta );
+			$result = self::switch_attachment( $attachment_id, $encoded['path'], $meta, $threshold );
 		} catch ( \Throwable $error ) {
 			$result = new \WP_Error( 'akwu_switch', $error->getMessage() );
 		}
@@ -129,6 +139,11 @@ final class Converter {
 
 		$new_files = Attachment_Files::of( $attachment_id );
 		$mapping   = Url_Map::build( $old_files, $new_files );
+
+		// Ein HEIC-Master wird nicht umgewandelt und nicht gelöscht. Verweise auf ihn bleiben, wie sie sind.
+		if ( isset( $old_files['original_image'] ) && ! $from_original && Attachment_Files::is_foreign_master( $old_files['original_image'] ) ) {
+			unset( $mapping['map'][ $old_files['original_image'] ] );
+		}
 
 		// Jede alte Größe braucht ihre eigene neue Datei, sonst ließe sich Rückgängig nicht genau umkehren.
 		if ( $mapping['missing'] ) {
@@ -165,13 +180,21 @@ final class Converter {
 	/**
 	 * Stellt den Anhang auf die WebP-Datei um. Die ID bleibt.
 	 *
-	 * @param int    $attachment_id Anhang.
-	 * @param string $file          Neue Datei (absoluter Pfad).
-	 * @param array  $old_meta      Metadaten vorher.
+	 * @param int            $attachment_id Anhang.
+	 * @param string         $file          Neue Datei (absoluter Pfad).
+	 * @param array          $old_meta      Metadaten vorher.
+	 * @param int|false|null $threshold Obergrenze für große Bilder während der Umstellung: Kantenlänge, false für keine, null für die der Website.
 	 * @return true|\WP_Error
 	 */
-	private static function switch_attachment( $attachment_id, $file, array $old_meta ) {
+	private static function switch_attachment( $attachment_id, $file, array $old_meta, $threshold = null ) {
 		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$keep_size = static function () use ( $threshold ) {
+			return $threshold;
+		};
+		if ( null !== $threshold ) {
+			add_filter( 'big_image_size_threshold', $keep_size, PHP_INT_MAX );
+		}
 
 		if ( ! update_attached_file( $attachment_id, $file ) && get_attached_file( $attachment_id, true ) !== $file ) {
 			return new \WP_Error( 'akwu_attached_file', __( 'Der Datei-Pointer konnte nicht umgestellt werden.', 'akuma-webp-umwandler' ) );
@@ -179,7 +202,11 @@ final class Converter {
 
 		self::set_mime( $attachment_id, 'image/webp' );
 
-		$meta = wp_generate_attachment_metadata( $attachment_id, $file );
+		try {
+			$meta = wp_generate_attachment_metadata( $attachment_id, $file );
+		} finally {
+			remove_filter( 'big_image_size_threshold', $keep_size, PHP_INT_MAX );
+		}
 
 		if ( ! is_array( $meta ) || empty( $meta['file'] ) ) {
 			return new \WP_Error( 'akwu_metadata', __( 'Die Metadaten des WebP-Bildes konnten nicht erzeugt werden.', 'akuma-webp-umwandler' ) );

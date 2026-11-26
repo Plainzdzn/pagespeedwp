@@ -264,7 +264,20 @@ function main() {
 	unset( $f_meta['sizes']['medium'] );
 	update_post_meta( $f, '_wp_attachment_metadata', wp_slash( $f_meta ) );
 
-	$ids      = array( $a, $b, $c, $d, $e, $f );
+	// H: gewöhnliches großes JPG, von WordPress auf 2560 Pixel verkleinert, Original daneben.
+	write_jpeg( $dir . '/akwu-heic-gross.jpg', 3000, 2000 );
+	$h      = attach( $dir . '/akwu-heic-gross.jpg', 'Großes JPG mit Original', 'image/jpeg' );
+	$h_meta = wp_get_attachment_metadata( $h, true );
+
+	// Ab hier gilt auf der Website eine kleinere Obergrenze für große Bilder als beim Hochladen.
+	add_filter(
+		'big_image_size_threshold',
+		static function () {
+			return 1600;
+		}
+	);
+
+	$ids      = array( $a, $b, $c, $d, $e, $f, $h );
 	$a_meta   = wp_get_attachment_metadata( $a, true );
 	$a_medium = $url . '/' . $a_meta['sizes']['medium']['file'];
 	$a_full   = $url . '/akwu-heic-foto-scaled.jpg';
@@ -340,8 +353,15 @@ function main() {
 	check( $before['posts'][ $e ] === $after['posts'][ $e ] && $before['posts'][ $f ] === $after['posts'][ $f ], 'Ausgelassene Einträge sind unverändert' );
 	check( null === Inventory::real_of( $a ), 'Umgewandelter Eintrag gilt nicht mehr als offen' );
 
-	WP_CLI::log( 'Rückgängig nur für einen der beiden Einträge:' );
-	$job = Job::start( 'rollback', array( (int) $rows[ $a ]['id'] ) );
+	WP_CLI::log( 'Pixelmaße bei kleinerer Obergrenze der Website:' );
+	$a_size = getimagesize( Attachment_Files::path( $after['posts'][ $a ][1] ) );
+	check( array( 1920, 2560 ) === array( $a_size[0], $a_size[1] ) && 1920 === (int) $after['posts'][ $a ][2]['width'] && 2560 === (int) $after['posts'][ $a ][2]['height'], 'HEIC-Upload: Hauptdatei bleibt 1920 × 2560, wird nicht noch einmal verkleinert' );
+	$h_size = getimagesize( Attachment_Files::path( $after['posts'][ $h ][1] ) );
+	check( 'akwu-heic-gross.jpg' === $h_meta['original_image'] && 2560 === (int) $h_meta['width'], 'Großes JPG lag vorher als verkleinerte Fassung mit 2560 Pixeln vor' );
+	check( array( (int) $h_meta['width'], (int) $h_meta['height'] ) === array( $h_size[0], $h_size[1] ) && '.webp' === substr( (string) $after['posts'][ $h ][2]['original_image'], -5 ), 'Großes JPG: verkleinerte Fassung behält ihre Maße, Original ist WebP' );
+
+	WP_CLI::log( 'Rückgängig nur für einen der beiden Einträge (und das große JPG):' );
+	$job = Job::start( 'rollback', array( (int) $rows[ $a ]['id'], (int) $rows[ $h ]['id'] ) );
 	if ( is_wp_error( $job ) ) {
 		WP_CLI::error( $job->get_error_message() );
 	}

@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-26T01:16:02+00:00\n"
+"POT-Creation-Date: 2026-11-26T01:31:12+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: akuma-webp-umwandler\n"
@@ -532,40 +532,40 @@ msgid "Die Originaldatei fehlt auf dem Server."
 msgstr ""
 
 #. translators: 1: Ersparnis in Prozent, 2: Mindestersparnis in Prozent.
-#: includes/class-converter.php:112
+#: includes/class-converter.php:122
 #, php-format
 msgid "Nur %1$s %% kleiner, Mindestersparnis %2$s %%. Bild bleibt unverändert."
 msgstr ""
 
-#: includes/class-converter.php:113
+#: includes/class-converter.php:123
 msgid "Als WebP nicht kleiner. Bild bleibt unverändert."
 msgstr ""
 
 #. translators: %s: Liste von Größennamen.
-#: includes/class-converter.php:137
+#: includes/class-converter.php:152
 #, php-format
 msgid "Diese Größen ließen sich nicht als WebP erzeugen: %s. Bild bleibt im Original."
 msgstr ""
 
 #. translators: 1: lossy oder lossless, 2: Qualität, 3: imagick oder gd.
-#: includes/class-converter.php:144
+#: includes/class-converter.php:159
 #, php-format
 msgid "WebP %1$s, Qualität %2$d, %3$s."
 msgstr ""
 
-#: includes/class-converter.php:145
+#: includes/class-converter.php:160
 msgid "verlustfrei"
 msgstr ""
 
-#: includes/class-converter.php:145
+#: includes/class-converter.php:160
 msgid "verlustbehaftet"
 msgstr ""
 
-#: includes/class-converter.php:177
+#: includes/class-converter.php:200
 msgid "Der Datei-Pointer konnte nicht umgestellt werden."
 msgstr ""
 
-#: includes/class-converter.php:185
+#: includes/class-converter.php:212
 msgid "Die Metadaten des WebP-Bildes konnten nicht erzeugt werden."
 msgstr ""
 
@@ -699,19 +699,19 @@ msgid "Die alte Datei gehört noch zu Bild-ID %d. Die alten Dateien bleiben."
 msgstr ""
 
 #. translators: %s: Dateinamen.
-#: includes/class-originals.php:78
+#: includes/class-originals.php:83
 #, php-format
 msgid "Nicht löschbar (Dateirechte?): %s"
 msgstr ""
 
 #. translators: %s: Dateinamen.
-#: includes/class-originals.php:82
+#: includes/class-originals.php:87
 #, php-format
 msgid "Diese Dateien ließen sich nicht löschen, bitte die Dateirechte prüfen: %s"
 msgstr ""
 
 #. translators: %s: Anzahl Dateien.
-#: includes/class-originals.php:90
+#: includes/class-originals.php:95
 #, php-format
 msgid "Original gelöscht (%s Datei)."
 msgid_plural "Originale gelöscht (%s Dateien)."
@@ -939,78 +939,84 @@ msgid "Alle"
 msgstr ""
 
 #: includes/class-scan-result.php:25
-#: includes/class-scan-result.php:330
+#: includes/class-scan-result.php:336
 msgid "Bereit"
 msgstr ""
 
 #: includes/class-scan-result.php:26
-#: includes/class-scan-result.php:332
+#: includes/class-scan-result.php:338
 msgid "Überspringen"
 msgstr ""
 
 #: includes/class-scan-result.php:27
-#: includes/class-scan-result.php:338
+#: includes/class-scan-result.php:344
 msgid "Schon modern"
 msgstr ""
 
 #: includes/class-scan-result.php:28
-#: includes/class-scan-result.php:326
+#: includes/class-scan-result.php:332
 #: includes/class-view.php:45
 #: includes/views/page-report.php:199
 msgid "Bitte prüfen"
 msgstr ""
 
 #: includes/class-scan-result.php:29
-#: includes/class-scan-result.php:313
+#: includes/class-scan-result.php:319
 msgid "Nicht gefunden"
 msgstr ""
 
-#: includes/class-scan-result.php:291
+#. translators: %s: Attachment-IDs.
+#: includes/class-scan-result.php:292
+#, php-format
+msgid "Siehe ID %s"
+msgstr ""
+
+#: includes/class-scan-result.php:297
 #: includes/views/part-pagespeed-tile.php:34
 msgid "Startseite"
 msgstr ""
 
 #. translators: %s: Anzahl Seiten.
-#: includes/class-scan-result.php:302
+#: includes/class-scan-result.php:308
 #, php-format
 msgid "%s Seite"
 msgid_plural "%s Seiten"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-scan-result.php:329
+#: includes/class-scan-result.php:335
 msgid "Hintergrundbild"
 msgstr ""
 
-#: includes/class-scan-result.php:334
+#: includes/class-scan-result.php:340
 msgid "Datei fehlt"
 msgstr ""
 
-#: includes/class-scan-result.php:336
+#: includes/class-scan-result.php:342
 msgid "Metadaten fehlen"
 msgstr ""
 
-#: includes/class-scan-result.php:340
+#: includes/class-scan-result.php:346
 msgid "Bleibt"
 msgstr ""
 
-#: includes/class-scan-result.php:352
+#: includes/class-scan-result.php:358
 msgid "Zusätzliches CSS"
 msgstr ""
 
-#: includes/class-scan-result.php:353
+#: includes/class-scan-result.php:359
 msgid "Custom CSS in Elementor"
 msgstr ""
 
-#: includes/class-scan-result.php:354
+#: includes/class-scan-result.php:360
 msgid "Code Snippet"
 msgstr ""
 
-#: includes/class-scan-result.php:355
+#: includes/class-scan-result.php:361
 msgid "Datei im Theme"
 msgstr ""
 
-#: includes/class-scan-result.php:394
+#: includes/class-scan-result.php:400
 #: includes/views/page-overview.php:137
 msgid "Sonstige"
 msgstr ""

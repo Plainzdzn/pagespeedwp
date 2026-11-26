@@ -286,6 +286,12 @@ final class Scan_Result {
 	public static function usage_label( array $item ) {
 		$posts = array_keys( $item['posts'] );
 
+		// Zweiteintrag derselben Datei: Die Fundstellen stehen beim anderen Eintrag.
+		if ( 0 === (int) $item['uses'] && ! empty( $item['shared_used'] ) && ! empty( $item['shared'] ) ) {
+			/* translators: %s: Attachment-IDs. */
+			return sprintf( __( 'Siehe ID %s', 'akuma-webp-umwandler' ), implode( ', ', array_map( 'intval', $item['shared'] ) ) );
+		}
+
 		if ( 1 === count( $posts ) ) {
 			if ( (int) get_option( 'page_on_front' ) === (int) $posts[0] ) {
 				return __( 'Startseite', 'akuma-webp-umwandler' );
