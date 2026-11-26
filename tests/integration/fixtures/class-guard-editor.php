@@ -44,6 +44,13 @@ class Guard_Editor extends Imagick_Webp_Editor {
 	public static $log = array();
 
 	/**
+	 * Ungestörte Speicherungen der Zwischendatei: Dateiname und Größe direkt nach save().
+	 *
+	 * @var array[]
+	 */
+	public static $temp_saves = array();
+
+	/**
 	 * Hält nach dem Core-Aufruf die tatsächlich gesetzte Qualität fest.
 	 *
 	 * @param string $filename  Pfad.
@@ -73,8 +80,20 @@ class Guard_Editor extends Imagick_Webp_Editor {
 	 * @return array|\WP_Error
 	 */
 	public function save( $destfilename = null, $mime_type = null ) {
-		if ( 'none' === self::$mode || ! $destfilename || 0 !== strpos( wp_basename( $destfilename ), 'akwu-alpha-' ) ) {
+		if ( ! $destfilename || 0 !== strpos( wp_basename( $destfilename ), 'akwu-alpha-' ) ) {
 			return parent::save( $destfilename, $mime_type );
+		}
+
+		if ( 'none' === self::$mode ) {
+			$saved = parent::save( $destfilename, $mime_type );
+			if ( ! is_wp_error( $saved ) && ! empty( $saved['path'] ) && is_file( $saved['path'] ) ) {
+				clearstatcache( true, $saved['path'] );
+				self::$temp_saves[] = array(
+					'file'  => wp_basename( $saved['path'] ),
+					'bytes' => (int) filesize( $saved['path'] ),
+				);
+			}
+			return $saved;
 		}
 
 		switch ( self::$mode ) {

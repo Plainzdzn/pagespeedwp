@@ -10,7 +10,8 @@
  * 1. Qualität: Der Core setzt beim Speichern in ein anderes Format in get_output_format() die Qualität
  *    auf seinen Standard (WebP 86) zurück. Geprüft wird die am Imagick-Objekt direkt vor dem Schreiben
  *    gesetzte Qualität für JPG, deckendes PNG mit Alphakanal, Freisteller verlustfrei und Freisteller
- *    verlustbehaftet (automatisch), mit 35, 82 und 95. Mit GD zusätzlich über die Dateigröße, mit
+ *    verlustbehaftet (automatisch), mit 35, 82 und 95. Ob beim Freisteller die zweite Fassung gewinnt,
+ *    folgt aus ihrer tatsächlichen Größe (höchstens die Hälfte der verlustfreien), nicht aus der Qualität. Mit GD zusätzlich über die Dateigröße, mit
  *    Imagick über die Dateigröße nur, wenn die installierte ImageMagick-Version die Qualität umsetzt.
  * 2. Zweite Fassung bei Freistellern: Filter image_editor_output_format, abweichender Pfad, Fehler nach
  *    dem Schreiben, kein WebP, Alphakanal verloren, falsche Maße, abgeschnittene Datei. Jedes Mal muss
@@ -286,17 +287,40 @@ function quality_imagick( $dir ) {
 		$sizes                              = array();
 
 		foreach ( array( 35, 82, 95 ) as $quality ) {
-			Guard_Editor::$log = array();
-			$target            = $dir . "/out-{$kind}-{$png}-{$quality}.webp";
-			$result            = Encoder::encode( $sources[ $kind ], $target, settings( $quality, $png ) );
+			Guard_Editor::$log        = array();
+			Guard_Editor::$temp_saves = array();
+			$target                   = $dir . "/out-{$kind}-{$png}-{$quality}.webp";
+			$result                   = Encoder::encode( $sources[ $kind ], $target, settings( $quality, $png ) );
 
 			if ( is_wp_error( $result ) ) {
 				check( false, "{$kind}/{$png} q{$quality}: " . $result->get_error_message() );
 				continue;
 			}
 
+			if ( 'lossy-alpha' === $expected_mode ) {
+				// Ob die zweite Fassung gewinnt, hängt von ihrer echten Größe ab (Bibliothek, Version,
+				// Quantentiefe). Zuerst getrennt prüfen, dass die Qualität am Kodierpunkt ankommt.
+				$entry = last_temp_log();
+				check( null !== $entry && $quality === $entry['image'] && $quality === $entry['wand'] && $quality === $entry['editor'], "{$kind}/{$png} q{$quality}: Qualität der zweiten Fassung am Kodierpunkt " . ( $entry ? "{$entry['image']}/{$entry['wand']}/{$entry['editor']}" : 'fehlt' ) . ", erwartet {$quality}" );
+
+				$temp_saves = Guard_Editor::$temp_saves;
+				$candidate = $temp_saves ? (int) $temp_saves[ count( $temp_saves ) - 1 ]['bytes'] : 0;
+				$lossless  = (int) $result['lossless_bytes'];
+				$wins      = $candidate > 0 && $lossless > 0 && $candidate <= $lossless * Encoder::LOSSY_ALPHA_MAX_RATIO;
+
+				check( $lossless > 0 && $candidate > 0, "{$kind}/{$png} q{$quality}: beide Fassungen erzeugt (verlustfrei {$lossless} B, zweite {$candidate} B)" );
+				if ( $wins ) {
+					check( 'lossy-alpha' === $result['mode'] && $quality === (int) $result['quality'] && $candidate === (int) $result['bytes'], "{$kind}/{$png} q{$quality}: zweite Fassung höchstens halb so groß, übernommen (Modus {$result['mode']}, Qualität {$result['quality']}, {$result['bytes']} B)" );
+				} else {
+					check( 'lossless' === $result['mode'] && 100 === (int) $result['quality'] && $lossless === (int) $result['bytes'], "{$kind}/{$png} q{$quality}: zweite Fassung größer als die Hälfte, verlustfrei bleibt (Modus {$result['mode']}, Qualität {$result['quality']}, {$result['bytes']} B)" );
+				}
+
+				$sizes[ $quality ] = $candidate;
+				continue;
+			}
+
 			$expected = 'lossless' === $expected_mode ? 100 : $quality;
-			$entry    = 'lossy-alpha' === $expected_mode ? last_temp_log() : last_log( wp_basename( $target ) );
+			$entry    = last_log( wp_basename( $target ) );
 
 			check( $expected_mode === $result['mode'], "{$kind}/{$png} q{$quality}: Modus {$result['mode']}" );
 			check( $expected === (int) $result['quality'], "{$kind}/{$png} q{$quality}: gemeldete Qualität {$result['quality']}" );
@@ -305,6 +329,7 @@ function quality_imagick( $dir ) {
 			$sizes[ $quality ] = (int) $result['bytes'];
 		}
 
+		// Bei lossy-alpha sind das die Größen der zweiten Fassung, unabhängig davon, welche gewonnen hat.
 		if ( $bytes_reliable && 'lossless' !== $expected_mode && 3 === count( $sizes ) ) {
 			check( $sizes[35] < $sizes[82] && $sizes[82] < $sizes[95], "{$kind}/{$png}: Dateigröße steigt mit der Qualität (" . implode( ' < ', $sizes ) . ' B)' );
 		}
