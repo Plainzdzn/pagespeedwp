@@ -78,6 +78,16 @@ Optional misst das Plugin die Startseite mobil mit PageSpeed Insights vorher und
 
 Eine Matterport-Tour lädt beim Seitenaufruf mehrere Megabyte, auch wenn sie weit unten steht. Unter **WebP-Umwandler → Einbettungen** lässt sich je Tour festlegen, dass der Browser sie erst lädt, wenn man in ihre Nähe scrollt. Die Tour bleibt unverändert bedienbar, es gibt keinen Platzhalter und keinen zusätzlichen Klick. „Zurücknehmen“ stellt den gespeicherten Inhalt zeichengenau wieder her. Ein im Widget ausdrücklich gesetztes `loading` (auch `eager`) wird angezeigt und nie geändert. Danach den Server-Cache leeren (Raidboxes: im Dashboard).
 
+## Ladeverhalten: Bilder der Kopfzeile sofort laden (ab 1.2.0)
+
+Manche Cache- und Optimierungs-Plugins laden alle Bilder verzögert, auch das Logo in der Kopfzeile. Bis es nachgeladen ist, steht dort ein Platzhalter in anderer Größe, danach rutscht die ganze Seite nach unten (Layout-Verschiebung, CLS). Unter **WebP-Umwandler → Ladeverhalten** lässt sich für die Bilder der Kopfzeilen-Vorlagen des Elementor Theme Builders (Bild, Bild-Box, Website-Logo) einschalten, dass sie sofort laden: Ihre Bild-Tags bekommen `loading="eager"`, `data-no-lazy="1"` und die Klasse `skip-lazy`.
+
+- Am gespeicherten Inhalt ändert sich nichts. Der Fix steht in der eigenen Datei `wp-content/mu-plugins/akuma-pagespeed-fixes.php` und wirkt deshalb auch weiter, wenn dieses Plugin entfernt ist.
+- „Zurücknehmen“ entfernt die Datei wieder. Eine fremde Datei gleichen Namens wird nie angefasst.
+- Betroffen sind nur die Bild-IDs der Kopfzeile. Ändert sich die Kopfzeile, zeigt die Seite das an und übernimmt auf Wunsch den neuen Stand.
+- Geprüft mit WP Rocket (Standard-Ausnahmen `loading="eager"`, `data-no-lazy=`, `skip-lazy`). Andere Lazy-Loader beachten diese Kennzeichnung meist ebenfalls, das ist nicht getestet.
+- Danach den Server-Cache leeren (Raidboxes: im Dashboard).
+
 ## Rückgängig
 
 Unter **Rückgängig** lassen sich alle Bilder oder einzelne zurücksetzen: Datei, Metadaten und Verweise wie vorher, die WebP-Dateien werden gelöscht, die IDs bleiben. Das geht, solange die Originale existieren und das Plugin installiert ist. Mit dem Löschen des Plugins verschwindet das Protokoll, danach ist kein Rückgängig mehr möglich.
@@ -89,6 +99,7 @@ Unter **Rückgängig** lassen sich alle Bilder oder einzelne zurücksetzen: Date
 - Adressen fremder Domains ändern, z. B. Live-URLs auf einer Staging-Seite.
 - Dateien löschen, bevor der Zustand für Rückgängig gesichert ist.
 - Einstellungen anderer Plugins umstellen.
+- Ohne ausdrückliches Einschalten etwas an der Auslieferung ändern. Die einzige Ausnahme vom Grundsatz „keine Laufzeitlogik“ ist die Fix-Datei unter „Ladeverhalten“, und nur auf Knopfdruck.
 
 ## WP-CLI
 

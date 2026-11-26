@@ -60,6 +60,49 @@ final class Admin {
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar' ), 100 );
 		add_action( 'admin_post_akwu_report_csv', array( $this, 'download_csv' ) );
 		add_action( 'admin_post_akwu_embed', array( $this, 'handle_embed' ) );
+		add_action( 'admin_post_akwu_loading', array( $this, 'handle_loading' ) );
+	}
+
+	/**
+	 * Bilder der Kopfzeile sofort laden lassen oder den Fix zurücknehmen. Nur für Admins, mit Nonce.
+	 *
+	 * @return void
+	 */
+	public function handle_loading() {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			wp_die( esc_html__( 'Dafür fehlen die Rechte.', 'akuma-webp-umwandler' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'akwu_loading' );
+
+		$revert = isset( $_POST['akwu_do'] ) && 'revert' === sanitize_key( wp_unslash( $_POST['akwu_do'] ) );
+		$result = $revert ? Header_Images::revert() : Header_Images::apply();
+
+		if ( is_wp_error( $result ) ) {
+			$notice = array(
+				'type'    => 'error',
+				'title'   => __( 'Nichts geändert.', 'akuma-webp-umwandler' ),
+				'message' => $result->get_error_message(),
+			);
+		} elseif ( $revert ) {
+			$notice = array(
+				'type'    => 'success',
+				'title'   => __( 'Fix zurückgenommen.', 'akuma-webp-umwandler' ),
+				'message' => __( 'Die Fix-Datei ist entfernt. Die Bilder der Kopfzeile laden wieder so, wie Theme und andere Plugins es vorgeben.', 'akuma-webp-umwandler' ),
+			);
+		} else {
+			$notice = array(
+				'type'    => 'success',
+				/* translators: %s: Anzahl. */
+				'title'   => sprintf( _n( '%s Bild der Kopfzeile lädt jetzt sofort.', '%s Bilder der Kopfzeile laden jetzt sofort.', $result, 'akuma-webp-umwandler' ), Format::number( $result ) ),
+				'message' => Cache_Purger::needs_raidboxes_hint()
+					? __( 'Die Fix-Datei ist geschrieben, die Caches der Website sind geleert. Bitte noch den Raidboxes-Cache im Dashboard leeren, dann die Seite prüfen.', 'akuma-webp-umwandler' )
+					: __( 'Die Fix-Datei ist geschrieben, die Caches der Website sind geleert. Bitte die Seite einmal prüfen.', 'akuma-webp-umwandler' ),
+			);
+		}
+
+		set_transient( 'akwu_loading_notice_' . get_current_user_id(), $notice, 120 );
+		wp_safe_redirect( self::page_url( 'akwu-ladeverhalten' ) );
+		exit;
 	}
 
 	/**
@@ -210,6 +253,12 @@ final class Admin {
 				'icon'  => 'play',
 				'group' => 'main',
 			),
+			'akwu-ladeverhalten'  => array(
+				'menu'  => __( 'Ladeverhalten', 'akuma-webp-umwandler' ),
+				'view'  => 'page-loading',
+				'icon'  => 'bolt',
+				'group' => 'main',
+			),
 			'akwu-einstellungen'  => array(
 				'menu'  => __( 'Einstellungen', 'akuma-webp-umwandler' ),
 				'view'  => 'page-settings',
@@ -353,10 +402,11 @@ final class Admin {
 	private function notices( $current, $result, $run, $job, $report ) {
 		$notices = array();
 
-		if ( 'akwu-einbettungen' === $current ) {
-			$notice = get_transient( 'akwu_embed_notice_' . get_current_user_id() );
+		if ( 'akwu-einbettungen' === $current || 'akwu-ladeverhalten' === $current ) {
+			$name   = ( 'akwu-einbettungen' === $current ? 'akwu_embed_notice_' : 'akwu_loading_notice_' ) . get_current_user_id();
+			$notice = get_transient( $name );
 			if ( is_array( $notice ) && isset( $notice['type'], $notice['title'], $notice['message'] ) ) {
-				delete_transient( 'akwu_embed_notice_' . get_current_user_id() );
+				delete_transient( $name );
 				$notices[] = $notice;
 			}
 

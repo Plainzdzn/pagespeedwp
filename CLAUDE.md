@@ -21,17 +21,18 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
 | Capability | `manage_options` |
 | WP-CLI | `wp akwu scan\|convert\|report\|rollback\|purge-originals` |
 
-## Architektur (Stand 1.1.5)
+## Architektur (Stand 1.2.0)
 
 - `akuma-webp-umwandler.php` – Bootstrap, Konstanten (`AKWU_VERSION`, `AKWU_DIR`, `AKWU_URL`), eigener Autoloader (keine Composer-Laufzeitabhängigkeit).
 - `includes/` – Kernklassen:
   - `Scanner` (Phasen inventory → usage → theme → estimate → finalize, Stand in Option `akwu_scan`), `Inventory`, `Usage_Finder`, `Estimator`, `Scan_Result` (Lesezugriff für UI und CLI).
   - `Url_Matcher` (URLs finden und ersetzen, ADR-015), `Attachment_Files` (Dateien eines Anhangs), `Encoder` + `Imagick_Webp_Editor` (WebP erzeugen), `Png_Info`, `Settings` (Option `akwu_settings`), `Lock` (Sperre `akwu_lock`).
-  - Eingänge: `Admin` (Menü, acht Seiten, Assets), `Rest_Controller` (`akwu/v1`), `Cli` (`wp akwu …`). Admin-UI und WP-CLI rufen **dieselben** Kernklassen auf, keine Logik in Controllern.
+  - Eingänge: `Admin` (Menü, neun Seiten, Assets), `Rest_Controller` (`akwu/v1`), `Cli` (`wp akwu …`). Admin-UI und WP-CLI rufen **dieselben** Kernklassen auf, keine Logik in Controllern.
   - `System_Check`, `Conflict_Detector`, `Format` (deutsche Zahlen), `View`, `Icons`, `Plugin`.
   - Umwandlung: `Conversion` (Lauf in Option `akwu_run`, Phasen convert → finalize → verify → done, ADR-020/021), `Converter` (ein Anhang, gleiche ID, ADR-018), `Url_Map` (alte → neue Pfade je Größenname), `Replacer` (Verweise in Posts, Postmeta, Termmeta, Optionen), `Value_Replacer` (Text, serialisiert, JSON, ADR-019), `Cache_Purger`, `Rollback`, `Log_Table` (`{prefix}akwu_log`), `Run_Presenter` (Texte und HTML für Seite, REST und Admin-Leiste).
   - Nach der Umwandlung: `Report` (Bericht über alle Läufe, CSV, ADR-022), `Job` (Rückgängig und Originale löschen in Schritten, Option `akwu_job`, ADR-023), `Originals` (alte Dateien löschen, auch beim Löschen eines Bilds, ADR-024), `Verifier` (Gegenprobe nach der Umwandlung und vor dem Löschen).
   - `PageSpeed` (optional, PageSpeed Insights API, ADR-025).
+  - Ab 1.2.0: `Header_Images` (Bilder der Kopfzeilen-Vorlagen sofort laden, Option `akwu_header_images`) und `Fix_File` (eigene Datei `mu-plugins/akuma-pagespeed-fixes.php`, wirkt ohne das Plugin weiter, ADR-040). Einzige Stelle mit Laufzeitlogik, nur auf Knopfdruck unter „Ladeverhalten“.
   - Ab 1.1.5: Auch das erste Speichern nur in eine neue eigene Zieldatei, Formatfilter vorab geprüft, Ergebnis über `Webp_Info` geprüft (ADR-039).
   - Ab 1.1.4: `Webp_Info` (Kopf und Chunks einer WebP-Datei prüfen), `Encoder::save_webp()` hält die gewählte Qualität für genau ein `save()` fest, die zweite PNG-Fassung kommt nur aus einer eigenen Zwischendatei (ADR-038). Ab 1.1.3: `Png_Info::imagick_opaque()`, Einstellung `png_transparent` (ADR-037).
   - Ab 1.1.2: Fingerabdruck je erzeugter Datei in `new_hashes` (Tabelle Version 2, ADR-035), Löschschutz ohne Zeitfenster (ADR-036).
@@ -42,13 +43,13 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
 - `uninstall.php` – löscht nur `akwu_*`-Optionen, Transients und die Log-Tabelle, nie Bilder.
 - `languages/` – POT-Datei. Die Texte im Code sind deutsch (ADR-010).
 - `design/` – Referenz-Mockups, siehe `design/README.md`.
-- `tests/unit/` – PHPUnit ohne WordPress, `tests/seed/seed.php` – Testdaten, `tests/integration/` – Rundlauf, Originale löschen, HEIC und gemeinsame Dateien, Einbettungen in der Testinstallation (läuft auch mit SQLite).
+- `tests/unit/` – PHPUnit ohne WordPress, `tests/seed/seed.php` – Testdaten, `tests/integration/` – Rundlauf, Originale löschen, HEIC und gemeinsame Dateien, Einbettungen, Bilder der Kopfzeile in der Testinstallation (läuft auch mit SQLite).
 - `bin/setup-env.sh` – Testinstallation in der Cloud-Sitzung, `bin/screenshots.cjs` – Screenshots aller Seiten und Mockups, `bin/build-zip.sh` – installierbare ZIP.
 
 ## Harte Regeln
 
 - Nie Dateien überschreiben oder löschen, bevor der Rollback-Zustand gesichert ist.
-- Kein Rewrite-/`.htaccess`-Ansatz, keine dauerhafte Auslieferungslogik. Nach Deinstallation bleibt der Zustand.
+- Kein Rewrite-/`.htaccess`-Ansatz, keine dauerhafte Auslieferungslogik. Nach Deinstallation bleibt der Zustand. Ausnahme nur über die Fix-Datei (ADR-040, Fixer-Briefing §5): auf Knopfdruck, eigene Datei, zurücknehmbar.
 - Fundstellen, die das Briefing als Warnung führt (Theme-Dateien, Code-Snippets-Tabelle, Customizer-CSS, Custom CSS in Elementor), nur listen, nie ändern, auch wenn sie technisch in der Datenbank liegen.
 - `guid` nie anfassen. Serialisierte Daten nie per SQL-`REPLACE()`, `_elementor_data` nur als JSON.
 - Keine erfundenen Plugin-APIs. Was nicht im Quellcode des Fremd-Plugins verifiziert ist: TODO in `docs/HANDOFF.md` und Rückfrage.
