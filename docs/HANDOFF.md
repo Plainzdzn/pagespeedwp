@@ -14,7 +14,7 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
-## 2026-11-26 02:30 – Version 1.1.0: HEIC-Uploads, gemeinsame Dateien, Tour erst bei Bedarf (Claude Chat)
+## 2026-11-26 02:45 – Version 1.1.0: HEIC-Uploads, gemeinsame Dateien, Tour erst bei Bedarf (Claude Chat)
 
 **Stand:** Feature-Stand auf Basis von `20677fb` (v1.0.0). Nicht gemergt, nicht veröffentlicht.
 
@@ -38,7 +38,13 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 **Getestet:**
 - PHPCS sauber, PHPUnit 83 Tests.
 - Integration lokal (WordPress 7.1.5, PHP 8.3, SQLite, GD): `roundtrip.php` 26, `purge.php` 29, neu `heic-alias.php` 39 und `embeds.php` 19 Prüfungen, alle bestanden.
-- Demo-Kopie JBZ (Raidboxes, WPML, Imagick): siehe Projektbericht vom 26.11.2026.
+- Demo-Kopie JBZ (Raidboxes, WordPress 7.1.5, WPML 5.2.0, Imagick), Build aus `04fa996`:
+  - Scan: 903 Bilder, 6 bereit (mit 1.0.0: 0). Alle sechs sind HEIC-Uploads mit JPG-Datei, je Datei zwei Bild-IDs.
+  - Umwandlung: 6 umgestellt, 3 Dateien, gleiche Pixelmaße, Hauptdateien 1.493.926 → 863.770 Bytes (−42 %). HEIC-Master und JPG-Originale per SHA-256 unverändert.
+  - Rückgängig für eine Bild-ID stellt beide Einträge zurück. Nach dem Rückgängig alle Dateien identisch, WebP entfernt, Elementor-CSS wieder auf JPG.
+  - Einbettungen: 6 Touren gefunden, die zwei der Startseite umgestellt, Zurücknehmen zeichengenau.
+  - PageSpeed Startseite (Median aus 3): mobil 49 → 63, Gewicht 5,57 → 1,92 MB, TBT 344 → 0 ms. Computer 79 → 94. Mechatroniker: PSI unverändert (Bilder laden erst beim Scrollen), im Browser 631 KB weniger nach dem Durchscrollen.
+  - Der erste Lauf auf der Demo deckte die erneute Verkleinerung auf (ADR-030), wurde zurückgenommen und mit dem korrigierten Build wiederholt.
 
 ## 2026-10-09 20:47 – M5 Abschluss, Version 1.0.0 (Claude Code)
 
