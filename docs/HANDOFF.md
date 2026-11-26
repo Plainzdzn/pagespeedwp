@@ -14,6 +14,53 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
+## 2026-11-26 19:45 – 1.2.0: Bilder der Kopfzeile sofort laden, Serie 4 auf drei neuen Demokopien (Claude Code)
+
+**Stand:** Entwurfs-PR #6, nicht gemergt, nicht veröffentlicht. Build **1.2.0 aus `4296e76`**, ZIP-SHA-256 `c5ae91a0b7541d89dd5f833b7263f08a3c166bb290701efaedb0f4a35f2df01e`. Danach nur Doku (`e8fcfde`, dieser Eintrag). CI grün.
+
+**Erledigt:**
+- 1.2.0 (ADR-040): neue Seite „Ladeverhalten“. Sie findet die Bilder der Elementor-Kopfzeile und schreibt auf Knopfdruck die Fix-Datei `wp-content/mu-plugins/akuma-pagespeed-fixes.php`. Die Datei setzt für genau diese Bild-IDs `loading="eager"`, `data-no-lazy` und die Klasse `skip-lazy`, damit ein Lazy-Loader sie nicht verzögert (WP Rocket 3.20.1.2 geprüft, Ausschlüsse im Quelltext belegt). „Zurücknehmen“ entfernt die Datei. Eine fremde Datei gleichen Namens wird nie überschrieben oder gelöscht.
+- Tests: `tests/unit/test-fix-file.php` (6 Tests), `tests/integration/header-images.php` (29 Prüfungen), beide in der CI.
+- Serie 4 auf drei neuen Raidboxes-Demos (#299741 Solarengel, #299742 Achtstein Invest, #299743 DarumPflanzlich): je Box Backup und Isolations-Plugin vor der Baseline, dann Baseline, 1.1.5 und, wo anwendbar, der Fix aus 1.2.0. Je Phase, Seite und Gerät mindestens drei PSI-Läufe. Nachweise im Claude-Projekt „Pagespeed WordPress“ (`claude/akwu-serie4-abnahme-2026-11-26.md`).
+
+**Ergebnisse (PSI Desktop, Median, Ziel ≥ 80):**
+
+| Seite | Ausgangszustand | mit Plugin, gleicher Cache-Zustand | Einordnung |
+|---|---|---|---|
+| DarumPflanzlich Start | 77 | 1.1.5: 74, 1.2.0-Fix: **93** | CLS 0,322 → 0,000 durch den Fix |
+| DarumPflanzlich Shop | 80 | 1.1.5: 81, 1.2.0-Fix: **96** | CLS 0,323 → 0,001 durch den Fix |
+| Achtstein Start | 91 (Vergleichsbasis) | 1.1.5: **95** | Unterschied innerhalb der Streuung, LCP 1,3 → 1,1 s |
+| Achtstein Investieren | 94 (Vergleichsbasis) | 1.1.5: **92** | Unterschied innerhalb der Streuung, LCP 1,3 → 1,1 s |
+| Solarengel Start | 68 | 1.1.5: keine Kandidaten | unter 80, Hosting-Variante Cache ein ebenfalls 68 |
+| Solarengel Formular | 65 | 1.1.5: keine Kandidaten | Hosting-Variante Cache ein 82, bei ähnlich schnellem Messrechner aber 78–79 gegenüber 76–91 |
+
+- DarumPflanzlich: Ursache war WP Rocket LazyLoad auf dem Kopfzeilen-Logo. Der Platzhalter ist 300 px breit, das Bild 1215 px, das CSS rechnet 20 % der Eigenbreite. Beim Nachladen verschob sich die ganze Seite um 115 px. Mobil unverändert (64 → 68 → 65, Shop 71 → 71 → 70).
+- Achtstein: Der zuerst gemessene Ausgangszustand der Kopie (Start 69, Investieren 82) ist nicht vergleichbar. Mehrere Elementor-Seiten-CSS (`post-990.css`, `post-927.css` und weitere) antworteten mit 301 statt CSS, das Hero-Hintergrundbild wurde nicht geladen. Der Schritt „Elementor-CSS neu erzeugen“ der Umwandlung hat die Dateien nebenbei wiederhergestellt. Für den gleichwertigen Vergleich wurden die 6 Bilder der beiden Messseiten über „Einzeln zurücksetzen“ ins Original gesetzt (CSS intakt), gemessen und wieder umgewandelt. Mobil mit intaktem CSS: Start 57 → 60, Investieren 51 → 54.
+- Solarengel: alle 240 Bilder schon WebP. Startseite unter 80, weil der Consent-Dialog das LCP-Element ist (simuliert rund 3,0 s), dazu TBT 57–380 ms je nach Messrechner und CLS meist 0,07–0,10 (Schrift des Heyflow-Formulars lädt nach und verschiebt den Hero). Nichts davon liegt im Wirkungsbereich des Plugins.
+
+**Entscheidungen:**
+- Die Fix-Datei ist eine bewusste Ausnahme von „keine dauerhafte Auslieferungslogik“ (ADR-040). Sie läuft ohne das Plugin weiter und wird nur auf Knopfdruck geschrieben.
+- Auf Solarengel und Achtstein wurde der Fix nicht eingeschaltet: Dort verzögert kein Lazy-Loader die Kopfzeilenbilder, es gäbe nichts zu messen.
+- Der Google-Messrechner (`benchmarkIndex` 340–1350) bestimmt TBT und Score stark mit. Mediane stehen deshalb immer mit Spanne und Messrechner-Wert in den Nachweisen, Zuschreibungen nur, wo sie auch bei gleichem Messrechner halten.
+
+**Offen / Nächster Schritt:**
+- Merge und Release nur auf Felix' Freigabe.
+- Kandidat für die nächste Verbesserung: das LCP-Bild der Seite sofort laden. Mobil ist es auf DarumPflanzlich das erste Inhaltsbild (Start) bzw. das erste Produktbild (Shop), beide von WP Rocket verzögert und deshalb nicht im HTML auffindbar (LCP simuliert 6–8,6 s). Auf Achtstein ist es das Hintergrundbild des ersten Abschnitts, das nur im CSS steht und mit Priorität „Low“ lädt (LCP simuliert 9 s auf der Startseite, 20 s auf „Investieren“ mit 30 Bildern und 5,0 MB). Naheliegend: denselben Ausschluss wie für die Kopfzeile auf das erste Inhaltsbild ausdehnen und Hintergrundbilder vorladen. Nicht umgesetzt, nicht gemessen.
+- Website-Einstellungen, nicht getestet: Heyflow-Skript auf Solarengel mit `defer` und fester Mindesthöhe für das Formular, feste Logobreite auf DarumPflanzlich.
+- Auf den Live-Seiten prüfen, ob Achtstein die Elementor-Seiten-CSS ausliefert. Auf der Kopie fehlten sie, Ursache nicht geklärt.
+- Aus Serie 3 weiter offen: echtes Verlustfrei behalten oder near-lossless anbieten; Vorschaugrößen mit Core-Qualität.
+
+**Fragen an Felix:** Fix-Datei als Ausnahme freigeben (ADR-040)? Soll „LCP-Bild sofort laden“ als nächster Fix in die Fix-Datei?
+
+**Getestet:**
+- PHPCS sauber, PHPUnit 110 Tests. Integration lokal `header-images.php` 29 Prüfungen, CI für `e8fcfde` grün.
+- DarumPflanzlich #299743: 1.1.5 wandelte 156 um (191,1 → 54,6 MB, 10.966 Verweise), 9 übersprungen, 1 Fehler (ID 39, Größe `elementor_custom_350x` nicht erzeugbar, Bild bleibt im Original). 1.2.0: zwei Kopfzeilenbilder gefunden (IDs 6375, 6378), Fix eingeschaltet, HTML zeigt die drei Merkmale nur an diesen Bildern. Funktions-Stichprobe (Start, Shop, Produkt, Warenkorb, Kontakt) ohne Fehler, kein Bestelltest.
+- Achtstein #299742: 1.1.5 wandelte 966 um (936,8 → 294,4 MB, 24.086 Verweise), 82 übersprungen, 2 Fehler (IDs 7929 und 10634, Größe `elementor_custom_x300`), 1 Hinweis „Bitte prüfen“ (ID 10514). Einzeln zurückgesetzt und wieder umgewandelt: 12 Einträge (6 Dateien). Endstand geprüft: HTML beider Messseiten gleich groß wie bei der Messung, alle 36 dort geladenen Bilder mit gleicher Länge. Funktions-Stichprobe (Start, Investieren, Neukundenbonus, Über uns, Blog) ohne fehlende Bilder oder eigene Fehlanfragen; der Skriptfehler von „HandL UTM Grabber“ bestand schon vorher.
+- Solarengel #299741: Scan 240 Bilder, 0 Kandidaten. Hosting-Variante Raidboxes-Server-Cache aus/ein je 6 Läufe. Funktions-Stichprobe (Start mit Video und Heyflow, Formularseite, Kontakt) ohne Fehler.
+- Grenzen: Mobil zeigen die PSI-Rohdaten zwei Lademuster (erster Bildaufbau früh oder erst bei rund 2,3 s, dann alles auf einmal). Das Muster bestimmt mobile LCP- und CLS-Werte stärker als die Eingriffe, die Ursache ist nicht geklärt. Die Hinweise zu Heyflow, Logobreite und Vorladen sind nicht gemessen.
+
+---
+
 ## 2026-11-26 14:50 – 1.1.5: erstes Speichern abgesichert (Claude Code)
 
 **Stand:** Entwurfs-PR #6, nicht gemergt. Build **1.1.5 aus `1909fe4`**, ZIP-SHA-256 `426e874a32a984d6573eb7b9c80799dcd5c8569d4d2f05629f8a0b82ea8ace84`. CI grün.
