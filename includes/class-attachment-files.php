@@ -111,12 +111,43 @@ final class Attachment_Files {
 
 		$file = wp_normalize_path( $file );
 
-		if ( path_is_absolute( $file ) ) {
-			$base = self::basedir();
-			return 0 === strpos( $file, $base ) ? substr( $file, strlen( $base ) ) : null;
+		// WordPress erkennt einen Windows-Pfad nur mit Rückstrich (C:\…). Nach dem Normalisieren steht dort C:/…,
+		// deshalb zusätzlich selbst prüfen. Sonst gälte der Pfad als relativ und der Upload-Ordner stünde doppelt davor.
+		if ( self::looks_absolute( $file ) || path_is_absolute( $file ) ) {
+			return self::strip_base( $file, self::basedir() );
 		}
 
 		return ltrim( $file, '/' );
+	}
+
+	/**
+	 * Ist ein normalisierter Pfad (nur Schrägstriche) absolut? Unix (/…), Windows-Laufwerk (C:/…) oder Netzwerkpfad (//…).
+	 *
+	 * @param string $file Normalisierter Pfad.
+	 * @return bool
+	 */
+	public static function looks_absolute( $file ) {
+		return '' !== $file && ( '/' === $file[0] || 1 === preg_match( '#^[a-zA-Z]:/#', $file ) );
+	}
+
+	/**
+	 * Pfad relativ zum Upload-Ordner, oder null, wenn er außerhalb liegt (anderer Ordner, anderes Laufwerk).
+	 *
+	 * Auf Windows-Laufwerken zählt Groß- und Kleinschreibung nicht.
+	 *
+	 * @param string $file Normalisierter absoluter Pfad.
+	 * @param string $base Normalisierter Upload-Ordner mit Schrägstrich am Ende.
+	 * @return string|null
+	 */
+	public static function strip_base( $file, $base ) {
+		if ( '' === $base || strlen( $file ) <= strlen( $base ) ) {
+			return null;
+		}
+
+		$windows = 1 === preg_match( '#^[a-zA-Z]:/#', $file );
+		$inside  = $windows ? 0 === stripos( $file, $base ) : 0 === strpos( $file, $base );
+
+		return $inside ? substr( $file, strlen( $base ) ) : null;
 	}
 
 	/**

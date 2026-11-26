@@ -2,14 +2,14 @@
 # This file is distributed under the same license as the WebP-Umwandler plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: WebP-Umwandler 1.1.0\n"
+"Project-Id-Version: WebP-Umwandler 1.1.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/pagespeedwp\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-26T01:31:12+00:00\n"
+"POT-Creation-Date: 2026-11-26T02:03:32+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: akuma-webp-umwandler\n"
@@ -17,7 +17,7 @@ msgstr ""
 #. Plugin Name of the plugin
 #: akuma-webp-umwandler.php
 #: includes/class-admin.php:243
-#: includes/class-plugin.php:65
+#: includes/class-plugin.php:71
 #: includes/views/layout.php:36
 msgid "WebP-Umwandler"
 msgstr ""
@@ -282,13 +282,13 @@ msgid "Abbrechen und zurücksetzen"
 msgstr ""
 
 #. translators: %d: Attachment-ID.
-#: includes/class-aliases.php:43
+#: includes/class-aliases.php:141
 #, php-format
 msgid "Bild-ID %d nutzt dieselbe Datei, hat aber andere Metadaten oder Größen. Damit beide Einträge zusammenpassen, bleibt das Bild unverändert."
 msgstr ""
 
 #. translators: %d: Attachment-ID.
-#: includes/class-aliases.php:151
+#: includes/class-aliases.php:284
 #, php-format
 msgid "Gleiche Datei wie Bild-ID %d, zusammen umgestellt."
 msgstr ""
@@ -342,7 +342,7 @@ msgstr ""
 
 #: includes/class-cli.php:259
 #: includes/class-cli.php:538
-#: includes/class-report.php:384
+#: includes/class-report.php:401
 #: includes/views/page-report.php:211
 msgid "nicht ersetzt"
 msgstr ""
@@ -495,18 +495,23 @@ msgid "Ein anderes Fenster arbeitet gerade an diesem Lauf. Bitte kurz warten."
 msgstr ""
 
 #: includes/class-conversion.php:294
+#: includes/class-conversion.php:435
+msgid "Das Bild wurde während der Unterbrechung ersetzt oder gelöscht. Es bleibt unverändert."
+msgstr ""
+
+#: includes/class-conversion.php:306
 msgid "Die Umwandlung brach wiederholt ab, vermutlich zu wenig Arbeitsspeicher oder Zeit. Bild bleibt im Original."
 msgstr ""
 
-#: includes/class-conversion.php:298
+#: includes/class-conversion.php:310
 msgid "Nach Unterbrechung zurückgesetzt, neuer Versuch."
 msgstr ""
 
-#: includes/class-conversion.php:454
+#: includes/class-conversion.php:477
 msgid "Lauf abgebrochen, nicht umgewandelt."
 msgstr ""
 
-#: includes/class-conversion.php:511
+#: includes/class-conversion.php:534
 msgid "Das geht im aktuellen Zustand der Umwandlung nicht."
 msgstr ""
 
@@ -569,40 +574,44 @@ msgstr ""
 msgid "Die Metadaten des WebP-Bildes konnten nicht erzeugt werden."
 msgstr ""
 
-#: includes/class-embeds.php:253
+#: includes/class-embeds.php:255
 msgid "Vorlage: Die Position auf den Seiten ist hier nicht bekannt."
 msgstr ""
 
-#: includes/class-embeds.php:255
+#: includes/class-embeds.php:257
 msgid "Steht weit oben auf der Seite und soll sofort laden."
 msgstr ""
 
-#: includes/class-embeds.php:257
-msgid "Das Ladeverhalten ist im Widget schon festgelegt."
+#: includes/class-embeds.php:259
+msgid "Das Ladeverhalten ist im Widget ausdrücklich festgelegt und bleibt so."
 msgstr ""
 
-#: includes/class-embeds.php:302
+#: includes/class-embeds.php:304
 msgid "Die Einbettung wurde nicht mehr gefunden. Wurde die Seite inzwischen geändert?"
 msgstr ""
 
-#: includes/class-embeds.php:305
+#: includes/class-embeds.php:307
 msgid "Diese Einbettung lädt bereits verzögert."
 msgstr ""
 
-#: includes/class-embeds.php:313
+#: includes/class-embeds.php:315
+msgid "An diesem iframe gibt es nichts zu ändern."
+msgstr ""
+
+#: includes/class-embeds.php:321
 msgid "Das iframe steht mehrfach gleich auf der Seite oder ließ sich nicht eindeutig finden. Es wurde nichts geändert."
 msgstr ""
 
-#: includes/class-embeds.php:334
-#: includes/class-embeds.php:363
+#: includes/class-embeds.php:342
+#: includes/class-embeds.php:371
 msgid "Die Seite ließ sich nicht speichern. Es wurde nichts geändert."
 msgstr ""
 
-#: includes/class-embeds.php:352
+#: includes/class-embeds.php:360
 msgid "Zu dieser Einbettung ist keine Änderung gespeichert."
 msgstr ""
 
-#: includes/class-embeds.php:360
+#: includes/class-embeds.php:368
 msgid "Das iframe wurde seit der Änderung bearbeitet. Bitte das Attribut loading im Widget von Hand entfernen."
 msgstr ""
 
@@ -734,42 +743,49 @@ msgstr ""
 msgid "PageSpeed meldet: %s"
 msgstr ""
 
-#: includes/class-plugin.php:64
+#: includes/class-plugin.php:70
 msgid "Der WebP-Umwandler unterstützt Multisite-Installationen noch nicht und wurde nicht aktiviert."
 msgstr ""
 
-#: includes/class-plugin.php:85
+#: includes/class-plugin.php:91
 msgid "Der WebP-Umwandler unterstützt Multisite-Installationen noch nicht. Er ist aktiv, tut aber nichts. Bitte deaktivieren."
 msgstr ""
 
-#: includes/class-report.php:397
+#. translators: 1: Attachment-ID, 2: Grund.
+#: includes/class-report.php:350
+#: includes/class-rollback.php:186
+#, php-format
+msgid "Gleiche Datei wie Bild-ID %1$d: %2$s"
+msgstr ""
+
+#: includes/class-report.php:414
 msgid "ja"
 msgstr ""
 
-#: includes/class-report.php:397
+#: includes/class-report.php:414
 msgid "nein"
 msgstr ""
 
-#: includes/class-report.php:444
+#: includes/class-report.php:461
 #: includes/views/page-conversion.php:58
 #: includes/views/page-report.php:95
 #: includes/views/part-run-log.php:17
 msgid "Umgewandelt"
 msgstr ""
 
-#: includes/class-report.php:445
+#: includes/class-report.php:462
 #: includes/views/page-conversion.php:59
 #: includes/views/page-report.php:107
 #: includes/views/part-run-log.php:18
 msgid "Übersprungen"
 msgstr ""
 
-#: includes/class-report.php:446
+#: includes/class-report.php:463
 #: includes/views/part-run-log.php:19
 msgid "Fehler"
 msgstr ""
 
-#: includes/class-report.php:447
+#: includes/class-report.php:464
 #: includes/views/part-run-log.php:20
 msgid "Zurückgesetzt"
 msgstr ""
@@ -800,8 +816,27 @@ msgstr ""
 msgid "Das Original %s fehlt. Rückgängig ist nicht mehr möglich."
 msgstr ""
 
-#. translators: %s: Anzahl.
+#: includes/class-rollback.php:80
+#: includes/class-rollback.php:164
+msgid "Der Mediathek-Eintrag existiert nicht mehr."
+msgstr ""
+
+#: includes/class-rollback.php:83
+msgid "Das Bild wurde seit der Umwandlung ersetzt oder bearbeitet. Rückgängig würde die neue Fassung überschreiben, deshalb bleibt alles unverändert."
+msgstr ""
+
+#. translators: %s: Dateinamen.
+#: includes/class-rollback.php:94
+#, php-format
+msgid "Zum Bild gehören inzwischen Dateien, die nicht aus der Umwandlung stammen (%s). Rückgängig würde sie löschen, deshalb bleibt alles unverändert."
+msgstr ""
+
 #: includes/class-rollback.php:108
+msgid "Die WebP-Dateien haben inzwischen einen anderen Inhalt als direkt nach der Umwandlung. Rückgängig würde sie löschen, deshalb bleibt alles unverändert."
+msgstr ""
+
+#. translators: %s: Anzahl.
+#: includes/class-rollback.php:213
 #, php-format
 msgid "Rückgängig gemacht, %s Verweise zurückgesetzt."
 msgstr ""
@@ -1591,21 +1626,25 @@ msgstr ""
 msgid "erst bei Bedarf (hier eingestellt)"
 msgstr ""
 
-#. translators: %s: Wert des Attributs loading.
-#: includes/views/page-embeds.php:106
-#, php-format
-msgid "im Widget festgelegt: %s"
+#: includes/views/page-embeds.php:105
+msgid "erst bei Bedarf (im Widget festgelegt)"
 msgstr ""
 
-#: includes/views/page-embeds.php:120
-msgid "Zurücknehmen"
+#. translators: %s: Wert des Attributs loading.
+#: includes/views/page-embeds.php:108
+#, php-format
+msgid "sofort, im Widget ausdrücklich festgelegt (loading=\"%s\")"
 msgstr ""
 
 #: includes/views/page-embeds.php:122
+msgid "Zurücknehmen"
+msgstr ""
+
+#: includes/views/page-embeds.php:124
 msgid "Erst bei Bedarf laden"
 msgstr ""
 
-#: includes/views/page-embeds.php:139
+#: includes/views/page-embeds.php:141
 msgid "Gesucht wird nur nach Matterport-Touren in Elementor-HTML-Widgets veröffentlichter Seiten. Andere Einbettungen, Videos und Karten bleiben unberührt. Touren in den ersten beiden Abschnitten einer Seite werden nicht angeboten, sie sollen sofort laden."
 msgstr ""
 

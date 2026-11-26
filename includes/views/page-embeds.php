@@ -18,7 +18,7 @@ $lazy   = count(
 	array_filter(
 		$embeds,
 		static function ( $entry ) {
-			return 'eager' !== $entry['state'];
+			return 'ours' === $entry['state'] || ( 'fixed' === $entry['state'] && 'lazy' === $entry['loading'] );
 		}
 	)
 );
@@ -97,18 +97,20 @@ View::render(
 							<td><?php echo esc_html( $entry['host'] ); ?></td>
 							<td>
 								<?php
-								if ( 'eager' === $entry['state'] ) {
+								if ( 'default' === $entry['state'] ) {
 									esc_html_e( 'sofort beim Seitenaufruf', 'akuma-webp-umwandler' );
 								} elseif ( 'ours' === $entry['state'] ) {
 									esc_html_e( 'erst bei Bedarf (hier eingestellt)', 'akuma-webp-umwandler' );
+								} elseif ( 'lazy' === $entry['loading'] ) {
+									esc_html_e( 'erst bei Bedarf (im Widget festgelegt)', 'akuma-webp-umwandler' );
 								} else {
 									/* translators: %s: Wert des Attributs loading. */
-									echo esc_html( sprintf( __( 'im Widget festgelegt: %s', 'akuma-webp-umwandler' ), $entry['state'] ) );
+									echo esc_html( sprintf( __( 'sofort, im Widget ausdrücklich festgelegt (loading="%s")', 'akuma-webp-umwandler' ), $entry['loading'] ) );
 								}
 								?>
 							</td>
 							<td class="akwu-table__action">
-								<?php if ( 'ours' === $entry['state'] || ( $entry['eligible'] && 'eager' === $entry['state'] ) ) : ?>
+								<?php if ( 'ours' === $entry['state'] || ( $entry['eligible'] && 'default' === $entry['state'] ) ) : ?>
 									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 										<?php wp_nonce_field( 'akwu_embed' ); ?>
 										<input type="hidden" name="action" value="akwu_embed">

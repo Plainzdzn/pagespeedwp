@@ -115,9 +115,24 @@ final class Originals {
 		}
 
 		$rows = Log_Table::latest_by_attachment( array( (int) $attachment_id ), array( 'done' ) );
-		// Teilen sich weitere Einträge die Datei, brauchen sie die Originale noch für Rückgängig.
-		if ( isset( $rows[ $attachment_id ] ) && empty( $rows[ $attachment_id ]['purged_at'] ) && empty( Aliases::members( $rows[ $attachment_id ] ) ) ) {
-			self::purge( $rows[ $attachment_id ] );
+		if ( isset( $rows[ $attachment_id ] ) ) {
+			$members = Aliases::members( $rows[ $attachment_id ] );
+
+			if ( $members ) {
+				// Weitere Einträge teilen sich die Datei: Sie brauchen die Originale noch für Rückgängig.
+				// Die Größenangaben wandern zum ersten verbleibenden Eintrag, sonst fehlten sie in Bericht und Prüfung.
+				if ( (int) $rows[ $attachment_id ]['bytes_after'] > 0 && 0 === (int) $members[0]['bytes_after'] ) {
+					Log_Table::update(
+						$members[0]['id'],
+						array(
+							'bytes_before' => (int) $rows[ $attachment_id ]['bytes_before'],
+							'bytes_after'  => (int) $rows[ $attachment_id ]['bytes_after'],
+						)
+					);
+				}
+			} elseif ( empty( $rows[ $attachment_id ]['purged_at'] ) ) {
+				self::purge( $rows[ $attachment_id ] );
+			}
 		}
 
 		// Ohne Bild gibt es nichts mehr zurückzusetzen.

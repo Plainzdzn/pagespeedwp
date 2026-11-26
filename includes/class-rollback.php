@@ -45,7 +45,100 @@ final class Rollback {
 			}
 		}
 
+		$drift = self::drift( $row );
+		if ( '' !== $drift ) {
+			return new \WP_Error( 'akwu_rollback_changed', $drift );
+		}
+
 		return true;
+	}
+
+	/**
+	 * Gibt es den Mediathek-Eintrag einer Zeile noch?
+	 *
+	 * @param array $row Log-Zeile.
+	 * @return bool
+	 */
+	public static function exists( array $row ) {
+		return 'attachment' === get_post_type( (int) $row['attachment_id'] );
+	}
+
+	/**
+	 * Weicht der Anhang vom Zustand ab, den die Umwandlung hinterlassen hat?
+	 *
+	 * Rückgängig darf nur zurücknehmen, was die Umwandlung selbst angelegt hat. Zeigt der Anhang inzwischen auf eine
+	 * andere Datei, führt er Dateien, die nicht aus der Umwandlung stammen, oder haben die WebP-Dateien einen anderen
+	 * Inhalt, bleibt alles unverändert. Fehlende WebP-Dateien sind kein Hindernis: dann gibt es nichts zu verlieren.
+	 *
+	 * @param array $row Log-Zeile mit Status done oder converted.
+	 * @return string Grund oder leer, wenn der Zustand passt.
+	 */
+	public static function drift( array $row ) {
+		$attachment_id = (int) $row['attachment_id'];
+
+		if ( ! self::exists( $row ) ) {
+			return __( 'Der Mediathek-Eintrag existiert nicht mehr.', 'akuma-webp-umwandler' );
+		}
+
+		$changed = __( 'Das Bild wurde seit der Umwandlung ersetzt oder bearbeitet. Rückgängig würde die neue Fassung überschreiben, deshalb bleibt alles unverändert.', 'akuma-webp-umwandler' );
+
+		if ( (string) get_post_meta( $attachment_id, '_wp_attached_file', true ) !== (string) $row['new_file'] || 'image/webp' !== get_post_mime_type( $attachment_id ) ) {
+			return $changed;
+		}
+
+		$recorded = array_values( (array) $row['new_files'] );
+		$current  = Attachment_Files::of( $attachment_id );
+		$foreign  = array_diff( null === $current ? array() : array_values( $current ), $recorded );
+		if ( $foreign ) {
+			/* translators: %s: Dateinamen. */
+			return sprintf( __( 'Zum Bild gehören inzwischen Dateien, die nicht aus der Umwandlung stammen (%s). Rückgängig würde sie löschen, deshalb bleibt alles unverändert.', 'akuma-webp-umwandler' ), implode( ', ', array_map( 'wp_basename', array_slice( array_values( $foreign ), 0, 3 ) ) ) );
+		}
+
+		// Inhalt: Summe der Dateigrößen wie direkt nach der Umwandlung. Bei Zweiteinträgen steht sie beim umgewandelten Bild.
+		$expected = (int) $row['bytes_after'];
+		if ( 0 === $expected ) {
+			foreach ( Aliases::members( $row ) as $member ) {
+				$expected = max( $expected, (int) $member['bytes_after'] );
+			}
+		}
+		if ( $expected > 0 && $recorded ) {
+			clearstatcache();
+			$measure = Attachment_Files::measure( (array) $row['new_files'] );
+			if ( empty( $measure['missing'] ) && (int) $measure['bytes'] !== $expected ) {
+				return __( 'Die WebP-Dateien haben inzwischen einen anderen Inhalt als direkt nach der Umwandlung. Rückgängig würde sie löschen, deshalb bleibt alles unverändert.', 'akuma-webp-umwandler' );
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Steht der Anhang in einem Zustand, den diese Zeile nicht kennt (weder alte noch neue Datei)?
+	 *
+	 * Dann wurde er zwischendurch von anderer Seite geändert und darf nicht zurückgestellt werden.
+	 * Bekannt sind auch die Fassungen, die WordPress während der Umstellung selbst aus der neuen Datei ableitet
+	 * (`-scaled` bei großen Bildern, `-rotated` nach dem Drehen), solange die Zeile noch die Zieldatei nennt.
+	 *
+	 * @param array $row Log-Zeile.
+	 * @return bool
+	 */
+	public static function foreign( array $row ) {
+		if ( ! self::exists( $row ) ) {
+			return true;
+		}
+
+		$current = (string) get_post_meta( (int) $row['attachment_id'], '_wp_attached_file', true );
+		$known   = array( (string) $row['old_file'], (string) $row['new_file'] );
+
+		if ( '' !== (string) $row['new_file'] ) {
+			$info = pathinfo( (string) $row['new_file'] );
+			$base = ( ( isset( $info['dirname'] ) && '.' !== $info['dirname'] ) ? $info['dirname'] . '/' : '' ) . $info['filename'];
+			foreach ( array( '-scaled', '-rotated' ) as $suffix ) {
+				$known[] = $base . $suffix . ( isset( $info['extension'] ) ? '.' . $info['extension'] : '' );
+			}
+		}
+
+		return ! in_array( $current, $known, true );
 	}
 
 	/**
@@ -65,20 +158,32 @@ final class Rollback {
 		$owners = array();
 		$ready  = array();
 
-		// Einträge mit derselben Datei gehen nur gemeinsam zurück. Scheitert die Prüfung bei einem, bleibt die ganze Gruppe.
-		$rows    = self::with_members( $rows );
+		// Zeilen, deren Mediathek-Eintrag es nicht mehr gibt (gelöscht, während das Plugin aus war), zählen nicht zur Gruppe.
+		foreach ( $rows as $index => $row ) {
+			if ( ! self::exists( $row ) ) {
+				$result['errors'][ $row['attachment_id'] ] = __( 'Der Mediathek-Eintrag existiert nicht mehr.', 'akuma-webp-umwandler' );
+				unset( $rows[ $index ] );
+			}
+		}
+
+		// Einträge mit derselben Datei gehen nur gemeinsam zurück. Die ganze Gruppe wird geprüft, bevor irgendetwas
+		// geschrieben wird. Scheitert die Prüfung bei einem Eintrag, bleibt die ganze Gruppe unverändert.
+		$rows    = self::with_members( array_values( $rows ) );
 		$blocked = array();
 		foreach ( $rows as $row ) {
 			$check = self::check( $row );
 			if ( is_wp_error( $check ) ) {
-				$blocked[ (string) $row['run_id'] . '|' . (string) $row['new_file'] ] = $check->get_error_message();
+				$blocked[ (string) $row['run_id'] . '|' . (string) $row['new_file'] ] = array( (int) $row['attachment_id'], $check->get_error_message() );
 			}
 		}
 
 		foreach ( $rows as $row ) {
 			$group = (string) $row['run_id'] . '|' . (string) $row['new_file'];
 			if ( isset( $blocked[ $group ] ) ) {
-				$result['errors'][ $row['attachment_id'] ] = $blocked[ $group ];
+				$result['errors'][ $row['attachment_id'] ] = (int) $row['attachment_id'] === $blocked[ $group ][0]
+					? $blocked[ $group ][1]
+					/* translators: 1: Attachment-ID, 2: Grund. */
+					: sprintf( __( 'Gleiche Datei wie Bild-ID %1$d: %2$s', 'akuma-webp-umwandler' ), $blocked[ $group ][0], $blocked[ $group ][1] );
 				continue;
 			}
 
@@ -129,7 +234,7 @@ final class Rollback {
 		}
 		foreach ( $rows as $row ) {
 			foreach ( Aliases::members( $row ) as $member ) {
-				if ( ! isset( $all[ (int) $member['id'] ] ) ) {
+				if ( ! isset( $all[ (int) $member['id'] ] ) && self::exists( $member ) ) {
 					$all[ (int) $member['id'] ] = $member;
 				}
 			}
@@ -154,10 +259,16 @@ final class Rollback {
 			return false;
 		}
 
+		// Zeigt der Anhang auf eine Datei, die diese Zeile nicht kennt, hat ihn jemand anders geändert. Dann nichts anfassen.
+		if ( self::foreign( $row ) ) {
+			return false;
+		}
+
 		$new_files = is_array( $row['new_files'] ) ? array_values( $row['new_files'] ) : array();
 		$current   = (string) get_post_meta( $attachment_id, '_wp_attached_file', true );
 
-		if ( $current !== $row['old_file'] ) {
+		// Nach einem Abbruch mitten in der Umwandlung sind die neuen Dateien noch nicht protokolliert. Dann zählt, was der Anhang gerade führt.
+		if ( $current !== $row['old_file'] && empty( $row['new_files'] ) ) {
 			$files = Attachment_Files::of( $attachment_id );
 			if ( null !== $files ) {
 				$new_files = array_merge( $new_files, array_values( $files ) );

@@ -21,7 +21,7 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
 | Capability | `manage_options` |
 | WP-CLI | `wp akwu scan\|convert\|report\|rollback\|purge-originals` |
 
-## Architektur (Stand 1.1.0)
+## Architektur (Stand 1.1.1)
 
 - `akuma-webp-umwandler.php` – Bootstrap, Konstanten (`AKWU_VERSION`, `AKWU_DIR`, `AKWU_URL`), eigener Autoloader (keine Composer-Laufzeitabhängigkeit).
 - `includes/` – Kernklassen:
@@ -32,6 +32,7 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
   - Umwandlung: `Conversion` (Lauf in Option `akwu_run`, Phasen convert → finalize → verify → done, ADR-020/021), `Converter` (ein Anhang, gleiche ID, ADR-018), `Url_Map` (alte → neue Pfade je Größenname), `Replacer` (Verweise in Posts, Postmeta, Termmeta, Optionen), `Value_Replacer` (Text, serialisiert, JSON, ADR-019), `Cache_Purger`, `Rollback`, `Log_Table` (`{prefix}akwu_log`), `Run_Presenter` (Texte und HTML für Seite, REST und Admin-Leiste).
   - Nach der Umwandlung: `Report` (Bericht über alle Läufe, CSV, ADR-022), `Job` (Rückgängig und Originale löschen in Schritten, Option `akwu_job`, ADR-023), `Originals` (alte Dateien löschen, auch beim Löschen eines Bilds, ADR-024), `Verifier` (Gegenprobe nach der Umwandlung und vor dem Löschen).
   - `PageSpeed` (optional, PageSpeed Insights API, ADR-025).
+  - Ab 1.1.1: `Aliases::before_delete()` / `keep_shared()` (Löschschutz gemeinsamer Dateien, ADR-031), `Rollback::drift()` (Rückgängig nur aus dem erwarteten Zustand, ADR-032).
   - Ab 1.1.0: `Aliases` (Anhänge mit gemeinsamer Datei gehen als Gruppe, ADR-028), `Attachment_Files::real_kind()` und `Inventory::real()` (HEIC-Einträge nach Dateiinhalt, ADR-027), `Embeds` (Matterport-Tour erst bei Bedarf laden, Option `akwu_embeds`, ADR-029).
 - `includes/views/` – Templates, eingebunden über `View::render( $name, $data )`. Im Template steht nur `$data` bereit. Variablen dort nicht wie WP-Globals benennen (`$page`, `$pages`, `$paged`, `$title`, `$status`, `$link`, `$totals`, `$per_page` …), PHPCS meldet das.
 - `assets/` – `admin.css` (Design-Tokens als CSS-Variablen unter `.akwu`), `admin.js` (Vanilla JS, REST mit Nonce), `fonts/` (Outfit 500, Inter 400/500/600, WOFF2, OFL).
@@ -80,7 +81,8 @@ php ~/akwu-env/wp-cli.phar --path=$HOME/akwu-env/wordpress --allow-root <befehl>
 - Die Testumgebung liegt außerhalb des Repos in `~/akwu-env` und geht mit der Cloud-Sitzung verloren. Bei jeder Sitzung neu einrichten, das Script ist wiederholbar.
 - Das Plugin ist per Symlink eingebunden. `wp plugin uninstall` nur mit `--skip-delete`, sonst löscht WordPress das Repo.
 - Imagick gibt es in der Cloud-Sitzung nicht, getestet wird mit GD.
-- CI: GitHub Actions (`.github/workflows/ci.yml`) mit PHPCS und PHPUnit auf PHP 7.4, 8.1 und 8.3.
+- Ohne Datenbankserver: `bin/integration-sqlite.sh` setzt ein Wegwerf-WordPress mit SQLite auf und lässt alle Integrationstests laufen (auch `alias-guards.php`: Löschen und Ersetzen bei gemeinsamen Dateien, nur mit eigenen Testbildern).
+- CI: GitHub Actions (`.github/workflows/ci.yml`) mit PHPCS, PHPUnit auf PHP 7.4, 8.1 und 8.3 und den Integrationstests auf WordPress mit SQLite.
 
 ## Git und Release
 

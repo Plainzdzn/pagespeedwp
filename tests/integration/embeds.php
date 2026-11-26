@@ -94,7 +94,13 @@ function main() {
 	$data    = array(
 		section( 's1', array( widget( 'w0', '<iframe src="https://my.matterport.com/show/?m=OBEN"></iframe>' ) ) ),
 		section( 's2', array( widget( 'w9', '<iframe src="https://www.youtube.com/embed/abc"></iframe><p>Größe „ä“ / Pfad</p>' ) ) ),
-		section( 's3', array() ),
+		section(
+			's3',
+			array(
+				widget( 'w7', '<iframe loading="eager" src="https://my.matterport.com/show/?m=SOFORT"></iframe>' ),
+				widget( 'w8', '<iframe loading="lazy" src="https://my.matterport.com/show/?m=SCHON"></iframe>' ),
+			)
+		),
 		section( 's4', array( widget( 'w1', $desktop ) ), array( 'hide_mobile' => 'hidden-mobile' ) ),
 		section(
 			's5',
@@ -126,19 +132,23 @@ function main() {
 			$found[ $entry['widget'] ] = $entry;
 		}
 	}
-	check( array( 'w0', 'w1', 'w2' ) === array_keys( $found ), 'Drei Touren gefunden, das Video nicht' );
+	check( array( 'w0', 'w7', 'w8', 'w1', 'w2' ) === array_keys( $found ), 'Fünf Touren gefunden, das Video nicht' );
+	check( 'default' === $found['w1']['state'] && 'fixed' === $found['w7']['state'] && 'eager' === $found['w7']['loading'] && 'fixed' === $found['w8']['state'] && 'lazy' === $found['w8']['loading'], 'Fehlendes Attribut und ausdrücklich gesetztes loading werden unterschieden' );
+	check( ! $found['w7']['eligible'] && ! $found['w8']['eligible'] && '' !== $found['w7']['reason'], 'Ein ausdrücklich gesetztes loading wird nicht zum Umstellen angeboten' );
 	check( ! $found['w0']['eligible'] && $found['w1']['eligible'] && $found['w2']['eligible'], 'Die Tour im ersten Abschnitt wird nicht angeboten, die beiden weit unten schon' );
 	check( 4 === $found['w1']['section'] && 5 === $found['w1']['sections'] && array( 'mobile' ) === $found['w1']['hidden'], 'Abschnitt und ausgeblendete Geräte stimmen' );
 
 	WP_CLI::log( 'Verzögert laden:' );
 	check( is_wp_error( Embeds::apply( $found['w0']['key'] ) ), 'Tour weit oben wird abgelehnt' );
+	check( is_wp_error( Embeds::apply( $found['w7']['key'] ) ) && is_wp_error( Embeds::apply( $found['w8']['key'] ) ) && array() === Embeds::changes(), 'Ausdrückliches eager und lazy: abgelehnt, keine Änderung vermerkt' );
 	check( get_post_meta( $page_id, '_elementor_data', true ) === $raw, 'Abgelehnt heißt: nichts geschrieben' );
 	check( true === Embeds::apply( $found['w1']['key'] ), 'Tour für Desktop umgestellt' );
 
 	$changed = get_post_meta( $page_id, '_elementor_data', true );
 	$decoded = json_decode( $changed, true );
 	check( is_array( $decoded ) && strlen( $changed ) === strlen( $raw ) + strlen( ' loading=\"lazy\"' ), 'Gespeicherter Inhalt ist gültiges JSON und genau um das Attribut länger' );
-	check( 0 === strpos( $decoded[3]['elements'][0]['settings']['html'], '<iframe loading="lazy" width="850" height="675" src=https://my.matterport.com/show/?m=TEST ' ), 'Nur dieses iframe hat das Attribut' );
+	check( '<iframe loading="lazy" width="850" height="675" src=https://my.matterport.com/show/?m=TEST frameborder="0" allowfullscreen allow="autoplay; fullscreen; web-share; xr-spatial-tracking;"></iframe>' === $decoded[3]['elements'][0]['settings']['html'], 'Das iframe ist Zeichen für Zeichen dasselbe wie in Version 1.1.0, nur mit dem Attribut' );
+	check( $data[2] === $decoded[2], 'Die iframes mit ausdrücklichem loading sind unverändert' );
 	check( $data[4] === $decoded[4] && $data[0] === $decoded[0] && $data[1] === $decoded[1], 'Alle anderen Abschnitte unverändert, auch Umlaute und das Video' );
 	check( '' === (string) get_post_meta( $page_id, '_elementor_element_cache', true ), 'Elementor-Zwischenspeicher der Seite geleert' );
 
@@ -146,7 +156,7 @@ function main() {
 	foreach ( Embeds::scan() as $entry ) {
 		$state[ $entry['widget'] ] = $entry['state'];
 	}
-	check( 'ours' === $state['w1'] && 'eager' === $state['w2'], 'Status: eine Tour umgestellt, die andere noch nicht' );
+	check( 'ours' === $state['w1'] && 'default' === $state['w2'] && 'fixed' === $state['w7'], 'Status: eine Tour umgestellt, die andere noch nicht, die ausdrücklich gesetzte bleibt' );
 	check( is_wp_error( Embeds::apply( $found['w1']['key'] ) ), 'Zweites Umstellen derselben Tour wird abgelehnt' );
 	check( true === Embeds::apply( $found['w2']['key'] ), 'Tour fürs Handy umgestellt' );
 

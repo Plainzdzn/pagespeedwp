@@ -47,9 +47,15 @@ Optional misst das Plugin die Startseite mobil mit PageSpeed Insights vorher und
 - Zeigen mehrere Mediathek-Einträge auf dieselbe Datei (WPML legt je Sprache einen an), werden sie gemeinsam umgestellt und gemeinsam zurückgesetzt. In der Liste steht „gleiche Datei wie ID …“. Passen die Einträge nicht zusammen, bleibt das Bild unverändert, der Grund steht im Protokoll.
 - Nach dem Update von 1.0.0 einmal neu scannen.
 
+## Sicherheit bei doppelten Einträgen (ab 1.1.1)
+
+- Wird einer von mehreren Einträgen derselben Datei endgültig gelöscht, behalten die anderen ihre WebP-Datei, alle Größen und das Original. Das gilt, solange dieses Plugin aktiv ist. Ohne das Plugin verhält sich WordPress wie vor der Umwandlung und löscht gemeinsame Dateien mit.
+- Wurde ein umgewandeltes Bild danach ersetzt oder bearbeitet, lehnt „Rückgängig“ ab und ändert nichts, auch nicht bei den anderen Einträgen derselben Datei. Der Grund steht in der Liste.
+- Einträge, die dieselbe Datei unter verschiedenen Größennamen führen, werden nicht gemeinsam umgestellt.
+
 ## Einbettungen (ab 1.1.0)
 
-Eine Matterport-Tour lädt beim Seitenaufruf mehrere Megabyte, auch wenn sie weit unten steht. Unter **WebP-Umwandler → Einbettungen** lässt sich je Tour festlegen, dass der Browser sie erst lädt, wenn man in ihre Nähe scrollt. Die Tour bleibt unverändert bedienbar, es gibt keinen Platzhalter und keinen zusätzlichen Klick. „Zurücknehmen“ stellt den gespeicherten Inhalt zeichengenau wieder her. Danach den Server-Cache leeren (Raidboxes: im Dashboard).
+Eine Matterport-Tour lädt beim Seitenaufruf mehrere Megabyte, auch wenn sie weit unten steht. Unter **WebP-Umwandler → Einbettungen** lässt sich je Tour festlegen, dass der Browser sie erst lädt, wenn man in ihre Nähe scrollt. Die Tour bleibt unverändert bedienbar, es gibt keinen Platzhalter und keinen zusätzlichen Klick. „Zurücknehmen“ stellt den gespeicherten Inhalt zeichengenau wieder her. Ein im Widget ausdrücklich gesetztes `loading` (auch `eager`) wird angezeigt und nie geändert. Danach den Server-Cache leeren (Raidboxes: im Dashboard).
 
 ## Rückgängig
 

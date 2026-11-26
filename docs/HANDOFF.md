@@ -14,6 +14,39 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
+## 2026-11-26 03:15 – Version 1.1.1: Schutz bei gemeinsamen Dateien, Befunde der unabhängigen Prüfung (Claude Chat)
+
+**Stand:** Folgeversion im selben Entwurfs-PR (#6). Nicht gemergt, nicht veröffentlicht.
+
+**Anlass:** Unabhängige Prüfung von 1.1.0 (Code, Protokolle, eigener Lauf unter Windows). Fünf Befunde, alle bestätigt und behoben.
+
+**Erledigt:**
+- **Löschen eines Eintrags** (ADR-031): Löscht jemand einen von mehreren Einträgen derselben umgewandelten Datei endgültig, bleiben WebP-Datei, Größen und Master für die anderen liegen. Der verbliebene Eintrag lässt sich weiter zurücksetzen. Ohne aktives Plugin gilt das Verhalten von WordPress wie vor der Umwandlung, das ist dokumentiert und getestet.
+- **Rückgängig nur aus dem erwarteten Zustand** (ADR-032): Die ganze Gruppe wird geprüft, bevor irgendetwas geschrieben wird. Ersetztes Medium, zusätzliche Dateien oder geänderter Inhalt: Abbruch ohne Änderung. Gilt auch für die Wiederaufnahme nach Abbruch und für Zeilen aus 1.0.0 und 1.1.0.
+- **Größenzuordnung** (ADR-033): Gemeinsam umgestellt wird nur bei gleichen Größennamen und Pixelmaßen.
+- **`loading="eager"`** (ADR-034): Ausdrücklich gesetztes `loading` wird angezeigt und nie geändert, kein Erfolg ohne Änderung.
+- **Windows:** `Attachment_Files::relative()` erkennt normalisierte Laufwerkspfade (`C:/…`) als absolut. Vorher stand der Upload-Ordner doppelt davor und der HEIC-Master fehlte nach der Umwandlung in `original_image` (Datei und Rückgängig waren intakt). Pfade außerhalb des Upload-Ordners und fremde Laufwerke bleiben außen vor.
+- `bin/integration-sqlite.sh` und CI-Job: Die Integrationstests laufen jetzt bei jedem Push auf WordPress mit SQLite.
+
+**Entscheidungen:** ADR-031 bis ADR-034.
+
+**Zahlen aus dem Test von 1.1.0, abgeglichen (Rohdaten):**
+- Die drei Hauptbilder der Mechatroniker-Seite: **Dateigröße auf dem Server** 1.493.926 → 863.770 B (630.156 B weniger). **Übertragen im Desktop-Browser**, einschließlich Antwortkopf: 1.496.627 → 865.777 B (630.850 B weniger). Beides ist richtig, es sind verschiedene Messgrößen.
+- Mechatroniker PSI mobil 64 → 73 bei 94 → 95 Anfragen und praktisch gleichem Transfer beim Aufruf (1.371.440 → 1.371.393 B): Schwankung. Der nachgewiesene Bildgewinn beginnt erst beim Scrollen.
+- Startseite mobil, LCP: simuliert 26,4 → 9,0 s, im selben Lauf beobachtet 2.346 → 2.343 ms (Median aus je 3). **Beide Werte sind Laborwerte aus Lighthouse.** Felddaten von Besuchern liegen für die Demo nicht vor.
+
+**Offen / Nächster Schritt:**
+- Unter Windows hat die unabhängige Prüfung 1.1.0 laufen lassen (38 von 39). 1.1.1 ist dort noch nicht gelaufen, die Pfadkorrektur ist hier nur über Unit-Tests mit Windows-Pfaden und unter Linux geprüft.
+- Wie WPML selbst beim Löschen eines Duplikats mit gemeinsamen Dateien umgeht, ist nicht am Quellcode geprüft. Lokal steht kein WPML zur Verfügung.
+- Ein Bildoptimierer, der die WebP-Dateien nachträglich neu komprimiert, sperrt Rückgängig für diese Bilder (ADR-032, gewollt).
+- Weiter offen aus 1.1.0: Unterbrechung genau zwischen Bild und Zweiteintrag, Zweiteinträge aus Läufen mit 1.0.0.
+
+**Getestet:**
+- PHPCS sauber, PHPUnit 91 Tests, 203 Prüfungen.
+- Integration (WordPress 7.1.5, PHP 8.3, SQLite, GD), frisch aufgesetzt über `bin/integration-sqlite.sh`: 175 Prüfungen bestanden (`roundtrip` 26, `purge` 29, `heic-alias` 42, `embeds` 23, neu `alias-guards` 55).
+- Protokollzeilen aus 1.1.0: Gruppen mit dem Code von `04fa996` umgewandelt, danach mit 1.1.1 geprüft, 11 Prüfungen bestanden.
+- Destruktive Fälle nur mit eigens erzeugten Testbildern in der Wegwerf-Installation, nicht auf der Demo.
+
 ## 2026-11-26 02:45 – Version 1.1.0: HEIC-Uploads, gemeinsame Dateien, Tour erst bei Bedarf (Claude Chat)
 
 **Stand:** Feature-Stand auf Basis von `20677fb` (v1.0.0). Nicht gemergt, nicht veröffentlicht.

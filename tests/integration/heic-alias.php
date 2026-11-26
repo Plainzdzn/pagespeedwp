@@ -315,6 +315,12 @@ function main() {
 
 	$before = snapshot( $ids, $page_id, $dir );
 
+	WP_CLI::log( 'Pfade:' );
+	$base = Attachment_Files::path( '' );
+	check( 'a/b.webp' === Attachment_Files::relative( $base . 'a/b.webp' ) && 'a/b.webp' === Attachment_Files::relative( str_replace( '/', '\\', $base . 'a/b.webp' ) ), 'Absoluter Pfad im Upload-Ordner wird relativ, auch mit Rückstrichen' );
+	check( null === Attachment_Files::relative( 'C:\\fremd\\uploads\\2026\\11\\foto.jpg' ) && null === Attachment_Files::relative( 'D:/anderes/laufwerk/foto.jpg' ) && null === Attachment_Files::relative( dirname( $base ) . '/foto.jpg' ), 'Pfade außerhalb des Upload-Ordners und fremde Laufwerke bleiben außen vor' );
+	check( '2026/02/foto.jpg' === Attachment_Files::relative( '2026/02/foto.jpg' ), 'Relativer Wert aus der Datenbank bleibt, wie er ist' );
+
 	WP_CLI::log( 'Scan:' );
 	$result = scan();
 	$item_a = $result->item( $a );

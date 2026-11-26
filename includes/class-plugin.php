@@ -33,6 +33,12 @@ final class Plugin {
 		// Wird ein umgewandeltes Bild aus der Mediathek gelöscht, die alten Originale mitnehmen.
 		add_action( 'delete_attachment', array( Originals::class, 'on_delete_attachment' ) );
 
+		// Löscht jemand einen von mehreren Einträgen derselben umgewandelten Datei, bleiben die Dateien für die anderen liegen.
+		add_action( 'delete_attachment', array( Aliases::class, 'before_delete' ), 5 );
+		add_action( 'deleted_post', array( Aliases::class, 'mark_deleted' ) );
+		add_action( 'clean_post_cache', array( Aliases::class, 'after_delete' ) );
+		add_filter( 'wp_delete_file', array( Aliases::class, 'keep_shared' ), PHP_INT_MAX );
+
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			Cli::register();
 		}

@@ -213,7 +213,7 @@ final class Embeds {
 	/**
 	 * Alle Einbettungen der Website mit Status und Empfehlung.
 	 *
-	 * @return array[] Je Fund zusätzlich: post, title, url, type, key, state (eager, lazy, ours), eligible, reason.
+	 * @return array[] Je Fund zusätzlich: post, title, url, type, key, state (default, ours, fixed), eligible, reason.
 	 */
 	public static function scan() {
 		global $wpdb;
@@ -242,10 +242,12 @@ final class Embeds {
 
 			$type = (string) get_post_type( $post_id );
 			foreach ( self::in_elements( $data, $hosts ) as $entry ) {
-				$key   = self::key( $post_id, $entry['widget'], $entry['number'] );
-				$state = 'eager';
+				$key = self::key( $post_id, $entry['widget'], $entry['number'] );
+
+				// default: kein Attribut, der Browser lädt sofort. ours: hier umgestellt. fixed: im Widget ausdrücklich gesetzt.
+				$state = 'default';
 				if ( null !== $entry['loading'] ) {
-					$state = ( isset( $changes[ $key ] ) && $changes[ $key ]['new'] === $entry['tag'] ) ? 'ours' : $entry['loading'];
+					$state = ( isset( $changes[ $key ] ) && $changes[ $key ]['new'] === $entry['tag'] ) ? 'ours' : 'fixed';
 				}
 
 				$reason = '';
@@ -253,8 +255,8 @@ final class Embeds {
 					$reason = __( 'Vorlage: Die Position auf den Seiten ist hier nicht bekannt.', 'akuma-webp-umwandler' );
 				} elseif ( $entry['section'] <= self::MIN_SECTIONS_BEFORE ) {
 					$reason = __( 'Steht weit oben auf der Seite und soll sofort laden.', 'akuma-webp-umwandler' );
-				} elseif ( 'eager' !== $state && 'ours' !== $state ) {
-					$reason = __( 'Das Ladeverhalten ist im Widget schon festgelegt.', 'akuma-webp-umwandler' );
+				} elseif ( 'fixed' === $state ) {
+					$reason = __( 'Das Ladeverhalten ist im Widget ausdrücklich festgelegt und bleibt so.', 'akuma-webp-umwandler' );
 				}
 
 				$list[] = $entry + array(
@@ -301,12 +303,18 @@ final class Embeds {
 		if ( null === $entry ) {
 			return new \WP_Error( 'akwu_embed_missing', __( 'Die Einbettung wurde nicht mehr gefunden. Wurde die Seite inzwischen geändert?', 'akuma-webp-umwandler' ) );
 		}
-		if ( ! $entry['eligible'] || 'eager' !== $entry['state'] ) {
+		if ( ! $entry['eligible'] || 'default' !== $entry['state'] ) {
 			return new \WP_Error( 'akwu_embed_skip', '' !== $entry['reason'] ? $entry['reason'] : __( 'Diese Einbettung lädt bereits verzögert.', 'akuma-webp-umwandler' ) );
 		}
 
 		$raw = (string) get_post_meta( $entry['post'], '_elementor_data', true );
 		$new = self::lazy_tag( $entry['tag'] );
+
+		// Ohne tatsächliche Änderung wird nichts geschrieben und nichts als Erfolg gemeldet.
+		if ( $new === $entry['tag'] ) {
+			return new \WP_Error( 'akwu_embed_same', __( 'An diesem iframe gibt es nichts zu ändern.', 'akuma-webp-umwandler' ) );
+		}
+
 		$out = self::replace_in_json( $raw, $entry['tag'], $new );
 
 		if ( null === $out ) {

@@ -285,6 +285,18 @@ final class Conversion {
 		// Nach einem Abbruch mitten in einer Umwandlung: Anhang wiederherstellen, einmal neu versuchen.
 		// Bricht dasselbe Bild wieder ab (Speicher, Zeitlimit), wird es übersprungen, damit der Lauf weitergeht.
 		foreach ( Log_Table::rows( $run['id'], array( 'working' ) ) as $row ) {
+			// Wurde das Bild während der Unterbrechung von anderer Seite ersetzt oder gelöscht, bleibt es, wie es ist.
+			if ( Rollback::foreign( $row ) ) {
+				Log_Table::update(
+					$row['id'],
+					array(
+						'status'  => 'error',
+						'message' => __( 'Das Bild wurde während der Unterbrechung ersetzt oder gelöscht. Es bleibt unverändert.', 'akuma-webp-umwandler' ),
+					)
+				);
+				continue;
+			}
+
 			Rollback::restore_attachment( $row );
 			Log_Table::update(
 				$row['id'],
@@ -415,6 +427,17 @@ final class Conversion {
 	 */
 	private static function step_rollback( array &$run, $deadline ) {
 		foreach ( Log_Table::rows( $run['id'], array( 'working' ) ) as $row ) {
+			if ( Rollback::foreign( $row ) ) {
+				Log_Table::update(
+					$row['id'],
+					array(
+						'status'  => 'error',
+						'message' => __( 'Das Bild wurde während der Unterbrechung ersetzt oder gelöscht. Es bleibt unverändert.', 'akuma-webp-umwandler' ),
+					)
+				);
+				continue;
+			}
+
 			Rollback::restore_attachment( $row );
 			Log_Table::update( $row['id'], array( 'status' => 'pending' ) );
 		}
