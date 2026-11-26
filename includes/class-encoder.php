@@ -97,7 +97,7 @@ final class Encoder {
 			$editor->akwu_strip_meta();
 		}
 
-		$saved = $editor->save( $target, 'image/webp' );
+		$saved = self::save_webp( $editor, $target, $quality );
 
 		if ( is_wp_error( $saved ) ) {
 			return $saved;
@@ -146,11 +146,62 @@ final class Encoder {
 	const LOSSY_ALPHA_MAX_RATIO = 0.5;
 
 	/**
+	 * Präfix der eigenen Zwischendatei für die zweite Fassung.
+	 */
+	const TEMP_PREFIX = 'akwu-alpha-';
+
+	/**
+	 * Qualität, die während save_webp() gilt, sonst null.
+	 *
+	 * @var int|null
+	 */
+	private static $pinned_quality = null;
+
+	/**
+	 * Speichert als WebP mit genau der gewählten Qualität.
+	 *
+	 * Beim Speichern in ein anderes Format ruft der Core in get_output_format() set_quality() ohne Wert
+	 * auf. Dann gilt sein Standard (WebP 86) statt des eben gesetzten Werts, bei Imagick und GD. Für die
+	 * Dauer dieses einen Aufrufs liefert der Filter deshalb die gewählte Qualität.
+	 *
+	 * @param \WP_Image_Editor $editor  Editor.
+	 * @param string           $path    Zieldatei.
+	 * @param int              $quality Qualität.
+	 * @return array|\WP_Error Ergebnis von save().
+	 */
+	private static function save_webp( $editor, $path, $quality ) {
+		self::$pinned_quality = max( 1, min( 100, (int) $quality ) );
+		add_filter( 'wp_editor_set_quality', array( __CLASS__, 'pinned_quality' ), PHP_INT_MAX );
+
+		try {
+			return $editor->save( $path, 'image/webp' );
+		} finally {
+			remove_filter( 'wp_editor_set_quality', array( __CLASS__, 'pinned_quality' ), PHP_INT_MAX );
+			self::$pinned_quality = null;
+		}
+	}
+
+	/**
+	 * Filter `wp_editor_set_quality`, nur während save_webp() aktiv.
+	 *
+	 * @param int $quality Qualität aus dem Core oder anderen Filtern.
+	 * @return int
+	 */
+	public static function pinned_quality( $quality ) {
+		return null === self::$pinned_quality ? $quality : self::$pinned_quality;
+	}
+
+	/**
 	 * Kodiert zusätzlich verlustbehaftet mit verlustfreiem Alphakanal und ersetzt die verlustfreie Datei,
 	 * wenn die neue höchstens halb so groß ist. Sonst bleibt alles, wie es ist.
 	 *
 	 * Mit einem frischen Editor aus dem PNG: Ein schon gespeicherter Editor zeigt auf die verlustfreie
 	 * WebP-Datei, und der Core stellt beim nächsten Speichern deshalb wieder auf verlustfrei.
+	 *
+	 * Geschrieben wird nur in eine eigene, vorher neu angelegte Zwischendatei. Übernommen wird sie nur,
+	 * wenn save() genau diese Datei als WebP meldet und sie ein vollständiges, verlustbehaftetes WebP mit
+	 * Alphakanal in den Maßen des PNG ist. In jedem anderen Fall bleibt die verlustfreie Datei, und nur
+	 * die eigene Zwischendatei wird entfernt. Pfade, die save() abweichend meldet, bleiben unberührt.
 	 *
 	 * @param string $source   Quell-PNG.
 	 * @param string $path     Verlustfrei gespeicherte Datei.
@@ -174,28 +225,103 @@ final class Encoder {
 		}
 		$editor->akwu_strip_meta();
 
-		$temp  = trailingslashit( dirname( $path ) ) . wp_unique_filename( dirname( $path ), 'akwu-alpha-' . wp_basename( $path ) );
-		$lossy = $editor->save( $temp, 'image/webp' );
+		$size = $editor->get_size();
+		$temp = self::reserve_temp( dirname( $path ) );
 
-		if ( is_wp_error( $lossy ) || empty( $lossy['path'] ) || ! is_file( $lossy['path'] ) ) {
+		if ( '' === $temp ) {
 			return false;
 		}
 
-		clearstatcache( true, $lossy['path'] );
-		$bytes = (int) filesize( $lossy['path'] );
+		// Würde ein Filter den Typ und damit die Endung ändern, gar nicht erst speichern.
+		if ( ! $editor->akwu_output_is( $temp, 'image/webp' ) ) {
+			self::drop_temp( $temp );
+			return false;
+		}
+
+		$lossy = self::save_webp( $editor, $temp, $quality );
+
+		if ( ! self::is_own_alpha_webp( $lossy, $temp, $size ) ) {
+			self::drop_temp( $temp );
+			return false;
+		}
+
+		clearstatcache( true, $temp );
+		$bytes = (int) filesize( $temp );
 
 		if ( $bytes <= 0 || $bytes > $lossless * self::LOSSY_ALPHA_MAX_RATIO ) {
-			wp_delete_file( $lossy['path'] );
+			self::drop_temp( $temp );
 			return false;
 		}
 
 		// Die verlustfreie Datei durch die kleinere ersetzen, Name bleibt gleich.
-		if ( ! @rename( $lossy['path'], $path ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.rename_rename -- Gleiches Verzeichnis, Fehler wird behandelt.
-			wp_delete_file( $lossy['path'] );
+		if ( ! @rename( $temp, $path ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.rename_rename -- Gleiches Verzeichnis, Fehler wird behandelt.
+			self::drop_temp( $temp );
 			return false;
 		}
 
 		return true;
+	}
+
+	/**
+	 * Ist das Ergebnis von save() die eigene Zwischendatei als vollständiges WebP mit Alphakanal?
+	 *
+	 * @param array|\WP_Error $saved Ergebnis von save().
+	 * @param string          $temp  Eigene Zwischendatei.
+	 * @param array           $size  Maße des PNG (width, height).
+	 * @return bool
+	 */
+	private static function is_own_alpha_webp( $saved, $temp, $size ) {
+		if ( is_wp_error( $saved ) || ! is_array( $saved ) || empty( $saved['path'] ) || empty( $saved['mime-type'] ) ) {
+			return false;
+		}
+
+		if ( wp_normalize_path( $saved['path'] ) !== wp_normalize_path( $temp ) || 'image/webp' !== $saved['mime-type'] ) {
+			return false;
+		}
+
+		$info = Webp_Info::read( $temp );
+
+		return null !== $info
+			&& 'lossy' === $info['compression']
+			&& true === $info['alpha']
+			&& false === $info['animated']
+			&& isset( $size['width'], $size['height'] )
+			&& (int) $size['width'] === $info['width']
+			&& (int) $size['height'] === $info['height'];
+	}
+
+	/**
+	 * Legt eine neue, leere Zwischendatei an. Gibt es den Namen schon, wird ein anderer gewählt.
+	 *
+	 * @param string $dir Verzeichnis der Zieldatei.
+	 * @return string Pfad oder leer.
+	 */
+	private static function reserve_temp( $dir ) {
+		for ( $i = 0; $i < 5; $i++ ) {
+			$temp   = trailingslashit( $dir ) . self::TEMP_PREFIX . strtolower( wp_generate_password( 12, false, false ) ) . '.webp';
+			$handle = @fopen( $temp, 'x' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Modus x legt nur neue Dateien an.
+
+			if ( $handle ) {
+				fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Gehört zu fopen() oben.
+				return $temp;
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Entfernt die eigene Zwischendatei, falls es sie noch gibt.
+	 *
+	 * @param string $temp Pfad aus reserve_temp().
+	 * @return void
+	 */
+	private static function drop_temp( $temp ) {
+		clearstatcache( true, $temp );
+
+		if ( '' !== $temp && 0 === strpos( wp_basename( $temp ), self::TEMP_PREFIX ) && is_file( $temp ) ) {
+			wp_delete_file( $temp );
+		}
 	}
 
 	/**

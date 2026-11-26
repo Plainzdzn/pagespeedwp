@@ -70,6 +70,6 @@ jobs:
           php -r 'exit( extension_loaded( "imagick" ) && Imagick::queryFormats( "WEBP" ) ? 0 : 1 );'
       - name: PNG-Transparenz, Rundlauf, HEIC, gemeinsame Dateien, Einbettungen (Imagick)
         env:
-          AKWU_TESTS: png-transparency roundtrip heic-alias embeds alias-guards
+          AKWU_TESTS: png-transparency encoder-guards roundtrip heic-alias embeds alias-guards
         run: bin/integration-sqlite.sh
 

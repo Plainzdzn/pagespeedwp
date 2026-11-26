@@ -54,12 +54,19 @@ Optional misst das Plugin die Startseite mobil mit PageSpeed Insights vorher und
 - Bilder aus Läufen vor 1.1.2 haben diesen Nachweis nicht. Beim Rückgängig werden ihre WebP-Dateien deshalb nicht gelöscht, sondern nach `uploads/akwu-sicherung/` verschoben. Der Ordner kann danach von Hand gelöscht werden.
 - Einträge, die dieselbe Datei unter verschiedenen Größennamen führen, werden nicht gemeinsam umgestellt.
 
+## Qualität am Kodierpunkt (ab 1.1.4)
+
+- Bis 1.1.3 kam die eingestellte Qualität beim Kodieren nicht an. WordPress setzt beim Speichern in ein anderes Format (JPG oder PNG → WebP) die Qualität in `get_output_format()` auf seinen Standard zurück, für WebP 86. Gemeldet wurde trotzdem der eingestellte Wert. Betroffen waren alle verlustbehafteten WebP, mit Imagick und mit GD, und die verlustfreien mit Imagick (Stufe 86 statt 100).
+- Ab 1.1.4 gilt beim Kodieren genau die eingestellte Qualität, auch für deckende PNGs und die zweite Fassung von Freistellern. Andere Bildbearbeitungen in WordPress behalten den Standard des Core.
+- Schon umgewandelte Bilder bleiben, wie sie sind. Mit 82 statt 86 werden neue WebP-Dateien etwas kleiner.
+
 ## PNG nach echter Transparenz (ab 1.1.3)
 
 - Viele PNGs (Canva, Photoshop) haben einen Alphakanal, obwohl kein Pixel durchsichtig ist. Bis 1.1.2 wurden sie wie transparente PNGs verlustfrei gespeichert. Ab 1.1.3 prüft das Plugin mit Imagick die Pixel: Ist keines durchsichtig, wird das PNG wie ein PNG ohne Transparenz verlustbehaftet mit der JPG-Qualität gespeichert, ohne leeren Alphakanal. Im Protokoll steht dann „PNG mit Alphakanal, aber ohne durchsichtige Pixel“.
 - Unter **Einstellungen → PNG mit Transparenz kodieren** gibt es zusätzlich „Automatisch“ (Opt-in, Standard bleibt verlustfrei): PNGs mit durchsichtigen Pixeln werden dann zweimal kodiert, und die verlustbehaftete Fassung mit verlustfreiem Alphakanal wird nur genommen, wenn sie höchstens halb so groß ist. Das trifft Fotos mit freigestelltem Hintergrund. Logos und flache Grafiken bleiben verlustfrei.
 - Bereits umgewandelte Bilder ändern sich dadurch nicht. Wer sie neu kodieren will, setzt sie unter **Rückgängig** zurück und wandelt sie erneut um.
 - Die Hochrechnung im Scan liest weiter nur den Dateikopf und bleibt für solche PNGs vorsichtig (zu groß).
+- Die zweite Fassung wird nur übernommen, wenn sie die eigene Zwischendatei des Plugins ist und ein vollständiges, verlustbehaftetes WebP mit Alphakanal in den Maßen des PNG. Ändert ein Filter (`image_editor_output_format`) das Format, meldet der Editor einen anderen Pfad oder bricht das Speichern ab, bleibt die verlustfreie Datei. Entfernt wird dann nur die eigene Zwischendatei (`akwu-alpha-…webp`), nie ein anderer Pfad (ab 1.1.4).
 - Ohne Imagick ändert sich nichts.
 
 ## Einbettungen (ab 1.1.0)

@@ -79,6 +79,22 @@ class Imagick_Webp_Editor extends \WP_Image_Editor_Imagick {
 	}
 
 	/**
+	 * Würde save() genau diese Datei in genau diesem Format schreiben?
+	 *
+	 * Der Filter `image_editor_output_format` darf je Dateiname einen anderen Typ verlangen, der Core
+	 * ändert dann die Endung. Fragt dieselbe Stelle wie save(), ohne etwas zu schreiben.
+	 *
+	 * @param string $filename  Gewünschter Pfad.
+	 * @param string $mime_type Gewünschter Typ.
+	 * @return bool
+	 */
+	public function akwu_output_is( $filename, $mime_type ) {
+		$format = $this->get_output_format( $filename, $mime_type );
+
+		return is_array( $format ) && isset( $format[0], $format[2] ) && $filename === $format[0] && $mime_type === $format[2];
+	}
+
+	/**
 	 * Entfernt EXIF- und andere Metadaten, behält aber Farbprofile.
 	 *
 	 * @return bool
