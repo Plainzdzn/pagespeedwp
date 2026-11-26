@@ -223,7 +223,7 @@ function main() {
 	// Wie Elementors „Optimized Image Loading“: Der Kern vergibt kein fetchpriority, die Tags der Seite laufen nacheinander
 	// durch die Zählung des Kerns. Ein Bild mit gesetztem loading-Attribut zählt dort nicht mit.
 	wp_high_priority_element_flag( false );
-	$passes = static function () use ( $logo ) {
+	$passes  = static function () use ( $logo ) {
 		$tags = array( wp_get_attachment_image( $logo, 'full', false, array( 'loading' => false ) ) );
 		for ( $i = 1; $i <= 5; $i++ ) {
 			$tags[] = '<img width="1200" height="800" src="https://example.org/akwu-inhalt-' . $i . '.jpg" alt="">';
