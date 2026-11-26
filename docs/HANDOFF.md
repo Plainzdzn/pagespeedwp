@@ -14,6 +14,58 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
+## 2026-11-26 21:50 – 1.2.1: Kopfzeilen-Fix ohne Nebenwirkung auf andere Bilder, Serie 5 (Claude Code)
+
+**Stand:** Entwurfs-PR #6, nicht gemergt, nicht veröffentlicht. Build **1.2.1 aus `bad5309`**, ZIP-SHA-256 `eb85942174c7ae24b0513b48b2a27abd772977cda120e3af71891f6028561edb`. Danach nur Doku (`fe04340` ADR-041, dieser Eintrag).
+
+**Erledigt:**
+- Serie 5, Kontrollmessung auf der Demokopie Solarengel #299741: 1.2.0 aktiv gegen deaktiviert, Server-Cache durchgehend ein, Reihenfolge aktiv, deaktiviert, aktiv. Je Arm 6 PSI-Läufe für Startseite und Formularseite. Das ausgelieferte HTML ist in beiden Armen gleich, wenn man die je Aufruf wechselnden Werte abzieht (Kennungen des Consent-Banners, Zeitstempel, CSS-Versionsstempel von Elementor).
+- 1.2.1 (ADR-041): Der Fix aus 1.2.0 setzte am Logo `loading="eager"`. WordPress und Elementor zählten das Logo dadurch nicht mehr zu den ersten Bildern, das nächste Inhaltsbild verlor sein `loading="lazy"`. Auf Solarengel wurde so die Karte unten auf der Startseite vor dem Scrollen geladen (46 KB Desktop, 24 KB Mobil). 1.2.1 setzt `eager` nur noch, wo vorher `lazy` stand. Eine Fix-Datei aus 1.2.0 meldet die Seite „Ladeverhalten“ als veraltet.
+- Ursache der Solarengel-Werte gesucht und einen Versuch auf der Demo gemessen (siehe Ergebnisse). Das Versuchs-Plugin `akwu-demo-versuch-heyflow` gehört nicht ins Repo, sein Quelltext liegt im Nachweispaket.
+- Drei weitere Demokopien geprüft, je drei Baselines vor jeder Installation (Regel: Plugin nur bei Desktop-Median unter 80).
+- Nachweise im Claude-Projekt „Pagespeed WordPress“ (`claude/akwu-serie5-abnahme-2026-11-26.md`).
+
+**Ergebnisse (PSI, Median, Einzelwerte in Klammern):**
+
+| Seite | 1.2.0 aktiv, Fix aus | 1.2.0 deaktiviert | Versuch Heyflow-Lader | Einordnung |
+|---|---|---|---|---|
+| Solarengel Start, Desktop | 74 (75/77/77/72/51/60) | 68 (65/63/72/74/70/59) | **89** (87/89/89) | TBT 168 → 26 ms, CLS 0,088 → 0,002, LCP 3,0 → 2,1 s |
+| Solarengel Start, Mobil | 62 (64/58/60/72/58/66) | 69 (71/66/79/67/74/63) | **88** (88/96/77) | TBT 440 → 48 ms, LCP 3,7 → 2,6 s |
+| Solarengel Formular, Desktop | 81 (91/82/77/80/70/93) | 80 (70/75/78/86/82/87) | **89** (96/86/89) | CLS 0,221 → 0,100, TBT unverändert |
+| Solarengel Formular, Mobil | 50 (39/67/74/36/59/41) | 54 (40/28/77/69/37/70) | **68** (68/68/62) | CLS 0,296 → 0,001, LCP bleibt bei rund 9 s |
+
+- Aktiv gegen deaktiviert: kein Unterschied durch das Plugin. Die Mediane folgen dem Google-Messrechner (`benchmarkIndex` je Arm und Seite 630–1092 im Median, Einzelläufe 378–1341).
+- Ursache: Das Heyflow-Skript `webview.js` steht ohne `async` oder `defer` im `<head>` (Kopf-Code über ASE). Es hält in den Desktop-Läufen 88–100 % der Blockierzeit, lädt bei jedem Aufruf 27–31 Dateien und schickt 9 Meldungen (POST) an Heyflow, obwohl das Formular auf der Startseite erst bei rund 2260 px steht. Das Formular wächst nach dem Laden von 16 auf 548–684 px und schiebt den Inhalt darunter weg.
+- Versuch: Das Skript lädt erst, wenn das Formular näher als 800 px am sichtbaren Bereich ist, und der Platz für das Formular ist reserviert. Auf der Formularseite lädt es sofort. Consent-Dialog, Formular (14 Schaltflächen, 28 Eingabefelder) und Fremd-Hosts vor der Einwilligung sind geprüft. Geprüfte Nebenwirkungen: In Messungen mit ausgeschaltetem Cache (PageSpeed) überträgt die Formularseite die Heyflow-Schrift fünfmal statt einmal (rund 124 KB mehr), im Browser mit Cache bleibt es bei einer Übertragung. Von 9 Heyflow-Meldungen je Aufruf fehlt eine Protokollzeile („Page Show Event“), Besuch und Darstellung werden gemeldet. Beim langsamsten Messrechner (Wert 496) kam die Startseite auf dem Desktop auf 87, ohne Versuch bei 513 auf 51.
+- Kinberger #299754 (Start): Desktop 82/77/81, Median 81. **Ausgelassen**, kein Plugin installiert.
+- Finanzierungswerkstatt #299756 (`/geld-verleihen-privat/`): Desktop 82/81/83, Median 82. **Ausgelassen**, kein Plugin installiert.
+- Thomas Oelsner #299755 (`/tilgungsrechner/`): Desktop 64/75/92, Median 75, also qualifiziert. 1.2.0 installiert: 349 Bilder, alle schon WebP, 0 Kandidaten, Kopfzeilenbild nicht verzögert, HTML der Zielseite unverändert. Danach 91/66/94. Der Wert hängt am eingebetteten Rechner von ehyp (Hauptthread 243–677 ms in den Läufen mit 91–94, 1093–1543 ms in den Läufen mit 64–75), das Plugin hat dort keinen Hebel.
+
+**Entscheidungen:**
+- Kein `loading="eager"` mehr an Bildern ohne `loading`-Attribut (ADR-041). `data-no-lazy` und `skip-lazy` bleiben.
+- Der Heyflow-Lader ist eine Einstellung der einzelnen Website, kein Teil von WebP-Umwandler. Er bleibt als Versuch auf der Demo.
+- Mediane stehen weiter mit Einzelwerten und Messrechner-Wert in den Nachweisen. Zuschreibungen nur, wo HTML oder Rohdaten sie tragen.
+
+**Offen / Nächster Schritt:**
+- Merge und Release nur auf Felix' Freigabe.
+- 1.2.1 mit WP Rocket nachmessen (DarumPflanzlich war kein Ziel dieser Serie). Dass `data-no-lazy` und `skip-lazy` ohne `eager` reichen, ist dort nur am Quelltext von WP Rocket belegt.
+- Heyflow-Lader auf Solarengel live: Entscheidung von Felix und dem Kunden. Folge: Heyflow zählt einen Aufruf des Formulars auf der Startseite erst, wenn es in die Nähe des sichtbaren Bereichs kommt.
+- Der Versuch hat 3 Läufe je Seite, die Vergleichsarme je 6. Kein Rücktausch nach dem Versuch gemessen.
+- Formularseite mobil bleibt unter 80: Das LCP-Element ist die Überschrift im Heyflow-Formular, sie erscheint erst nach Skript und Formulardaten (simuliert rund 9 s).
+- Jeder Aufruf der Solarengel-Demo meldet einen Besuch an das Heyflow-Konto des Kunden (Host der Demo), auch jeder PSI-Lauf. Das war schon in Serie 4 so und liegt am Skript der Seite, nicht am Plugin. Mit dem Versuch entfällt es auf der Startseite, solange niemand zum Formular scrollt.
+- Aus Serie 4 weiter offen: LCP-Bild sofort laden, Elementor-Seiten-CSS auf Achtstein live prüfen.
+
+**Fragen an Felix:** 1.2.1 statt 1.2.0 als Stand für die Freigabe? Soll „Fremdskript erst laden, wenn sein Bereich sichtbar wird“ ein eigener Fix in der Fix-Datei werden, oder bleibt das eine Einstellung je Website?
+
+**Getestet:**
+- PHPCS sauber, PHPUnit 110 Tests und 266 Prüfungen. Integration `header-images.php` mit dem neuen Block lokal bestanden, gegen den Fix-Code aus 1.2.0 schlägt er fehl.
+- Solarengel #299741: Ladeattribute aller Bilder im gerenderten HTML und Netzwerk vor dem Scrollen in drei Zuständen (Fix aus, Fix 1.2.0, Fix 1.2.1), Desktop und Mobil. Versuch: HTML unterscheidet sich vom Vergleichszustand nur im ersetzten Skript-Tag. Funktions-Stichprobe ohne Fehler. Formular nicht durchgeklickt und nicht abgeschickt.
+- Oelsner #299755: HTML der Zielseite vor und nach der Installation gleich bis auf CSS-Stempel und Zufallswerte im Formular. Funktions-Stichprobe ohne Fehler, kein Formular abgeschickt.
+- Endstand der Demos: Solarengel 1.2.1 aktiv, Fix aus, Versuchs-Plugin aktiv, Server-Cache ein. Oelsner 1.2.0 aktiv, nichts umgewandelt. Kinberger und Finanzierungswerkstatt nur mit Isolations-Plugin.
+- Grenzen: Die Baselines der drei neuen Demos sind je 3 Läufe. Kinberger (77–82) und Finanzierungswerkstatt (81–83) liegen knapp über der Schwelle, auf Google lagen die Live-Seiten laut Felix bei 77 und 78.
+
+---
+
 ## 2026-11-26 19:45 – 1.2.0: Bilder der Kopfzeile sofort laden, Serie 4 auf drei neuen Demokopien (Claude Code)
 
 **Stand:** Entwurfs-PR #6, nicht gemergt, nicht veröffentlicht. Build **1.2.0 aus `4296e76`**, ZIP-SHA-256 `c5ae91a0b7541d89dd5f833b7263f08a3c166bb290701efaedb0f4a35f2df01e`. Danach nur Doku (`e8fcfde`, dieser Eintrag). CI grün.
