@@ -80,12 +80,13 @@ Eine Matterport-Tour lädt beim Seitenaufruf mehrere Megabyte, auch wenn sie wei
 
 ## Ladeverhalten: Bilder der Kopfzeile sofort laden (ab 1.2.0)
 
-Manche Cache- und Optimierungs-Plugins laden alle Bilder verzögert, auch das Logo in der Kopfzeile. Bis es nachgeladen ist, steht dort ein Platzhalter in anderer Größe, danach rutscht die ganze Seite nach unten (Layout-Verschiebung, CLS). Unter **WebP-Umwandler → Ladeverhalten** lässt sich für die Bilder der Kopfzeilen-Vorlagen des Elementor Theme Builders (Bild, Bild-Box, Website-Logo) einschalten, dass sie sofort laden: Ihre Bild-Tags bekommen `loading="eager"`, `data-no-lazy="1"` und die Klasse `skip-lazy`.
+Manche Cache- und Optimierungs-Plugins laden alle Bilder verzögert, auch das Logo in der Kopfzeile. Bis es nachgeladen ist, steht dort ein Platzhalter in anderer Größe, danach rutscht die ganze Seite nach unten (Layout-Verschiebung, CLS). Unter **WebP-Umwandler → Ladeverhalten** lässt sich für die Bilder der Kopfzeilen-Vorlagen des Elementor Theme Builders (Bild, Bild-Box, Website-Logo) einschalten, dass sie sofort laden: Ihre Bild-Tags bekommen `data-no-lazy="1"` und die Klasse `skip-lazy`. Ein `loading="lazy"` an diesen Bildern wird zu `loading="eager"`.
 
 - Am gespeicherten Inhalt ändert sich nichts. Der Fix steht in der eigenen Datei `wp-content/mu-plugins/akuma-pagespeed-fixes.php` und wirkt deshalb auch weiter, wenn dieses Plugin entfernt ist.
 - „Zurücknehmen“ entfernt die Datei wieder. Eine fremde Datei gleichen Namens wird nie angefasst.
 - Betroffen sind nur die Bild-IDs der Kopfzeile. Ändert sich die Kopfzeile, zeigt die Seite das an und übernimmt auf Wunsch den neuen Stand.
-- Geprüft mit WP Rocket (Standard-Ausnahmen `loading="eager"`, `data-no-lazy=`, `skip-lazy`). Andere Lazy-Loader beachten diese Kennzeichnung meist ebenfalls, das ist nicht getestet.
+- Geprüft mit WP Rocket (Standard-Ausnahmen `data-no-lazy=` und `skip-lazy`). Andere Lazy-Loader beachten diese Kennzeichnung meist ebenfalls, das ist nicht getestet.
+- Ab 1.2.1 setzt der Fix kein `loading="eager"` mehr an Bilder, die kein `loading`-Attribut hatten. WordPress und Elementor zählen ein Bild mit gesetztem `loading`-Attribut nicht zu den ersten Bildern, die nicht verzögert werden. Mit 1.2.0 verlor dadurch ein anderes Bild weiter unten sein `loading="lazy"`. Eine Fix-Datei aus 1.2.0 wirkt weiter, „Neu einschalten“ schreibt sie in der heutigen Form.
 - Danach den Server-Cache leeren (Raidboxes: im Dashboard).
 
 ## Rückgängig

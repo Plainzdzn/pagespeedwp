@@ -2,14 +2,14 @@
 # This file is distributed under the same license as the WebP-Umwandler plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: WebP-Umwandler 1.2.0\n"
+"Project-Id-Version: WebP-Umwandler 1.2.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/pagespeedwp\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-26T17:09:06+00:00\n"
+"POT-Creation-Date: 2026-11-26T20:06:36+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: akuma-webp-umwandler\n"
@@ -135,7 +135,7 @@ msgid "Einbettungen"
 msgstr ""
 
 #: includes/class-admin.php:257
-#: includes/views/page-loading.php:35
+#: includes/views/page-loading.php:36
 msgid "Ladeverhalten"
 msgstr ""
 
@@ -689,31 +689,31 @@ msgid "WebP für %s ist unvollständig oder passt nicht zum Original (Format, Ma
 msgstr ""
 
 #. translators: %s: Dateiname.
-#: includes/class-fix-file.php:145
+#: includes/class-fix-file.php:149
 #, php-format
 msgid "Im Ordner der Must-use-Plugins liegt schon eine fremde Datei %s. Sie bleibt unverändert."
 msgstr ""
 
-#: includes/class-fix-file.php:152
+#: includes/class-fix-file.php:156
 msgid "Der Ordner der Must-use-Plugins lässt sich nicht beschreiben. Nichts geändert."
 msgstr ""
 
-#: includes/class-fix-file.php:161
-#: includes/class-fix-file.php:168
+#: includes/class-fix-file.php:165
+#: includes/class-fix-file.php:172
 msgid "Die Fix-Datei ließ sich nicht schreiben. Nichts geändert."
 msgstr ""
 
-#: includes/class-fix-file.php:175
+#: includes/class-fix-file.php:179
 msgid "Die Fix-Datei wurde nicht vollständig geschrieben."
 msgstr ""
 
 #. translators: %s: Dateiname.
-#: includes/class-fix-file.php:196
+#: includes/class-fix-file.php:200
 #, php-format
 msgid "Die Datei %s stammt nicht von diesem Plugin und bleibt unverändert."
 msgstr ""
 
-#: includes/class-fix-file.php:205
+#: includes/class-fix-file.php:209
 msgid "Die Fix-Datei ließ sich nicht entfernen."
 msgstr ""
 
@@ -723,7 +723,7 @@ msgstr ""
 msgid "heute, %s"
 msgstr ""
 
-#: includes/class-header-images.php:198
+#: includes/class-header-images.php:211
 msgid "In den Kopfzeilen-Vorlagen steht kein Bild aus der Mediathek."
 msgstr ""
 
@@ -1573,7 +1573,7 @@ msgid "Alle Verweise auf die umgewandelten Bilder zeigen jetzt auf WebP. Die Ori
 msgstr ""
 
 #: includes/views/page-conversion.php:199
-#: includes/views/page-loading.php:65
+#: includes/views/page-loading.php:66
 msgid "Bild"
 msgstr ""
 
@@ -1591,7 +1591,7 @@ msgstr ""
 #. translators: %d: Attachment-ID.
 #. translators: %d: Beitrags-ID.
 #: includes/views/page-conversion.php:213
-#: includes/views/page-loading.php:87
+#: includes/views/page-loading.php:88
 #: includes/views/part-image-row.php:39
 #: includes/views/part-run-log.php:39
 #, php-format
@@ -1674,7 +1674,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: includes/views/page-embeds.php:48
-#: includes/views/page-loading.php:42
+#: includes/views/page-loading.php:43
 msgid "Was hier passiert"
 msgstr ""
 
@@ -1699,7 +1699,7 @@ msgid "Anbieter"
 msgstr ""
 
 #: includes/views/page-embeds.php:62
-#: includes/views/page-loading.php:67
+#: includes/views/page-loading.php:68
 msgid "Lädt"
 msgstr ""
 
@@ -1749,7 +1749,7 @@ msgid "sofort, im Widget ausdrücklich festgelegt (loading=\"%s\")"
 msgstr ""
 
 #: includes/views/page-embeds.php:122
-#: includes/views/page-loading.php:142
+#: includes/views/page-loading.php:149
 msgid "Zurücknehmen"
 msgstr ""
 
@@ -1856,101 +1856,117 @@ msgstr ""
 msgid "„Als WebP“ ist hochgerechnet aus einer Stichprobe. Fundstellen mit Hinweis werden nicht automatisch ersetzt und sind danach von Hand zu prüfen."
 msgstr ""
 
-#: includes/views/page-loading.php:24
+#: includes/views/page-loading.php:25
 msgid "Kein Bild in einer Kopfzeilen-Vorlage gefunden."
 msgstr ""
 
 #. translators: %s: Anzahl.
-#: includes/views/page-loading.php:28
+#: includes/views/page-loading.php:29
 #, php-format
 msgid "%s Bild in der Kopfzeile."
 msgid_plural "%s Bilder in der Kopfzeile."
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/views/page-loading.php:29
+#: includes/views/page-loading.php:30
 msgid "Laden sofort."
 msgstr ""
 
-#: includes/views/page-loading.php:29
+#: includes/views/page-loading.php:30
+msgid "Ältere Fix-Datei aktiv."
+msgstr ""
+
+#: includes/views/page-loading.php:30
 msgid "Nichts eingeschaltet."
 msgstr ""
 
-#: includes/views/page-loading.php:43
+#: includes/views/page-loading.php:44
 msgid "Manche Cache- und Optimierungs-Plugins laden alle Bilder verzögert, auch das Logo in der Kopfzeile. Bis es nachgeladen ist, steht dort ein Platzhalter in anderer Größe. Danach rutscht die ganze Seite ein Stück nach unten. Das stört beim Lesen und kostet in PageSpeed Punkte (Layout-Verschiebung, CLS)."
 msgstr ""
 
-#: includes/views/page-loading.php:44
-msgid "Der Fix kennzeichnet nur die Bilder der Kopfzeilen-Vorlagen als „sofort laden“ (loading=\"eager\", data-no-lazy, Klasse skip-lazy). Am gespeicherten Inhalt ändert sich nichts. Er steht in einer kleinen eigenen Datei im Ordner der Must-use-Plugins und wirkt deshalb auch weiter, wenn dieses Plugin entfernt ist. Zurücknehmen entfernt die Datei wieder."
+#: includes/views/page-loading.php:45
+msgid "Der Fix kennzeichnet nur die Bilder der Kopfzeilen-Vorlagen als „nicht verzögern“ (data-no-lazy, Klasse skip-lazy). Ein loading=\"lazy\" an diesen Bildern wird zu \"eager\", andere Bilder behalten ihr Ladeverhalten. Am gespeicherten Inhalt ändert sich nichts. Er steht in einer kleinen eigenen Datei im Ordner der Must-use-Plugins und wirkt deshalb auch weiter, wenn dieses Plugin entfernt ist. Zurücknehmen entfernt die Datei wieder."
 msgstr ""
 
-#: includes/views/page-loading.php:49
+#: includes/views/page-loading.php:50
 msgid "Fremde Datei gefunden"
 msgstr ""
 
 #. translators: %s: Dateiname.
-#: includes/views/page-loading.php:53
+#: includes/views/page-loading.php:54
 #, php-format
 msgid "Im Ordner der Must-use-Plugins liegt eine Datei %s, die nicht von diesem Plugin stammt. Sie wird nicht angefasst, der Fix lässt sich deshalb nicht einschalten."
 msgstr ""
 
-#: includes/views/page-loading.php:66
+#: includes/views/page-loading.php:67
 msgid "Kopfzeilen-Vorlage"
 msgstr ""
 
 #. translators: 1: Bild-ID, 2: Widget-Typ von Elementor.
-#: includes/views/page-loading.php:78
+#: includes/views/page-loading.php:79
 #, php-format
 msgid "Bild-ID %1$d · Widget-Typ %2$s"
 msgstr ""
 
-#: includes/views/page-loading.php:94
+#: includes/views/page-loading.php:95
 msgid "sofort (hier eingeschaltet)"
 msgstr ""
 
-#: includes/views/page-loading.php:96
+#: includes/views/page-loading.php:97
+msgid "nach der älteren Fix-Datei"
+msgstr ""
+
+#: includes/views/page-loading.php:99
 msgid "noch nicht erfasst, bitte neu einschalten"
 msgstr ""
 
-#: includes/views/page-loading.php:98
+#: includes/views/page-loading.php:101
 msgid "wie Theme und andere Plugins es vorgeben"
 msgstr ""
 
-#: includes/views/page-loading.php:115
+#: includes/views/page-loading.php:118
+msgid "Die Fix-Datei ist nicht auf dem heutigen Stand"
+msgstr ""
+
+#: includes/views/page-loading.php:120
 msgid "Die Kopfzeile hat sich geändert"
 msgstr ""
 
-#: includes/views/page-loading.php:117
+#: includes/views/page-loading.php:122
 msgid "Der Fix ist eingeschaltet"
 msgstr ""
 
-#: includes/views/page-loading.php:119
+#: includes/views/page-loading.php:124
 msgid "Bilder der Kopfzeile sofort laden"
 msgstr ""
 
-#: includes/views/page-loading.php:126
+#: includes/views/page-loading.php:131
+msgid "Sie stammt aus einer älteren Version dieses Plugins oder wurde von Hand geändert und wirkt weiter. Neu einschalten schreibt sie in der heutigen Form, Zurücknehmen entfernt sie."
+msgstr ""
+
+#: includes/views/page-loading.php:133
 msgid "In der Kopfzeile stehen heute andere Bilder als beim Einschalten. Neu einschalten übernimmt den heutigen Stand."
 msgstr ""
 
 #. translators: %s: Dateiname.
-#: includes/views/page-loading.php:129
+#: includes/views/page-loading.php:136
 #, php-format
 msgid "Er steht in %s im Ordner der Must-use-Plugins und wirkt auch ohne dieses Plugin weiter."
 msgstr ""
 
-#: includes/views/page-loading.php:131
+#: includes/views/page-loading.php:138
 msgid "Schreibt eine kleine Fix-Datei. Der gespeicherte Inhalt der Website bleibt unverändert, Zurücknehmen entfernt die Datei wieder."
 msgstr ""
 
-#: includes/views/page-loading.php:151
+#: includes/views/page-loading.php:158
 msgid "Neu einschalten"
 msgstr ""
 
-#: includes/views/page-loading.php:151
+#: includes/views/page-loading.php:158
 msgid "Einschalten"
 msgstr ""
 
-#: includes/views/page-loading.php:161
+#: includes/views/page-loading.php:168
 msgid "Gesucht wird nur in veröffentlichten Kopfzeilen-Vorlagen des Elementor Theme Builders (Bild, Bild-Box, Website-Logo). Bilder im Seiteninhalt bleiben unberührt. Geprüft mit WP Rocket. Andere Lazy-Loader beachten die Kennzeichnung meist ebenfalls, das ist aber nicht getestet. Nach dem Einschalten den Server-Cache leeren (Raidboxes: im Dashboard)."
 msgstr ""
 

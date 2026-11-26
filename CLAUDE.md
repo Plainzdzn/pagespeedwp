@@ -21,7 +21,7 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
 | Capability | `manage_options` |
 | WP-CLI | `wp akwu scan\|convert\|report\|rollback\|purge-originals` |
 
-## Architektur (Stand 1.2.0)
+## Architektur (Stand 1.2.1)
 
 - `akuma-webp-umwandler.php` – Bootstrap, Konstanten (`AKWU_VERSION`, `AKWU_DIR`, `AKWU_URL`), eigener Autoloader (keine Composer-Laufzeitabhängigkeit).
 - `includes/` – Kernklassen:

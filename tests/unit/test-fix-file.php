@@ -78,7 +78,8 @@ class Fix_File_Test extends TestCase {
 		$this->assertSame( array( 'wp_get_attachment_image_attributes', 'akwu_fix_header_images', 20, 2 ), end( $calls ) );
 
 		$logo = akwu_fix_header_images( array( 'class' => 'attachment-full size-full' ), (object) array( 'ID' => 22 ) );
-		$this->assertSame( 'eager', $logo['loading'] );
+		// Kein loading-Attribut gesetzt, wo vorher keines stand (sonst verschiebt sich die Lazy-Schwelle anderer Bilder).
+		$this->assertArrayNotHasKey( 'loading', $logo );
 		$this->assertSame( '1', $logo['data-no-lazy'] );
 		$this->assertSame( 'attachment-full size-full skip-lazy', $logo['class'] );
 
@@ -90,6 +91,12 @@ class Fix_File_Test extends TestCase {
 		$lazy = akwu_fix_header_images( array( 'loading' => 'lazy' ), (object) array( 'ID' => '11' ) );
 		$this->assertSame( 'eager', $lazy['loading'] );
 		$this->assertSame( 'skip-lazy', $lazy['class'] );
+
+		// Ein schon gesetztes eager bleibt, ein ausdrücklich leeres loading bleibt leer.
+		$eager = akwu_fix_header_images( array( 'loading' => 'eager' ), (object) array( 'ID' => 11 ) );
+		$this->assertSame( 'eager', $eager['loading'] );
+		$none = akwu_fix_header_images( array( 'loading' => false ), (object) array( 'ID' => 11 ) );
+		$this->assertFalse( $none['loading'] );
 
 		$other = array(
 			'class'   => 'x',

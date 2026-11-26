@@ -217,6 +217,34 @@ function main() {
 	check( false === strpos( $other, 'skip-lazy' ) && false === strpos( $other, 'data-no-lazy' ) && false === strpos( $other, 'eager' ), 'Bild im Seiteninhalt bleibt unberührt' );
 	check( get_post_meta( $header, '_elementor_data', true ) === $raw, 'Gespeicherter Inhalt der Vorlage Zeichen für Zeichen unverändert' );
 
+	WP_CLI::log( 'Ladeverhalten der übrigen Bilder (Schwelle „erste Bilder nicht verzögern“):' );
+	$plain = wp_get_attachment_image( $logo, 'full', false, array( 'loading' => false ) );
+	check( false === strpos( $plain, ' loading=' ) && false !== strpos( $plain, 'data-no-lazy="1"' ) && false !== strpos( $plain, 'skip-lazy' ), 'Kopfbild ohne loading-Attribut bekommt keines dazu, nur die Kennzeichnung' );
+	// Wie Elementors „Optimized Image Loading“: Der Kern vergibt kein fetchpriority, die Tags der Seite laufen nacheinander
+	// durch die Zählung des Kerns. Ein Bild mit gesetztem loading-Attribut zählt dort nicht mit.
+	wp_high_priority_element_flag( false );
+	$passes = static function () use ( $logo ) {
+		$tags = array( wp_get_attachment_image( $logo, 'full', false, array( 'loading' => false ) ) );
+		for ( $i = 1; $i <= 5; $i++ ) {
+			$tags[] = '<img width="1200" height="800" src="https://example.org/akwu-inhalt-' . $i . '.jpg" alt="">';
+		}
+		wp_increase_content_media_count( -1 * wp_increase_content_media_count( 0 ) );
+		$GLOBALS['wp_query']->in_the_loop = true;
+		$out                              = array();
+		foreach ( $tags as $tag ) {
+			$out[] = preg_match( '/ loading="([a-z]+)"/', wp_img_tag_add_loading_optimization_attrs( $tag, 'the_content' ), $m ) ? $m[1] : '';
+		}
+		$GLOBALS['wp_query']->in_the_loop = false;
+		wp_increase_content_media_count( -1 * wp_increase_content_media_count( 0 ) );
+		return $out;
+	};
+	$with    = $passes();
+	$removed = remove_filter( 'wp_get_attachment_image_attributes', 'akwu_fix_header_images', 20 );
+	$without = $passes();
+	add_filter( 'wp_get_attachment_image_attributes', 'akwu_fix_header_images', 20, 2 );
+	check( true === $removed && array( '', '', '', 'lazy', 'lazy', 'lazy' ) === $without, 'Ohne Fix: Kopfbild und zwei Inhaltsbilder ohne lazy, ab dem dritten Inhaltsbild loading="lazy" (' . implode( ',', $without ) . ')' );
+	check( $with === $without, 'Mit Fix behält jedes andere Bild sein loading="lazy", die Schwelle verschiebt sich nicht (' . implode( ',', $with ) . ')' );
+
 	WP_CLI::log( 'Kopfzeile ändert sich:' );
 	$data                  = json_decode( get_post_meta( $header, '_elementor_data', true ), true );
 	$data[0]['elements'][] = widget( 'w7', $badge, 'image-box' );
@@ -243,11 +271,12 @@ function main() {
 	WP_CLI::log( 'Von Hand veränderte Fix-Datei:' );
 	file_put_contents( Fix_File::path(), $ours . "\n// von Hand ergänzt\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Testdatei.
 	check( 'ours' === Fix_File::status() && ! Header_Images::is_active(), 'Eigene Datei mit abweichendem Inhalt zählt nicht als eingeschaltet' );
+	check( Header_Images::is_stale(), 'Sie wird als eigene Datei in älterer oder geänderter Form erkannt (Neu einschalten und Zurücknehmen bleiben möglich)' );
 	check( 3 === Header_Images::apply() && Header_Images::is_active(), 'Neu einschalten stellt den erwarteten Inhalt wieder her' );
 
 	WP_CLI::log( 'Zurücknehmen:' );
 	check( true === Header_Images::revert(), 'Zurückgenommen' );
-	check( 'none' === Fix_File::status() && ! file_exists( Fix_File::path() ) && null === Header_Images::state() && ! Header_Images::is_active(), 'Fix-Datei entfernt, Stand gelöscht' );
+	check( 'none' === Fix_File::status() && ! file_exists( Fix_File::path() ) && null === Header_Images::state() && ! Header_Images::is_active() && ! Header_Images::is_stale(), 'Fix-Datei entfernt, Stand gelöscht' );
 	check( true === Header_Images::revert(), 'Nochmal zurücknehmen ändert nichts und meldet keinen Fehler' );
 
 	WP_CLI::log( 'Kopfzeile ohne Bild:' );

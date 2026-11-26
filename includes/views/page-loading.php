@@ -18,6 +18,7 @@ defined( 'ABSPATH' ) || exit;
 $images   = Header_Images::scan();
 $enabled  = Header_Images::is_active();
 $outdated = $enabled && Header_Images::is_outdated();
+$stale    = Header_Images::is_stale();
 $foreign  = 'foreign' === Fix_File::status();
 
 if ( empty( $images ) ) {
@@ -26,7 +27,7 @@ if ( empty( $images ) ) {
 } else {
 	/* translators: %s: Anzahl. */
 	$headline = sprintf( _n( '%s Bild in der Kopfzeile.', '%s Bilder in der Kopfzeile.', count( $images ), 'akuma-webp-umwandler' ), Format::number( count( $images ) ) );
-	$accent   = $enabled ? __( 'Laden sofort.', 'akuma-webp-umwandler' ) : __( 'Nichts eingeschaltet.', 'akuma-webp-umwandler' );
+	$accent   = $enabled ? __( 'Laden sofort.', 'akuma-webp-umwandler' ) : ( $stale ? __( 'Ältere Fix-Datei aktiv.', 'akuma-webp-umwandler' ) : __( 'Nichts eingeschaltet.', 'akuma-webp-umwandler' ) );
 }
 
 View::render(
@@ -41,7 +42,7 @@ View::render(
 <div class="akwu-callout">
 	<p class="akwu-callout__title"><?php esc_html_e( 'Was hier passiert', 'akuma-webp-umwandler' ); ?></p>
 	<p><?php esc_html_e( 'Manche Cache- und Optimierungs-Plugins laden alle Bilder verzögert, auch das Logo in der Kopfzeile. Bis es nachgeladen ist, steht dort ein Platzhalter in anderer Größe. Danach rutscht die ganze Seite ein Stück nach unten. Das stört beim Lesen und kostet in PageSpeed Punkte (Layout-Verschiebung, CLS).', 'akuma-webp-umwandler' ); ?></p>
-	<p><?php esc_html_e( 'Der Fix kennzeichnet nur die Bilder der Kopfzeilen-Vorlagen als „sofort laden“ (loading="eager", data-no-lazy, Klasse skip-lazy). Am gespeicherten Inhalt ändert sich nichts. Er steht in einer kleinen eigenen Datei im Ordner der Must-use-Plugins und wirkt deshalb auch weiter, wenn dieses Plugin entfernt ist. Zurücknehmen entfernt die Datei wieder.', 'akuma-webp-umwandler' ); ?></p>
+	<p><?php esc_html_e( 'Der Fix kennzeichnet nur die Bilder der Kopfzeilen-Vorlagen als „nicht verzögern“ (data-no-lazy, Klasse skip-lazy). Ein loading="lazy" an diesen Bildern wird zu "eager", andere Bilder behalten ihr Ladeverhalten. Am gespeicherten Inhalt ändert sich nichts. Er steht in einer kleinen eigenen Datei im Ordner der Must-use-Plugins und wirkt deshalb auch weiter, wenn dieses Plugin entfernt ist. Zurücknehmen entfernt die Datei wieder.', 'akuma-webp-umwandler' ); ?></p>
 </div>
 
 <?php if ( $foreign ) : ?>
@@ -92,6 +93,8 @@ View::render(
 								<?php
 								if ( $enabled && $entry['active'] ) {
 									esc_html_e( 'sofort (hier eingeschaltet)', 'akuma-webp-umwandler' );
+								} elseif ( $stale ) {
+									esc_html_e( 'nach der älteren Fix-Datei', 'akuma-webp-umwandler' );
 								} elseif ( $enabled ) {
 									esc_html_e( 'noch nicht erfasst, bitte neu einschalten', 'akuma-webp-umwandler' );
 								} else {
@@ -111,7 +114,9 @@ View::render(
 			<div class="akwu-cta__text">
 				<h2 class="akwu-cta__title">
 					<?php
-					if ( $outdated ) {
+					if ( $stale ) {
+						esc_html_e( 'Die Fix-Datei ist nicht auf dem heutigen Stand', 'akuma-webp-umwandler' );
+					} elseif ( $outdated ) {
 						esc_html_e( 'Die Kopfzeile hat sich geändert', 'akuma-webp-umwandler' );
 					} elseif ( $enabled ) {
 						esc_html_e( 'Der Fix ist eingeschaltet', 'akuma-webp-umwandler' );
@@ -122,7 +127,9 @@ View::render(
 				</h2>
 				<p>
 					<?php
-					if ( $outdated ) {
+					if ( $stale ) {
+						esc_html_e( 'Sie stammt aus einer älteren Version dieses Plugins oder wurde von Hand geändert und wirkt weiter. Neu einschalten schreibt sie in der heutigen Form, Zurücknehmen entfernt sie.', 'akuma-webp-umwandler' );
+					} elseif ( $outdated ) {
 						esc_html_e( 'In der Kopfzeile stehen heute andere Bilder als beim Einschalten. Neu einschalten übernimmt den heutigen Stand.', 'akuma-webp-umwandler' );
 					} elseif ( $enabled ) {
 						/* translators: %s: Dateiname. */
@@ -134,7 +141,7 @@ View::render(
 				</p>
 			</div>
 			<div class="akwu-cta__actions">
-				<?php if ( $enabled ) : ?>
+				<?php if ( $enabled || $stale ) : ?>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 						<?php wp_nonce_field( 'akwu_loading' ); ?>
 						<input type="hidden" name="action" value="akwu_loading">
@@ -148,7 +155,7 @@ View::render(
 						<input type="hidden" name="action" value="akwu_loading">
 						<input type="hidden" name="akwu_do" value="apply">
 						<button type="submit" class="akwu-button" data-akwu-loading="apply">
-							<?php echo esc_html( $outdated ? __( 'Neu einschalten', 'akuma-webp-umwandler' ) : __( 'Einschalten', 'akuma-webp-umwandler' ) ); ?>
+							<?php echo esc_html( ( $outdated || $stale ) ? __( 'Neu einschalten', 'akuma-webp-umwandler' ) : __( 'Einschalten', 'akuma-webp-umwandler' ) ); ?>
 							<span class="akwu-button__medal"><?php Icons::render( 'arrow', 17, '1.8' ); ?></span>
 						</button>
 					</form>

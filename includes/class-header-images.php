@@ -14,7 +14,10 @@ defined( 'ABSPATH' ) || exit;
  *
  * Anlass: Ein Lazy-Loader (auf der Testkopie WP Rocket) lud auch das Logo der Kopfzeile verzögert. Der Platzhalter
  * war kleiner als das Bild, beim Nachladen rutschte die ganze Seite nach unten. Der Fix setzt an den Bild-Tags
- * dieser IDs loading="eager", data-no-lazy="1" und die Klasse skip-lazy. Nichts am gespeicherten Inhalt ändert sich.
+ * dieser IDs data-no-lazy="1" und die Klasse skip-lazy. Ein vorhandenes loading="lazy" wird zu "eager", sonst bleibt
+ * das loading-Attribut unberührt: WordPress und Elementor zählen ein Bild mit gesetztem loading-Attribut nicht zu den
+ * ersten Bildern, die nicht verzögert werden, ein gesetztes "eager" würde diese Schwelle um ein Bild verschieben
+ * (ADR-041). Nichts am gespeicherten Inhalt ändert sich.
  */
 class Header_Images {
 
@@ -171,6 +174,16 @@ class Header_Images {
 
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Lokale Datei.
 		return (string) file_get_contents( Fix_File::path() ) === Fix_File::render( array( 'header_images' => $state['ids'] ) );
+	}
+
+	/**
+	 * Eigene Fix-Datei vorhanden, aber nicht in der heutigen Form (ältere Plugin-Version oder von Hand geändert).
+	 * Sie wirkt weiter, bis sie neu geschrieben oder zurückgenommen wird.
+	 *
+	 * @return bool
+	 */
+	public static function is_stale() {
+		return null !== self::state() && 'ours' === Fix_File::status() && ! self::is_active();
 	}
 
 	/**
