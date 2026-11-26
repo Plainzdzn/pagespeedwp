@@ -34,9 +34,17 @@ final class Converter {
 	public static function convert( array $row, array $settings ) {
 		$attachment_id = (int) $row['attachment_id'];
 		$mime          = (string) get_post_mime_type( $attachment_id );
+		$attached      = (string) get_post_meta( $attachment_id, '_wp_attached_file', true );
+		$kind          = Inventory::real( $mime, Attachment_Files::relative( $attached ) );
 
-		if ( ! isset( Inventory::CONVERTIBLE[ $mime ] ) ) {
-			return self::finish( $row, 'skipped', __( 'Kein JPG oder PNG mehr, nichts zu tun.', 'akuma-webp-umwandler' ) );
+		if ( null === $kind ) {
+			return self::finish(
+				$row,
+				'skipped',
+				isset( Inventory::CONTAINERS[ $mime ] )
+					? __( 'HEIC-Eintrag ohne JPG- oder PNG-Datei. Echte HEIC-Dateien werden nicht umgewandelt.', 'akuma-webp-umwandler' )
+					: __( 'Kein JPG oder PNG mehr, nichts zu tun.', 'akuma-webp-umwandler' )
+			);
 		}
 
 		$meta = wp_get_attachment_metadata( $attachment_id, true );
@@ -57,6 +65,27 @@ final class Converter {
 			return self::finish( $row, 'error', __( 'Die Originaldatei fehlt auf dem Server.', 'akuma-webp-umwandler' ) );
 		}
 
+		// Hinter einem HEIC-Eintrag zählt nur, was die Datei wirklich ist. Eine echte HEIC wird nie als JPG gelesen.
+		if ( isset( Inventory::CONTAINERS[ $mime ] ) && ! in_array( Attachment_Files::real_kind( $source ), array( 'jpg', 'png' ), true ) ) {
+			return self::finish( $row, 'skipped', __( 'HEIC-Eintrag ohne JPG- oder PNG-Datei. Echte HEIC-Dateien werden nicht umgewandelt.', 'akuma-webp-umwandler' ) );
+		}
+
+		// Weitere Einträge mit derselben Datei (WPML-Duplikate) gehen nur gemeinsam mit, sonst wird nichts geschrieben.
+		$plan = Aliases::plan( $attachment_id, $attached, $old_files, $kind );
+		if ( '' !== $plan['reason'] ) {
+			return self::finish( $row, 'skipped', $plan['reason'] );
+		}
+
+		// Die Pixelmaße der Hauptdatei bleiben, auch wenn die Website inzwischen eine andere Obergrenze für große Bilder hat.
+		// Aus dem Original entsteht wieder eine verkleinerte Fassung in den alten Maßen. War die Hauptdatei selbst die Quelle
+		// (kein Original oder ein HEIC-Master), wird gar nicht verkleinert.
+		$from_original = isset( $old_files['original_image'] ) && Attachment_Files::path( $old_files['original_image'] ) === $source;
+		$threshold     = false;
+		if ( $from_original ) {
+			$threshold = max( isset( $meta['width'] ) ? (int) $meta['width'] : 0, isset( $meta['height'] ) ? (int) $meta['height'] : 0 );
+			$threshold = $threshold > 0 ? $threshold : null;
+		}
+
 		$dir    = dirname( $source );
 		$target = trailingslashit( $dir ) . wp_unique_filename( $dir, pathinfo( $source, PATHINFO_FILENAME ) . '.webp' );
 
@@ -64,7 +93,7 @@ final class Converter {
 		$state = array(
 			'status'       => 'working',
 			'attempts'     => (int) $row['attempts'] + 1,
-			'old_file'     => (string) get_post_meta( $attachment_id, '_wp_attached_file', true ),
+			'old_file'     => $attached,
 			'old_mime'     => $mime,
 			'old_meta'     => $meta,
 			'old_files'    => $old_files,
@@ -73,12 +102,14 @@ final class Converter {
 			'message'      => '',
 		);
 		Log_Table::update( $row['id'], $state );
-		$row = array_merge( $row, $state );
+		$row       = array_merge( $row, $state );
+		$followers = Aliases::begin( $row, $plan['states'] );
 
 		$encoded = Encoder::encode( $source, $target, $settings );
 
 		if ( is_wp_error( $encoded ) ) {
 			self::delete_new_file( $target, $old_files );
+			Aliases::abort( $followers, 'error', $encoded->get_error_message(), false );
 			return self::finish( $row, 'error', $encoded->get_error_message() );
 		}
 
@@ -86,67 +117,112 @@ final class Converter {
 		if ( Estimator::would_skip( $ratio, (int) $settings['min_savings'] ) ) {
 			self::delete_new_file( $encoded['path'], $old_files );
 			$saving = (int) round( ( 1 - $ratio ) * 100 );
-			return self::finish(
-				$row,
-				'skipped',
-				$saving > 0
-					/* translators: 1: Ersparnis in Prozent, 2: Mindestersparnis in Prozent. */
-					? sprintf( __( 'Nur %1$s %% kleiner, Mindestersparnis %2$s %%. Bild bleibt unverändert.', 'akuma-webp-umwandler' ), $saving, (int) $settings['min_savings'] )
-					: __( 'Als WebP nicht kleiner. Bild bleibt unverändert.', 'akuma-webp-umwandler' )
-			);
+			$reason = $saving > 0
+				/* translators: 1: Ersparnis in Prozent, 2: Mindestersparnis in Prozent. */
+				? sprintf( __( 'Nur %1$s %% kleiner, Mindestersparnis %2$s %%. Bild bleibt unverändert.', 'akuma-webp-umwandler' ), $saving, (int) $settings['min_savings'] )
+				: __( 'Als WebP nicht kleiner. Bild bleibt unverändert.', 'akuma-webp-umwandler' );
+			Aliases::abort( $followers, 'skipped', $reason, false );
+			return self::finish( $row, 'skipped', $reason );
 		}
 
 		try {
-			$result = self::switch_attachment( $attachment_id, $encoded['path'], $meta );
+			$result = self::switch_attachment( $attachment_id, $encoded['path'], $meta, $threshold );
 		} catch ( \Throwable $error ) {
 			$result = new \WP_Error( 'akwu_switch', $error->getMessage() );
 		}
 
 		if ( is_wp_error( $result ) ) {
 			Rollback::restore_attachment( $row );
+			Aliases::abort( $followers, 'error', $result->get_error_message(), true );
 			return self::finish( $row, 'error', $result->get_error_message() );
 		}
 
 		$new_files = Attachment_Files::of( $attachment_id );
 		$mapping   = Url_Map::build( $old_files, $new_files );
 
+		// Ein HEIC-Master wird nicht umgewandelt und nicht gelöscht. Verweise auf ihn bleiben, wie sie sind.
+		if ( isset( $old_files['original_image'] ) && ! $from_original && Attachment_Files::is_foreign_master( $old_files['original_image'] ) ) {
+			unset( $mapping['map'][ $old_files['original_image'] ] );
+		}
+
 		// Jede alte Größe braucht ihre eigene neue Datei, sonst ließe sich Rückgängig nicht genau umkehren.
 		if ( $mapping['missing'] ) {
 			Rollback::restore_attachment( array_merge( $row, array( 'new_files' => $new_files ) ) );
 			/* translators: %s: Liste von Größennamen. */
-			return self::finish( $row, 'error', sprintf( __( 'Diese Größen ließen sich nicht als WebP erzeugen: %s. Bild bleibt im Original.', 'akuma-webp-umwandler' ), implode( ', ', $mapping['missing'] ) ) );
+			$reason = sprintf( __( 'Diese Größen ließen sich nicht als WebP erzeugen: %s. Bild bleibt im Original.', 'akuma-webp-umwandler' ), implode( ', ', $mapping['missing'] ) );
+			Aliases::abort( $followers, 'error', $reason, true );
+			return self::finish( $row, 'error', $reason );
 		}
 
-		$message = sprintf(
-			/* translators: 1: lossy oder lossless, 2: Qualität, 3: imagick oder gd. */
-			__( 'WebP %1$s, Qualität %2$d, %3$s.', 'akuma-webp-umwandler' ),
-			'lossless' === $encoded['mode'] ? __( 'verlustfrei', 'akuma-webp-umwandler' ) : __( 'verlustbehaftet', 'akuma-webp-umwandler' ),
-			$encoded['quality'],
-			'imagick' === $encoded['editor'] ? 'Imagick' : 'GD'
-		);
-		$update = array(
+		$message = self::encoding_message( $encoded );
+		$update  = array(
 			'status'      => 'converted',
 			'new_file'    => (string) get_post_meta( $attachment_id, '_wp_attached_file', true ),
 			'new_files'   => $new_files,
+			'new_hashes'  => Attachment_Files::fingerprints( $new_files ),
 			'url_map'     => $mapping['map'],
 			'bytes_after' => Attachment_Files::measure( $new_files )['bytes'],
 			'message'     => $message,
 		);
 		Log_Table::update( $row['id'], $update );
+		$row = array_merge( $row, $update );
 
-		return array_merge( $row, $update );
+		Aliases::follow( $row, $followers );
+
+		return $row;
+	}
+
+	/**
+	 * Meldung zur Kodierung für Protokoll und Bericht.
+	 *
+	 * @param array $encoded Ergebnis von Encoder::encode().
+	 * @return string
+	 */
+	public static function encoding_message( array $encoded ) {
+		$modes = array(
+			'lossless'    => __( 'verlustfrei', 'akuma-webp-umwandler' ),
+			'lossy-alpha' => __( 'verlustbehaftet mit verlustfreiem Alphakanal', 'akuma-webp-umwandler' ),
+			'lossy'       => __( 'verlustbehaftet', 'akuma-webp-umwandler' ),
+		);
+		$mode  = isset( $encoded['mode'], $modes[ $encoded['mode'] ] ) ? $modes[ $encoded['mode'] ] : $modes['lossy'];
+
+		$message = sprintf(
+			/* translators: 1: verlustfrei oder verlustbehaftet, 2: Qualität, 3: Imagick oder GD. */
+			__( 'WebP %1$s, Qualität %2$d, %3$s.', 'akuma-webp-umwandler' ),
+			$mode,
+			(int) $encoded['quality'],
+			isset( $encoded['editor'] ) && 'imagick' === $encoded['editor'] ? 'Imagick' : 'GD'
+		);
+
+		if ( ! empty( $encoded['opaque'] ) ) {
+			$message .= ' ' . __( 'PNG mit Alphakanal, aber ohne durchsichtige Pixel.', 'akuma-webp-umwandler' );
+		}
+
+		if ( ! empty( $encoded['lossless_bytes'] ) && 'lossy-alpha' !== $encoded['mode'] ) {
+			$message .= ' ' . __( 'Verlustbehaftet wäre nicht mindestens halb so groß gewesen.', 'akuma-webp-umwandler' );
+		}
+
+		return $message;
 	}
 
 	/**
 	 * Stellt den Anhang auf die WebP-Datei um. Die ID bleibt.
 	 *
-	 * @param int    $attachment_id Anhang.
-	 * @param string $file          Neue Datei (absoluter Pfad).
-	 * @param array  $old_meta      Metadaten vorher.
+	 * @param int            $attachment_id Anhang.
+	 * @param string         $file          Neue Datei (absoluter Pfad).
+	 * @param array          $old_meta      Metadaten vorher.
+	 * @param int|false|null $threshold Obergrenze für große Bilder während der Umstellung: Kantenlänge, false für keine, null für die der Website.
 	 * @return true|\WP_Error
 	 */
-	private static function switch_attachment( $attachment_id, $file, array $old_meta ) {
+	private static function switch_attachment( $attachment_id, $file, array $old_meta, $threshold = null ) {
 		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$keep_size = static function () use ( $threshold ) {
+			return $threshold;
+		};
+		if ( null !== $threshold ) {
+			add_filter( 'big_image_size_threshold', $keep_size, PHP_INT_MAX );
+		}
 
 		if ( ! update_attached_file( $attachment_id, $file ) && get_attached_file( $attachment_id, true ) !== $file ) {
 			return new \WP_Error( 'akwu_attached_file', __( 'Der Datei-Pointer konnte nicht umgestellt werden.', 'akuma-webp-umwandler' ) );
@@ -154,7 +230,11 @@ final class Converter {
 
 		self::set_mime( $attachment_id, 'image/webp' );
 
-		$meta = wp_generate_attachment_metadata( $attachment_id, $file );
+		try {
+			$meta = wp_generate_attachment_metadata( $attachment_id, $file );
+		} finally {
+			remove_filter( 'big_image_size_threshold', $keep_size, PHP_INT_MAX );
+		}
 
 		if ( ! is_array( $meta ) || empty( $meta['file'] ) ) {
 			return new \WP_Error( 'akwu_metadata', __( 'Die Metadaten des WebP-Bildes konnten nicht erzeugt werden.', 'akuma-webp-umwandler' ) );
@@ -166,10 +246,38 @@ final class Converter {
 		}
 
 		$meta = self::add_old_sizes( $file, $meta, $old_meta );
+		$meta = self::keep_master( $file, $meta, $old_meta );
 
 		wp_update_attachment_metadata( $attachment_id, $meta );
 
 		return true;
+	}
+
+	/**
+	 * Behält einen HEIC-Master als Original des Anhangs, wenn er nicht die Quelle der Umwandlung war.
+	 *
+	 * WordPress führt ihn in original_image. Ohne den Eintrag wäre die Datei nach der Umwandlung verwaist
+	 * und würde beim Löschen der alten Dateien mit entfernt.
+	 *
+	 * @param string $file     Absoluter Pfad der WebP-Datei.
+	 * @param array  $meta     Neue Metadaten.
+	 * @param array  $old_meta Metadaten vor der Umwandlung.
+	 * @return array
+	 */
+	private static function keep_master( $file, array $meta, array $old_meta ) {
+		if ( ! empty( $meta['original_image'] ) || empty( $old_meta['original_image'] ) || ! is_string( $old_meta['original_image'] ) ) {
+			return $meta;
+		}
+
+		$relative = (string) Attachment_Files::relative( $file );
+		$dir      = dirname( $relative );
+		$master   = ( '.' === $dir || '' === $dir ? '' : $dir . '/' ) . wp_basename( $old_meta['original_image'] );
+
+		if ( Attachment_Files::is_foreign_master( $master ) ) {
+			$meta['original_image'] = wp_basename( $old_meta['original_image'] );
+		}
+
+		return $meta;
 	}
 
 	/**

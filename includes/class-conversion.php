@@ -177,7 +177,7 @@ final class Conversion {
 		$queue = array();
 
 		foreach ( array_unique( array_map( 'intval', $ids ) ) as $attachment_id ) {
-			if ( 'attachment' === get_post_type( $attachment_id ) && isset( Inventory::CONVERTIBLE[ (string) get_post_mime_type( $attachment_id ) ] ) ) {
+			if ( 'attachment' === get_post_type( $attachment_id ) && null !== Inventory::real_of( $attachment_id ) ) {
 				$queue[] = $attachment_id;
 			}
 		}
@@ -192,6 +192,9 @@ final class Conversion {
 	 * @return array|\WP_Error Lauf.
 	 */
 	public static function step( $budget ) {
+		// Ein Lauf kann über ein Update hinweg weitergehen. Die Tabelle muss die Spalten der aktuellen Version haben.
+		Log_Table::maybe_install();
+
 		$run = self::fresh();
 
 		if ( null === $run ) {
@@ -285,6 +288,18 @@ final class Conversion {
 		// Nach einem Abbruch mitten in einer Umwandlung: Anhang wiederherstellen, einmal neu versuchen.
 		// Bricht dasselbe Bild wieder ab (Speicher, Zeitlimit), wird es übersprungen, damit der Lauf weitergeht.
 		foreach ( Log_Table::rows( $run['id'], array( 'working' ) ) as $row ) {
+			// Wurde das Bild während der Unterbrechung von anderer Seite ersetzt oder gelöscht, bleibt es, wie es ist.
+			if ( Rollback::foreign( $row ) ) {
+				Log_Table::update(
+					$row['id'],
+					array(
+						'status'  => 'error',
+						'message' => __( 'Das Bild wurde während der Unterbrechung ersetzt oder gelöscht. Es bleibt unverändert.', 'akuma-webp-umwandler' ),
+					)
+				);
+				continue;
+			}
+
 			Rollback::restore_attachment( $row );
 			Log_Table::update(
 				$row['id'],
@@ -319,13 +334,17 @@ final class Conversion {
 		}
 
 		if ( $converted ) {
-			self::replace_references( $converted );
+			// Frisch lesen: Einträge mit derselben Datei wurden mit umgestellt und haben eigene Zeilen.
+			self::replace_references( Log_Table::rows( $run['id'], array( 'converted' ) ) );
 			++$run['batches'];
 		}
 
 		$run['seconds'] += microtime( true ) - $started;
 
 		$counts = Log_Table::counts( $run['id'] );
+
+		// Mit umgestellte Einträge standen nicht zwingend in der Warteschlange.
+		$run['total'] = max( (int) $run['total'], $counts['pending'] + $counts['working'] + $counts['converted'] + $counts['done'] + $counts['skipped'] + $counts['error'] + $counts['rolled_back'] + $counts['cancelled'] );
 		if ( 0 === $counts['pending'] && 0 === $counts['working'] && 0 === $counts['converted'] ) {
 			$run['phase'] = 'finalize';
 		}
@@ -343,8 +362,11 @@ final class Conversion {
 
 		foreach ( $rows as $row ) {
 			foreach ( $row['url_map'] as $from => $to ) {
-				$map[ $from ]    = $to;
-				$owners[ $from ] = (int) $row['attachment_id'];
+				$map[ $from ] = $to;
+				// Bei gemeinsamer Datei zählen die Verweise beim zuerst umgestellten Eintrag.
+				if ( ! isset( $owners[ $from ] ) ) {
+					$owners[ $from ] = (int) $row['attachment_id'];
+				}
 			}
 		}
 
@@ -408,6 +430,17 @@ final class Conversion {
 	 */
 	private static function step_rollback( array &$run, $deadline ) {
 		foreach ( Log_Table::rows( $run['id'], array( 'working' ) ) as $row ) {
+			if ( Rollback::foreign( $row ) ) {
+				Log_Table::update(
+					$row['id'],
+					array(
+						'status'  => 'error',
+						'message' => __( 'Das Bild wurde während der Unterbrechung ersetzt oder gelöscht. Es bleibt unverändert.', 'akuma-webp-umwandler' ),
+					)
+				);
+				continue;
+			}
+
 			Rollback::restore_attachment( $row );
 			Log_Table::update( $row['id'], array( 'status' => 'pending' ) );
 		}

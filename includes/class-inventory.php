@@ -25,6 +25,17 @@ final class Inventory {
 	/**
 	 * Schon moderne Formate.
 	 */
+	/**
+	 * MIME-Typen, unter denen WordPress eine in JPG umgewandelte Datei führen kann (HEIC-Uploads ab WP 6.7).
+	 * Umwandelbar sind sie nur, wenn die Hauptdatei nachweislich JPG oder PNG ist, siehe real().
+	 */
+	const CONTAINERS = array(
+		'image/heic'          => 'heic',
+		'image/heif'          => 'heic',
+		'image/heic-sequence' => 'heic',
+		'image/heif-sequence' => 'heic',
+	);
+
 	const MODERN = array(
 		'image/webp' => 'webp',
 		'image/avif' => 'avif',
@@ -96,6 +107,58 @@ final class Inventory {
 	}
 
 	/**
+	 * Tatsächliches umwandelbares Format eines Anhangs: nach MIME-Typ, bei HEIC-Einträgen nach Dateiinhalt.
+	 *
+	 * @param string      $mime     MIME-Typ des Anhangs.
+	 * @param string|null $attached Relativer Pfad der Hauptdatei.
+	 * @return string|null jpg, png oder null, wenn nicht umwandelbar (auch echte HEIC-Dateien).
+	 */
+	public static function real( $mime, $attached ) {
+		if ( isset( self::CONVERTIBLE[ $mime ] ) ) {
+			return self::CONVERTIBLE[ $mime ];
+		}
+		if ( ! isset( self::CONTAINERS[ $mime ] ) || null === $attached || '' === (string) $attached ) {
+			return null;
+		}
+
+		$kind = Attachment_Files::real_kind( Attachment_Files::path( $attached ) );
+
+		return in_array( $kind, array( 'jpg', 'png' ), true ) ? $kind : null;
+	}
+
+	/**
+	 * Lässt sich der Anhang jetzt umwandeln? Liest MIME-Typ und Hauptdatei frisch aus der Datenbank.
+	 *
+	 * @param int $attachment_id Attachment-ID.
+	 * @return string|null jpg, png oder null.
+	 */
+	public static function real_of( $attachment_id ) {
+		return self::real(
+			(string) get_post_mime_type( $attachment_id ),
+			Attachment_Files::relative( (string) get_post_meta( $attachment_id, '_wp_attached_file', true ) )
+		);
+	}
+
+	/**
+	 * Ist ein Datensatz aus record() umwandelbar (JPG oder PNG, auch hinter einem HEIC-Eintrag)?
+	 *
+	 * @param array $item Datensatz.
+	 * @return bool
+	 */
+	public static function convertible( array $item ) {
+		return isset( $item['kind'] ) && in_array( $item['kind'], self::CONVERTIBLE, true );
+	}
+
+	/**
+	 * MIME-Typen, unter denen umwandelbare Anhänge in der Datenbank stehen können, für SQL maskiert.
+	 *
+	 * @return string Liste wie 'image/jpeg','image/png',…
+	 */
+	public static function source_mimes_sql() {
+		return "'" . implode( "','", array_map( 'esc_sql', array_merge( array_keys( self::CONVERTIBLE ), array_keys( self::CONTAINERS ) ) ) ) . "'";
+	}
+
+	/**
 	 * Datensatz eines Anhangs für den Scan.
 	 *
 	 * @param int $attachment_id Anhang.
@@ -107,6 +170,16 @@ final class Inventory {
 		$meta  = wp_get_attachment_metadata( $attachment_id, true );
 		$meta  = is_array( $meta ) ? $meta : array();
 		$files = Attachment_Files::of( $attachment_id, $meta );
+
+		// HEIC-Eintrag mit echter JPG-Datei: WordPress hat beim Upload umgewandelt, der MIME-Typ blieb stehen.
+		$container = '';
+		if ( isset( self::CONTAINERS[ $mime ] ) && null !== $files ) {
+			$real = self::real( $mime, $files['full'] );
+			if ( null !== $real ) {
+				$kind      = $real;
+				$container = self::CONTAINERS[ $mime ];
+			}
+		}
 
 		$record = array(
 			'id'      => (int) $attachment_id,
@@ -124,6 +197,9 @@ final class Inventory {
 			'thumbs'  => 0,
 			'no_meta' => empty( $meta['file'] ),
 		);
+		if ( '' !== $container ) {
+			$record['container'] = $container;
+		}
 
 		if ( null === $files ) {
 			return $record;

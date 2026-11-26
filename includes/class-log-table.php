@@ -22,7 +22,7 @@ final class Log_Table {
 	/**
 	 * Version des Tabellenschemas.
 	 */
-	const DB_VERSION = 1;
+	const DB_VERSION = 2;
 
 	/**
 	 * Option mit der installierten Schema-Version.
@@ -32,7 +32,7 @@ final class Log_Table {
 	/**
 	 * Spalten mit JSON-Inhalt.
 	 */
-	const JSON_COLUMNS = array( 'old_meta', 'old_files', 'new_files', 'url_map', 'places' );
+	const JSON_COLUMNS = array( 'old_meta', 'old_files', 'new_files', 'new_hashes', 'url_map', 'places' );
 
 	/**
 	 * Tabellenname mit Prefix.
@@ -70,6 +70,7 @@ final class Log_Table {
 			old_meta longtext NULL,
 			old_files longtext NULL,
 			new_files longtext NULL,
+			new_hashes longtext NULL,
 			url_map longtext NULL,
 			bytes_before bigint(20) unsigned NOT NULL DEFAULT 0,
 			bytes_after bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -120,6 +121,49 @@ final class Log_Table {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Werte oben einzeln vorbereitet.
 			$wpdb->query( 'INSERT INTO ' . self::name() . ' (run_id, attachment_id, status, created_at, updated_at) VALUES ' . implode( ',', $values ) );
 		}
+	}
+
+	/**
+	 * Offene Protokollzeile eines Bildes in einem Lauf. Fehlt sie (Bild stand nicht in der Warteschlange), wird sie angelegt.
+	 *
+	 * @param string $run_id        Lauf.
+	 * @param int    $attachment_id Attachment-ID.
+	 * @return array|null
+	 */
+	public static function open_row( $run_id, $attachment_id ) {
+		global $wpdb;
+
+		$table = self::name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Eigene Tabelle.
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE run_id = %s AND attachment_id = %d AND status = %s ORDER BY id ASC LIMIT 1", $run_id, $attachment_id, 'pending' ), ARRAY_A );
+
+		if ( null === $row ) {
+			self::add_pending( $run_id, array( (int) $attachment_id ) );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Eigene Tabelle.
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE run_id = %s AND attachment_id = %d AND status = %s ORDER BY id DESC LIMIT 1", $run_id, $attachment_id, 'pending' ), ARRAY_A );
+		}
+
+		return null === $row ? null : self::decode( $row );
+	}
+
+	/**
+	 * Umgestellte Zeilen anderer Bilder desselben Laufs, die auf dieselbe neue Datei zeigen.
+	 *
+	 * @param string $run_id        Lauf.
+	 * @param string $new_file      Neue Hauptdatei, relativ zum Upload-Ordner.
+	 * @param int    $attachment_id Attachment-ID, die nicht zählt.
+	 * @return array[] Nach Attachment-ID.
+	 */
+	public static function siblings( $run_id, $new_file, $attachment_id ) {
+		global $wpdb;
+
+		$table = self::name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Eigene Tabelle.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE run_id = %s AND status = %s AND new_file = %s AND attachment_id <> %d ORDER BY attachment_id ASC", $run_id, 'done', $new_file, $attachment_id ), ARRAY_A );
+
+		return array_map( array( __CLASS__, 'decode' ), (array) $rows );
 	}
 
 	/**

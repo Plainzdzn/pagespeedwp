@@ -36,6 +36,13 @@ final class Originals {
 			return new \WP_Error( 'akwu_purge_changed', __( 'Das Bild wurde seit der Umwandlung verändert. Die alten Dateien bleiben.', 'akuma-webp-umwandler' ) );
 		}
 
+		// Gehört die alte Hauptdatei noch zu einem anderen Eintrag, hängen auch ihre Größen daran. Dann bleibt alles liegen.
+		$shared = Aliases::attached_elsewhere( (string) $row['old_file'], $attachment_id );
+		if ( $shared > 0 ) {
+			/* translators: %d: Attachment-ID. */
+			return new \WP_Error( 'akwu_purge_shared', sprintf( __( 'Die alte Datei gehört noch zu Bild-ID %d. Die alten Dateien bleiben.', 'akuma-webp-umwandler' ), $shared ) );
+		}
+
 		$current = Attachment_Files::of( $attachment_id );
 		$current = null === $current ? array() : array_values( $current );
 		$files   = array_diff( array_unique( array_values( (array) $row['old_files'] ) ), $current );
@@ -44,9 +51,14 @@ final class Originals {
 		$deleted = 0;
 		$failed  = array();
 
+		// Ein HEIC-Master wurde nie umgewandelt und bleibt immer liegen, auch wenn er nicht mehr als Original eingetragen ist.
+		$master = isset( $row['old_files']['original_image'] ) && Attachment_Files::is_foreign_master( (string) $row['old_files']['original_image'] )
+			? (string) $row['old_files']['original_image']
+			: '';
+
 		foreach ( array_unique( $files ) as $relative ) {
 			$path = Attachment_Files::path( $relative );
-			if ( ! is_file( $path ) || self::used_elsewhere( $relative, $attachment_id ) ) {
+			if ( $relative === $master || ! is_file( $path ) || self::used_elsewhere( $relative, $attachment_id ) ) {
 				continue;
 			}
 
@@ -103,8 +115,24 @@ final class Originals {
 		}
 
 		$rows = Log_Table::latest_by_attachment( array( (int) $attachment_id ), array( 'done' ) );
-		if ( isset( $rows[ $attachment_id ] ) && empty( $rows[ $attachment_id ]['purged_at'] ) ) {
-			self::purge( $rows[ $attachment_id ] );
+		if ( isset( $rows[ $attachment_id ] ) ) {
+			$members = Aliases::members( $rows[ $attachment_id ] );
+
+			if ( $members ) {
+				// Weitere Einträge teilen sich die Datei: Sie brauchen die Originale noch für Rückgängig.
+				// Die Größenangaben wandern zum ersten verbleibenden Eintrag, sonst fehlten sie in Bericht und Prüfung.
+				if ( (int) $rows[ $attachment_id ]['bytes_after'] > 0 && 0 === (int) $members[0]['bytes_after'] ) {
+					Log_Table::update(
+						$members[0]['id'],
+						array(
+							'bytes_before' => (int) $rows[ $attachment_id ]['bytes_before'],
+							'bytes_after'  => (int) $rows[ $attachment_id ]['bytes_after'],
+						)
+					);
+				}
+			} elseif ( empty( $rows[ $attachment_id ]['purged_at'] ) ) {
+				self::purge( $rows[ $attachment_id ] );
+			}
 		}
 
 		// Ohne Bild gibt es nichts mehr zurückzusetzen.

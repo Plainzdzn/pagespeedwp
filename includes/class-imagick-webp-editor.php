@@ -33,6 +33,68 @@ class Imagick_Webp_Editor extends \WP_Image_Editor_Imagick {
 	}
 
 	/**
+	 * Hat das Bild einen Alphakanal, aber kein einziges durchsichtiges Pixel?
+	 *
+	 * @return bool|null Siehe Png_Info::imagick_opaque().
+	 */
+	public function akwu_is_opaque() {
+		return Png_Info::imagick_opaque( $this->image );
+	}
+
+	/**
+	 * Schaltet einen leeren Alphakanal ab, damit das WebP keinen Alphakanal mitschleppt.
+	 *
+	 * @return bool
+	 */
+	public function akwu_drop_alpha() {
+		try {
+			$mode = defined( '\Imagick::ALPHACHANNEL_DEACTIVATE' ) ? \Imagick::ALPHACHANNEL_DEACTIVATE : \Imagick::ALPHACHANNEL_OFF;
+			return (bool) $this->image->setImageAlphaChannel( $mode );
+		} catch ( \Exception $e ) {
+			return false;
+		}
+	}
+
+	/**
+	 * Verlustbehaftet mit verlustfreiem Alphakanal (für Freisteller, Einstellung „automatisch“).
+	 *
+	 * @param int $quality Qualität für die Farbwerte.
+	 * @return bool
+	 */
+	public function akwu_set_lossy_alpha( $quality ) {
+		try {
+			// Zuerst die Qualität im Editor setzen: Nach dem ersten Speichern zeigt der Editor auf die
+			// verlustfreie WebP-Datei, und set_quality() des Core schaltet dann selbst auf verlustfrei.
+			// Die Optionen danach überschreiben das wieder.
+			$this->set_quality( (int) $quality );
+			$this->image->setOption( 'webp:lossless', 'false' );
+			$this->image->setOption( 'webp:alpha-quality', '100' );
+			$this->image->setOption( 'webp:alpha-compression', '1' );
+			$this->image->setImageCompressionQuality( (int) $quality );
+			$this->image->setCompressionQuality( (int) $quality );
+			return 'false' === $this->image->getOption( 'webp:lossless' );
+		} catch ( \Exception $e ) {
+			return false;
+		}
+	}
+
+	/**
+	 * Würde save() genau diese Datei in genau diesem Format schreiben?
+	 *
+	 * Der Filter `image_editor_output_format` darf je Dateiname einen anderen Typ verlangen, der Core
+	 * ändert dann die Endung. Fragt dieselbe Stelle wie save(), ohne etwas zu schreiben.
+	 *
+	 * @param string $filename  Gewünschter Pfad.
+	 * @param string $mime_type Gewünschter Typ.
+	 * @return bool
+	 */
+	public function akwu_output_is( $filename, $mime_type ) {
+		$format = $this->get_output_format( $filename, $mime_type );
+
+		return is_array( $format ) && isset( $format[0], $format[2] ) && $filename === $format[0] && $mime_type === $format[2];
+	}
+
+	/**
 	 * Entfernt EXIF- und andere Metadaten, behält aber Farbprofile.
 	 *
 	 * @return bool

@@ -20,7 +20,7 @@ $item         = $data['item'];
 $details      = ! empty( $data['details'] );
 $thumb        = 'missing' === $item['status'] ? false : wp_get_attachment_image_url( $item['id'], 'thumbnail' );
 $status_label = Scan_Result::status_label( $item );
-$convertible  = isset( Inventory::CONVERTIBLE[ $item['mime'] ] );
+$convertible  = Inventory::convertible( $item );
 $places       = array_merge( $item['places'], $item['warnings'] );
 ?>
 <tr>
@@ -40,6 +40,13 @@ $places       = array_merge( $item['places'], $item['warnings'] );
 			if ( $item['thumbs'] > 0 ) {
 				/* translators: %s: Anzahl Elementor-Vorschaubilder. */
 				echo esc_html( ' · ' . sprintf( _n( '%s Elementor-Vorschaubild', '%s Elementor-Vorschaubilder', $item['thumbs'], 'akuma-webp-umwandler' ), Format::number( $item['thumbs'] ) ) );
+			}
+			if ( ! empty( $item['container'] ) ) {
+				echo esc_html( ' · ' . __( 'als HEIC hochgeladen, Datei ist JPG', 'akuma-webp-umwandler' ) );
+			}
+			if ( ! empty( $item['shared'] ) ) {
+				/* translators: %s: Attachment-IDs. */
+				echo esc_html( ' · ' . sprintf( __( 'gleiche Datei wie ID %s', 'akuma-webp-umwandler' ), implode( ', ', array_map( 'intval', $item['shared'] ) ) ) );
 			}
 			?>
 		</span>

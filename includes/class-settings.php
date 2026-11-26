@@ -23,12 +23,18 @@ final class Settings {
 	 * Standardwerte laut Briefing.
 	 */
 	const DEFAULTS = array(
-		'quality_jpg' => 82,
-		'quality_png' => 90,
-		'min_savings' => 10,
-		'batch_size'  => 10,
-		'psi_api_key' => '',
+		'quality_jpg'     => 82,
+		'quality_png'     => 90,
+		'min_savings'     => 10,
+		'batch_size'      => 10,
+		'psi_api_key'     => '',
+		'png_transparent' => 'lossless',
 	);
+
+	/**
+	 * Erlaubte Werte für PNG mit Transparenz: verlustfrei (Standard) oder automatisch (Opt-in).
+	 */
+	const PNG_TRANSPARENT = array( 'lossless', 'auto' );
 
 	/**
 	 * Erlaubte Bereiche für Zahlenwerte: Schlüssel => array( min, max ).
@@ -77,6 +83,10 @@ final class Settings {
 			if ( isset( $input[ $key ] ) && is_numeric( $input[ $key ] ) ) {
 				$output[ $key ] = max( $range[0], min( $range[1], (int) $input[ $key ] ) );
 			}
+		}
+
+		if ( isset( $input['png_transparent'] ) && in_array( $input['png_transparent'], self::PNG_TRANSPARENT, true ) ) {
+			$output['png_transparent'] = $input['png_transparent'];
 		}
 
 		if ( isset( $input['psi_api_key'] ) && is_string( $input['psi_api_key'] ) ) {

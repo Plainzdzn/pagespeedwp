@@ -29,6 +29,7 @@ final class Icons {
 		'arrow'    => '<path d="M7 17L17 7"></path><path d="M8 7h9v9"></path>',
 		'pause'    => '<path d="M9 5v14"></path><path d="M15 5v14"></path>',
 		'play'     => '<path d="M8 5l11 7-11 7z"></path>',
+		'bolt'     => '<path d="M13 3L5 14h6l-1 7 8-11h-6z"></path>',
 		'download' => '<path d="M12 4v11"></path><path d="M7 10l5 5 5-5"></path><path d="M5 20h14"></path>',
 		'trash'    => '<path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M6 7l1 13h10l1-13"></path><path d="M9 7V4h6v3"></path>',
 	);

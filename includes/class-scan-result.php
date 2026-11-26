@@ -168,7 +168,8 @@ final class Scan_Result {
 		$items = $this->items( 'ready', 'uses' === $sort ? 'id' : $sort );
 		$open  = array();
 
-		$mimes = "'" . implode( "','", array_map( 'esc_sql', array_keys( Inventory::CONVERTIBLE ) ) ) . "'";
+		// Auch HEIC-Einträge: bereit sind sie im Scan nur, wenn ihre Datei nachweislich JPG oder PNG ist.
+		$mimes = Inventory::source_mimes_sql();
 		foreach ( array_chunk( wp_list_pluck( $items, 'id' ), 500 ) as $chunk ) {
 			$list = implode( ',', array_map( 'intval', $chunk ) );
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- IDs als int, MIME-Typen maskiert.
@@ -227,7 +228,7 @@ final class Scan_Result {
 		$items = array_filter(
 			$this->items( 'all', 'bytes' ),
 			static function ( $item ) {
-				return isset( Inventory::CONVERTIBLE[ $item['mime'] ] );
+				return Inventory::convertible( $item );
 			}
 		);
 
@@ -270,7 +271,7 @@ final class Scan_Result {
 				return ! empty( $item['warnings'] ) || in_array( $item['status'], array( 'missing', 'nometa' ), true ) || ! empty( $item['unknown'] ) || ! empty( $item['missing'] );
 			case 'unused':
 				// Bilder, die nur in CSS, Snippets oder Theme-Dateien vorkommen, gelten als gefunden.
-				return 0 === (int) $item['uses'] && empty( $item['warnings'] ) && isset( Inventory::CONVERTIBLE[ $item['mime'] ] );
+				return 0 === (int) $item['uses'] && empty( $item['warnings'] ) && empty( $item['shared_used'] ) && Inventory::convertible( $item );
 			default:
 				return true;
 		}
@@ -284,6 +285,12 @@ final class Scan_Result {
 	 */
 	public static function usage_label( array $item ) {
 		$posts = array_keys( $item['posts'] );
+
+		// Zweiteintrag derselben Datei: Die Fundstellen stehen beim anderen Eintrag.
+		if ( 0 === (int) $item['uses'] && ! empty( $item['shared_used'] ) && ! empty( $item['shared'] ) ) {
+			/* translators: %s: Attachment-IDs. */
+			return sprintf( __( 'Siehe ID %s', 'akuma-webp-umwandler' ), implode( ', ', array_map( 'intval', $item['shared'] ) ) );
+		}
 
 		if ( 1 === count( $posts ) ) {
 			if ( (int) get_option( 'page_on_front' ) === (int) $posts[0] ) {

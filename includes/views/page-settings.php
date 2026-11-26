@@ -1,6 +1,6 @@
 <?php
 /**
- * Einstellungen: Qualität, Mindestersparnis, Paketgröße, PageSpeed-API-Schlüssel.
+ * Einstellungen: Qualität, Mindestersparnis, Paketgröße, PNG mit Transparenz, PageSpeed-API-Schlüssel.
  *
  * @package Akuma\WebpUmwandler
  *
@@ -17,7 +17,7 @@ $values = Settings::all();
 $fields = array(
 	'quality_jpg' => array(
 		__( 'JPG-Qualität', 'akuma-webp-umwandler' ),
-		__( 'Für JPG und PNG ohne Transparenz. Standard 82.', 'akuma-webp-umwandler' ),
+		__( 'Für JPG und PNG ohne Transparenz, auch PNG mit Alphakanal, in dem kein Pixel durchsichtig ist. Standard 82.', 'akuma-webp-umwandler' ),
 	),
 	'quality_png' => array(
 		__( 'PNG mit Transparenz', 'akuma-webp-umwandler' ),
@@ -53,6 +53,15 @@ View::render(
 			<p class="akwu-field__help" id="akwu-<?php echo esc_attr( $key ); ?>-help"><?php echo esc_html( $field[1] ); ?></p>
 		</div>
 	<?php endforeach; ?>
+
+	<div class="akwu-field">
+		<label class="akwu-field__label" for="akwu-png_transparent"><?php esc_html_e( 'PNG mit Transparenz kodieren', 'akuma-webp-umwandler' ); ?></label>
+		<select class="akwu-field__input akwu-field__input--wide" id="akwu-png_transparent" name="<?php echo esc_attr( Settings::OPTION . '[png_transparent]' ); ?>" aria-describedby="akwu-png_transparent-help">
+			<option value="lossless" <?php selected( 'lossless', $values['png_transparent'] ); ?>><?php esc_html_e( 'Immer verlustfrei (Standard)', 'akuma-webp-umwandler' ); ?></option>
+			<option value="auto" <?php selected( 'auto', $values['png_transparent'] ); ?>><?php esc_html_e( 'Automatisch: Freisteller verlustbehaftet, Alphakanal verlustfrei', 'akuma-webp-umwandler' ); ?></option>
+		</select>
+		<p class="akwu-field__help" id="akwu-png_transparent-help"><?php esc_html_e( 'Automatisch kodiert jedes PNG mit durchsichtigen Pixeln zweimal und nimmt die verlustbehaftete Fassung nur, wenn sie höchstens halb so groß ist. Das trifft Fotos mit freigestelltem Hintergrund. Logos und flache Grafiken bleiben verlustfrei, weil verlustbehaftet dort kaum kleiner ist. Nur mit Imagick.', 'akuma-webp-umwandler' ); ?></p>
+	</div>
 
 	<div class="akwu-field">
 		<label class="akwu-field__label" for="akwu-psi_api_key"><?php esc_html_e( 'PageSpeed-API-Schlüssel', 'akuma-webp-umwandler' ); ?></label>

@@ -41,6 +41,54 @@ WordPress-Plugin von Akuma Digital. Ersetzt PNG- und JPG-Bilder in der Mediathek
 
 Optional misst das Plugin die Startseite mobil mit PageSpeed Insights vorher und nachher. Dafür unter **Einstellungen** einen API-Schlüssel eintragen. Ohne Schlüssel stellt das Plugin keine Anfragen nach außen.
 
+## HEIC-Uploads und doppelte Einträge (ab 1.1.0)
+
+- Fotos, die als HEIC hochgeladen wurden, liegen in WordPress als JPG auf dem Server. Sie werden wie JPGs umgewandelt, in der Liste steht „als HEIC hochgeladen, Datei ist JPG“. Die HEIC-Datei selbst bleibt immer erhalten.
+- Zeigen mehrere Mediathek-Einträge auf dieselbe Datei (WPML legt je Sprache einen an), werden sie gemeinsam umgestellt und gemeinsam zurückgesetzt. In der Liste steht „gleiche Datei wie ID …“. Passen die Einträge nicht zusammen, bleibt das Bild unverändert, der Grund steht im Protokoll.
+- Nach dem Update von 1.0.0 einmal neu scannen.
+
+## Sicherheit bei doppelten Einträgen (ab 1.1.1)
+
+- Wird einer von mehreren Einträgen derselben Datei endgültig gelöscht, behalten die anderen ihre WebP-Datei, alle Größen und das Original. Das gilt, solange dieses Plugin aktiv ist. Ohne das Plugin verhält sich WordPress wie vor der Umwandlung und löscht gemeinsame Dateien mit.
+- Wurde ein umgewandeltes Bild danach ersetzt oder bearbeitet, lehnt „Rückgängig“ ab und ändert nichts, auch nicht bei den anderen Einträgen derselben Datei. Der Grund steht in der Liste. Ab 1.1.2 wird dafür jede erzeugte Datei mit Größe und Prüfsumme festgehalten.
+- Bilder aus Läufen vor 1.1.2 haben diesen Nachweis nicht. Beim Rückgängig werden ihre WebP-Dateien deshalb nicht gelöscht, sondern nach `uploads/akwu-sicherung/` verschoben. Der Ordner kann danach von Hand gelöscht werden.
+- Einträge, die dieselbe Datei unter verschiedenen Größennamen führen, werden nicht gemeinsam umgestellt.
+
+## Qualität am Kodierpunkt (ab 1.1.4)
+
+- Bis 1.1.3 kam die eingestellte Qualität beim Kodieren nicht an. WordPress setzt beim Speichern in ein anderes Format (JPG oder PNG → WebP) die Qualität in `get_output_format()` auf seinen Standard zurück, für WebP 86. Gemeldet wurde trotzdem der eingestellte Wert. Betroffen waren alle verlustbehafteten WebP, mit Imagick und mit GD, und die verlustfreien mit Imagick (Stufe 86 statt 100).
+- Ab 1.1.4 gilt beim Kodieren genau die eingestellte Qualität, auch für deckende PNGs und die zweite Fassung von Freistellern. Andere Bildbearbeitungen in WordPress behalten den Standard des Core.
+- Schon umgewandelte Bilder bleiben, wie sie sind. Mit 82 statt 86 werden neue WebP-Dateien etwas kleiner.
+
+## Geschützte Zieldatei (ab 1.1.5)
+
+- Das Plugin schreibt eine neue WebP-Datei nur in eine Zieldatei, die es vorher noch nicht gab. Verlangt ein Filter (`image_editor_output_format`) dafür ein anderes Format als WebP, wird gar nicht gespeichert.
+- Übernommen wird das Ergebnis nur, wenn der Bildeditor genau diese Datei als WebP meldet und sie ein vollständiges WebP in den Maßen der Quelle ist, bei transparenten PNG mit Alphakanal. Sonst bleibt das Bild im Original, die eigene Zieldatei wird entfernt, und eine abweichend gemeldete Datei bleibt unberührt und steht im Protokoll.
+
+## PNG nach echter Transparenz (ab 1.1.3)
+
+- Viele PNGs (Canva, Photoshop) haben einen Alphakanal, obwohl kein Pixel durchsichtig ist. Bis 1.1.2 wurden sie wie transparente PNGs verlustfrei gespeichert. Ab 1.1.3 prüft das Plugin mit Imagick die Pixel: Ist keines durchsichtig, wird das PNG wie ein PNG ohne Transparenz verlustbehaftet mit der JPG-Qualität gespeichert, ohne leeren Alphakanal. Im Protokoll steht dann „PNG mit Alphakanal, aber ohne durchsichtige Pixel“.
+- Unter **Einstellungen → PNG mit Transparenz kodieren** gibt es zusätzlich „Automatisch“ (Opt-in, Standard bleibt verlustfrei): PNGs mit durchsichtigen Pixeln werden dann zweimal kodiert, und die verlustbehaftete Fassung mit verlustfreiem Alphakanal wird nur genommen, wenn sie höchstens halb so groß ist. Das trifft Fotos mit freigestelltem Hintergrund. Logos und flache Grafiken bleiben verlustfrei.
+- Bereits umgewandelte Bilder ändern sich dadurch nicht. Wer sie neu kodieren will, setzt sie unter **Rückgängig** zurück und wandelt sie erneut um.
+- Die Hochrechnung im Scan liest weiter nur den Dateikopf und bleibt für solche PNGs vorsichtig (zu groß).
+- Die zweite Fassung wird nur übernommen, wenn sie die eigene Zwischendatei des Plugins ist und ein vollständiges, verlustbehaftetes WebP mit Alphakanal in den Maßen des PNG. Ändert ein Filter (`image_editor_output_format`) das Format, meldet der Editor einen anderen Pfad oder bricht das Speichern ab, bleibt die verlustfreie Datei. Entfernt wird dann nur die eigene Zwischendatei (`akwu-alpha-…webp`), nie ein anderer Pfad (ab 1.1.4).
+- Ohne Imagick ändert sich nichts.
+
+## Einbettungen (ab 1.1.0)
+
+Eine Matterport-Tour lädt beim Seitenaufruf mehrere Megabyte, auch wenn sie weit unten steht. Unter **WebP-Umwandler → Einbettungen** lässt sich je Tour festlegen, dass der Browser sie erst lädt, wenn man in ihre Nähe scrollt. Die Tour bleibt unverändert bedienbar, es gibt keinen Platzhalter und keinen zusätzlichen Klick. „Zurücknehmen“ stellt den gespeicherten Inhalt zeichengenau wieder her. Ein im Widget ausdrücklich gesetztes `loading` (auch `eager`) wird angezeigt und nie geändert. Danach den Server-Cache leeren (Raidboxes: im Dashboard).
+
+## Ladeverhalten: Bilder der Kopfzeile sofort laden (ab 1.2.0)
+
+Manche Cache- und Optimierungs-Plugins laden alle Bilder verzögert, auch das Logo in der Kopfzeile. Bis es nachgeladen ist, steht dort ein Platzhalter in anderer Größe, danach rutscht die ganze Seite nach unten (Layout-Verschiebung, CLS). Unter **WebP-Umwandler → Ladeverhalten** lässt sich für die Bilder der Kopfzeilen-Vorlagen des Elementor Theme Builders (Bild, Bild-Box, Website-Logo) einschalten, dass sie sofort laden: Ihre Bild-Tags bekommen `data-no-lazy="1"` und die Klasse `skip-lazy`. Ein `loading="lazy"` an diesen Bildern wird zu `loading="eager"`.
+
+- Am gespeicherten Inhalt ändert sich nichts. Der Fix steht in der eigenen Datei `wp-content/mu-plugins/akuma-pagespeed-fixes.php` und wirkt deshalb auch weiter, wenn dieses Plugin entfernt ist.
+- „Zurücknehmen“ entfernt die Datei wieder. Eine fremde Datei gleichen Namens wird nie angefasst.
+- Betroffen sind nur die Bild-IDs der Kopfzeile. Ändert sich die Kopfzeile, zeigt die Seite das an und übernimmt auf Wunsch den neuen Stand.
+- Geprüft mit WP Rocket (Standard-Ausnahmen `data-no-lazy=` und `skip-lazy`). Andere Lazy-Loader beachten diese Kennzeichnung meist ebenfalls, das ist nicht getestet.
+- Ab 1.2.1 setzt der Fix kein `loading="eager"` mehr an Bilder, die kein `loading`-Attribut hatten. WordPress und Elementor zählen ein Bild mit gesetztem `loading`-Attribut nicht zu den ersten Bildern, die nicht verzögert werden. Mit 1.2.0 verlor dadurch ein anderes Bild weiter unten sein `loading="lazy"`. Eine Fix-Datei aus 1.2.0 wirkt weiter, „Neu einschalten“ schreibt sie in der heutigen Form.
+- Danach den Server-Cache leeren (Raidboxes: im Dashboard).
+
 ## Rückgängig
 
 Unter **Rückgängig** lassen sich alle Bilder oder einzelne zurücksetzen: Datei, Metadaten und Verweise wie vorher, die WebP-Dateien werden gelöscht, die IDs bleiben. Das geht, solange die Originale existieren und das Plugin installiert ist. Mit dem Löschen des Plugins verschwindet das Protokoll, danach ist kein Rückgängig mehr möglich.
@@ -52,6 +100,7 @@ Unter **Rückgängig** lassen sich alle Bilder oder einzelne zurücksetzen: Date
 - Adressen fremder Domains ändern, z. B. Live-URLs auf einer Staging-Seite.
 - Dateien löschen, bevor der Zustand für Rückgängig gesichert ist.
 - Einstellungen anderer Plugins umstellen.
+- Ohne ausdrückliches Einschalten etwas an der Auslieferung ändern. Die einzige Ausnahme vom Grundsatz „keine Laufzeitlogik“ ist die Fix-Datei unter „Ladeverhalten“, und nur auf Knopfdruck.
 
 ## WP-CLI
 

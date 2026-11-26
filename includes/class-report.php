@@ -333,11 +333,28 @@ final class Report {
 			}
 			$check = Rollback::check( $row );
 			if ( true === $check ) {
-				$result['rows'][] = (int) $row['id'];
+				$result['rows'][ $attachment_id ] = (int) $row['id'];
 			} else {
 				$result['blocked'][ $attachment_id ] = $check->get_error_message();
 			}
 		}
+
+		// Einträge mit derselben Datei gehen nur gemeinsam zurück. Ist einer gesperrt, gilt das für die ganze Gruppe.
+		foreach ( $this->rows as $attachment_id => $row ) {
+			if ( ! isset( $result['rows'][ $attachment_id ] ) ) {
+				continue;
+			}
+			foreach ( $this->rows as $other_id => $other ) {
+				if ( $other_id !== $attachment_id && isset( $result['blocked'][ $other_id ] ) && 'done' === $other['status'] && (string) $other['run_id'] === (string) $row['run_id'] && (string) $other['new_file'] === (string) $row['new_file'] && Rollback::exists( $other ) ) {
+					/* translators: 1: Attachment-ID, 2: Grund. */
+					$result['blocked'][ $attachment_id ] = sprintf( __( 'Gleiche Datei wie Bild-ID %1$d: %2$s', 'akuma-webp-umwandler' ), $other_id, $result['blocked'][ $other_id ] );
+					unset( $result['rows'][ $attachment_id ] );
+					break;
+				}
+			}
+		}
+
+		$result['rows'] = array_values( $result['rows'] );
 
 		return $result;
 	}

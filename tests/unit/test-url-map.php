@@ -132,4 +132,38 @@ class Url_Map_Test extends TestCase {
 			Url_Map::reverse( $map, '2019/05/p.jpg' )
 		);
 	}
+
+	/**
+	 * HEIC-Upload: Der Master bleibt Original des Anhangs, nur die JPG-Dateien wandern auf WebP.
+	 */
+	public function test_heic_master_stays_and_is_not_mapped() {
+		$result = Url_Map::build(
+			array(
+				'full'           => '2026/02/IMG_0053-scaled.jpg',
+				'original_image' => '2026/02/IMG_0053.heic',
+				'medium'         => '2026/02/IMG_0053-225x300.jpg',
+			),
+			array(
+				'full'           => '2026/02/IMG_0053-scaled.webp',
+				'original_image' => '2026/02/IMG_0053.heic',
+				'medium'         => '2026/02/IMG_0053-scaled-225x300.webp',
+			)
+		);
+
+		$this->assertSame(
+			array(
+				'2026/02/IMG_0053-scaled.jpg'  => '2026/02/IMG_0053-scaled.webp',
+				'2026/02/IMG_0053-225x300.jpg' => '2026/02/IMG_0053-scaled-225x300.webp',
+			),
+			$result['map']
+		);
+		$this->assertSame( array(), $result['missing'] );
+		$this->assertSame(
+			array(
+				'2026/02/IMG_0053-scaled.webp'         => '2026/02/IMG_0053-scaled.jpg',
+				'2026/02/IMG_0053-scaled-225x300.webp' => '2026/02/IMG_0053-225x300.jpg',
+			),
+			Url_Map::reverse( $result['map'], '2026/02/IMG_0053.heic' )
+		);
+	}
 }

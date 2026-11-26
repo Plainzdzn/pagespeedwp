@@ -169,7 +169,7 @@ final class System_Check {
 				$label,
 				self::OK,
 				$this->imagick_label(),
-				__( 'PNG mit Transparenz wird verlustfrei gespeichert.', 'akuma-webp-umwandler' )
+				__( 'PNG mit durchsichtigen Pixeln wird verlustfrei gespeichert, PNG mit leerem Alphakanal verlustbehaftet.', 'akuma-webp-umwandler' )
 			);
 		}
 
