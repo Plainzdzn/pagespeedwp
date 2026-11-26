@@ -29,7 +29,7 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 - Merge und Release nur auf Felix' Freigabe.
 - Entscheidung: echtes Verlustfrei (seit 1.1.4, 3–12 % größer) behalten oder bewusst near-lossless anbieten.
 - Entscheidung: Vorschaugrößen entstehen weiter mit der Core-Qualität (WebP 86 oder Filterwert der Seite), nicht mit der Einstellung des Plugins (Briefing 4.3, Schritt 6).
-- Quelle der 82 auf Öko und VAPODOR: Auf beiden ist „Admin and Site Enhancements Pro“ mit „Image Upload Control“ aktiv (WebP-Umwandlung beim Upload, WebP-Qualität 82, max. 1920 px). Sehr wahrscheinlich setzt das Modul die Qualität. Quellcode nicht geprüft (kommerziell), keine Snippets mit „quality“.
+- Quelle der 82 auf Öko und VAPODOR: Auf beiden ist „Admin and Site Enhancements Pro“ mit „Image Upload Control“ aktiv (WebP-Umwandlung beim Upload, WebP-Qualität 82, max. 1920 px). Das ist der wahrscheinlichste Kandidat, aber nicht belegt: Quellcode nicht geprüft (kommerziell), ASE meldet auf den Kopien Safe Mode (Duplikat-Erkennung), ob das Modul dann greift, ist offen. Keine Snippets mit „quality“.
 
 **Fragen an Felix:** die zwei Entscheidungen oben.
 
