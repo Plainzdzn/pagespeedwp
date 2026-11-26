@@ -14,6 +14,33 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
+## 2026-11-26 14:50 – 1.1.5: erstes Speichern abgesichert (Claude Code)
+
+**Stand:** Entwurfs-PR #6, nicht gemergt. Build **1.1.5 aus `1909fe4`**, ZIP-SHA-256 `426e874a32a984d6573eb7b9c80799dcd5c8569d4d2f05629f8a0b82ea8ace84`. CI grün.
+
+**Erledigt:**
+- ADR-039: Das erste Speichern schreibt nur in eine Zieldatei, die es vorher nicht gab, prüft den Formatfilter vorab (Imagick und GD) und übernimmt nur ein vollständiges WebP genau an der Zieldatei in den Maßen der Quelle, bei Transparenz mit Alphakanal. Sonst wird nur die eigene Zieldatei entfernt, eine abweichend gemeldete Datei bleibt und steht in der Meldung.
+- Tests: `encoder-guards.php` Teil 3 (Test-Editor mit `$target_mode`, GD-Fall). Gegen den Encoder von 1.1.4 21 Fehler, mit 1.1.5 keiner. Vorher übernahm 1.1.4 dort unter anderem einen fremden Pfad, ein WebP ohne Alphakanal, falsche Maße und abgeschnittene Dateien.
+- Demos: 1.1.5 auf allen drei installiert, statische Dateien hashgleich zur ZIP (12/12). Ergebnis siehe „Getestet“.
+
+**Entscheidungen:** Kodierung im ersten Speichern wird nicht vorgeschrieben (ImageMagick kodiert bei Qualität 100 selbst verlustfrei). GD erhält den Alphakanal transparenter PNG, die Alpha-Prüfung bricht dort nichts ab (geprüft).
+
+**Offen / Nächster Schritt:**
+- Merge und Release nur auf Felix' Freigabe.
+- Entscheidung: echtes Verlustfrei (seit 1.1.4, 3–12 % größer) behalten oder bewusst near-lossless anbieten.
+- Entscheidung: Vorschaugrößen entstehen weiter mit der Core-Qualität (WebP 86 oder Filterwert der Seite), nicht mit der Einstellung des Plugins (Briefing 4.3, Schritt 6).
+- Quelle der 82 auf Öko und VAPODOR: Auf beiden ist „Admin and Site Enhancements Pro“ mit „Image Upload Control“ aktiv (WebP-Umwandlung beim Upload, WebP-Qualität 82, max. 1920 px). Sehr wahrscheinlich setzt das Modul die Qualität. Quellcode nicht geprüft (kommerziell), keine Snippets mit „quality“.
+
+**Fragen an Felix:** die zwei Entscheidungen oben.
+
+**Getestet:**
+- PHPCS sauber, PHPUnit 104 Tests. Integration lokal (WordPress 7.1.5, PHP 8.3, SQLite): Imagick 389 Prüfungen, erzwungenes GD 196.
+- Öko-Zinsen #299684: alle 84 zurückgenommen (Originale per HEAD 84/84 unverändert), mit 1.1.5 neu umgewandelt (13:40–13:47 UTC). 84 umgewandelt, 7 übersprungen wie mit 1.1.4. Bytes, Kodierung und ersetzte Verweise aller 84 Zeilen gleich wie mit 1.1.4 (89.514.130 B). Startseite: 56 eigene Bildadressen, alle WebP, alle 200.
+- VAPODOR #299685: acht Gruppen neu umgewandelt (sechs Standard, zwei Opt-in Freisteller), alle bytegleich zu 1.1.4. Einstellung danach wieder auf verlustfrei.
+- Ludwigsfelder #299686: Scan 111 Bilder, 0 Kandidaten, Kernseiten fehlerfrei.
+
+---
+
 ## 2026-11-26 14:30 – 1.1.3 und 1.1.4: PNG nach Transparenz, Qualität am Kodierpunkt, Testreihe auf drei Demokopien (Claude Code)
 
 **Stand:** Entwurfs-PR #6, nicht gemergt, nicht veröffentlicht. Build **1.1.4 aus `d1d544b`**, ZIP-SHA-256 `e649856d1f8ba3937361f6e37a807da08367ff4aed7fe14d4f5e9586de96761f`. Danach nur Tests und Doku (`01ade5a`, `0d826b0`, dieser Eintrag), Plugin-Inhalt dateiweise identisch.
