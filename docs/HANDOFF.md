@@ -32,12 +32,16 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 **Offen / Nächster Schritt:**
 - 1.1.2 ist unter Windows noch nicht gelaufen.
 - Für die sechs Bilder der JBZ-Demo (Lauf mit 1.1.0, ohne Fingerabdruck) gilt die Regel für ältere Läufe: Ein Rückgängig würde ihre WebP-Dateien nach `uploads/akwu-sicherung/` verschieben statt löschen.
+- **Bekannte Grenze beim Beiseitelegen:** Lässt sich eine Datei eines älteren Laufs nicht in den Sicherungsordner verschieben (Ordner nicht anlegbar, Zielname schon belegt), bleibt sie an ihrem ursprünglichen Platz erhalten. Gelöscht wird sie nicht. Die Protokollmeldung kann trotzdem den Sicherungsordner nennen, sobald dieser existiert. Die Sicherung deshalb immer am tatsächlichen Pfad prüfen.
 - Übrige offene Punkte wie im Eintrag zu 1.1.1.
 
 **Getestet:**
 - PHPCS sauber, PHPUnit 91 Tests, 203 Prüfungen.
 - Integration (WordPress 7.1.5, PHP 8.3, SQLite, GD) über `bin/integration-sqlite.sh`, frisch aufgesetzt: siehe Protokoll im Nachweispaket. `alias-guards.php` hat jetzt 74 Prüfungen, darunter ein echter Kern-Test, der aus dem Hook von A ein unabhängiges C löscht (vor und nach dem Hook des Plugins), und die Fälle „gleiche Länge“, „Vorschau fehlt“, „alles fehlt“ mit und ohne Fingerabdruck.
-- Zeilen aus 1.1.0 nach dem Update auf 1.1.2 geprüft (Tabelle von Version 1 auf 2).
+- Zeilen aus 1.1.0 nach dem Update auf 1.1.2 geprüft (Tabelle von Version 1 auf 2), 12 Prüfungen bestanden.
+- Frischer Lauf über `bin/integration-sqlite.sh`: 194 Prüfungen bestanden (`roundtrip` 26, `purge` 29, `heic-alias` 42, `embeds` 23, `alias-guards` 74). CI für `c4295c1`: alle fünf Jobs grün.
+- Unabhängige Schlussabnahme unter Windows (WordPress 7.1.5): Ersetzungen im Editor in frischen 1.1.2-Läufen blockiert, beim verschachtelten Löschen bleiben alle sechs Dateien von B bytegleich, drei echte Altzeilen aus 1.1.1 verlustfrei (zweimal Sicherung mit der Prüfsumme der bearbeiteten Datei, einmal Konflikt).
+- JBZ-Demo: Update 1.1.0 → 1.1.1 → 1.1.2 ohne Schreibtest. Vor und nach jedem Update dieselben 14 öffentlichen Dateien bytegleich, Tour-Markup bytegleich, alle sechs Bilder weiter zum Zurücksetzen angeboten. Die PSI-Einzelläufe dazu sind kein Leistungsnachweis.
 
 ## 2026-11-26 03:15 – Version 1.1.1: Schutz bei gemeinsamen Dateien, Befunde der unabhängigen Prüfung (Claude Chat)
 
