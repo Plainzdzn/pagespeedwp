@@ -165,6 +165,7 @@ final class Converter {
 			'status'      => 'converted',
 			'new_file'    => (string) get_post_meta( $attachment_id, '_wp_attached_file', true ),
 			'new_files'   => $new_files,
+			'new_hashes'  => Attachment_Files::fingerprints( $new_files ),
 			'url_map'     => $mapping['map'],
 			'bytes_after' => Attachment_Files::measure( $new_files )['bytes'],
 			'message'     => $message,

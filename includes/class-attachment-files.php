@@ -121,6 +121,26 @@ final class Attachment_Files {
 	}
 
 	/**
+	 * Fingerabdruck je vorhandener Datei: „Bytes:SHA-256“. Damit lässt sich später beweisen, dass eine Datei unverändert ist.
+	 *
+	 * @param array<string, string> $files Dateien aus of().
+	 * @return array<string, string> Relativer Pfad → Fingerabdruck.
+	 */
+	public static function fingerprints( array $files ) {
+		$out = array();
+
+		clearstatcache();
+		foreach ( array_unique( array_values( $files ) ) as $relative ) {
+			$path = self::path( $relative );
+			if ( is_file( $path ) ) {
+				$out[ $relative ] = filesize( $path ) . ':' . hash_file( 'sha256', $path );
+			}
+		}
+
+		return $out;
+	}
+
+	/**
 	 * Ist ein normalisierter Pfad (nur Schrägstriche) absolut? Unix (/…), Windows-Laufwerk (C:/…) oder Netzwerkpfad (//…).
 	 *
 	 * @param string $file Normalisierter Pfad.

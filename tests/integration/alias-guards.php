@@ -313,15 +313,38 @@ function hooks( $on ) {
 	if ( $on ) {
 		add_action( 'delete_attachment', array( Originals::class, 'on_delete_attachment' ) );
 		add_action( 'delete_attachment', array( Aliases::class, 'before_delete' ), 5 );
-		add_action( 'deleted_post', array( Aliases::class, 'mark_deleted' ) );
-		add_action( 'clean_post_cache', array( Aliases::class, 'after_delete' ) );
 		add_filter( 'wp_delete_file', array( Aliases::class, 'keep_shared' ), PHP_INT_MAX );
 	} else {
 		remove_action( 'delete_attachment', array( Originals::class, 'on_delete_attachment' ) );
 		remove_action( 'delete_attachment', array( Aliases::class, 'before_delete' ), 5 );
-		remove_action( 'deleted_post', array( Aliases::class, 'mark_deleted' ) );
-		remove_action( 'clean_post_cache', array( Aliases::class, 'after_delete' ) );
 		remove_filter( 'wp_delete_file', array( Aliases::class, 'keep_shared' ), PHP_INT_MAX );
+	}
+}
+
+/**
+ * Ändert ein Byte am Ende einer Datei. Pfad, Typ und Länge bleiben gleich.
+ *
+ * @param string $path Absoluter Pfad.
+ * @return string Neue Prüfsumme.
+ */
+function flip_byte( $path ) {
+	$bytes                         = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Nur Test.
+	$bytes[ strlen( $bytes ) - 1 ] = chr( ( ord( $bytes[ strlen( $bytes ) - 1 ] ) + 1 ) % 256 );
+	file_put_contents( $path, $bytes ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Nur Test.
+	clearstatcache();
+
+	return hash( 'sha256', $bytes );
+}
+
+/**
+ * Macht aus den Zeilen einer Gruppe Zeilen eines älteren Laufs: ohne Fingerabdruck je Datei.
+ *
+ * @param array $group Gruppe.
+ * @return void
+ */
+function without_fingerprints( array $group ) {
+	foreach ( array( $group['a'], $group['b'] ) as $attachment_id ) {
+		Log_Table::update( row( $attachment_id )['id'], array( 'new_hashes' => null ) );
 	}
 }
 
@@ -346,6 +369,12 @@ function cleanup() {
 	}
 	foreach ( (array) glob( $upload['path'] . '/akwu-guard-*' ) as $file ) {
 		wp_delete_file( $file );
+	}
+	foreach ( (array) glob( $upload['basedir'] . '/akwu-sicherung/*/akwu-guard-*' ) as $file ) {
+		wp_delete_file( $file );
+		if ( array() === glob( dirname( $file ) . '/*' ) ) {
+			rmdir( dirname( $file ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- Nur Test.
+		}
 	}
 	delete_option( OPTION );
 }
@@ -411,7 +440,11 @@ function verify_upgrade() {
 		WP_CLI::error( 'Keine vorbereiteten Gruppen. Erst mit AKWU_GUARD_STAGE=prepare unter der alten Version laufen lassen.' );
 	}
 
+	// Wie beim ersten Admin-Aufruf nach dem Update: Tabelle auf den Stand der neuen Version bringen.
+	Log_Table::maybe_install();
+
 	WP_CLI::log( 'Zeilen der Version ' . $stored['version'] . ', geprüft mit ' . AKWU_VERSION . ':' );
+	check( array() === row( $stored['g1']['a'] )['new_hashes'], 'Die alten Zeilen haben keinen Fingerabdruck und bekommen auch keinen nachträglich' );
 
 	$report = Report::load()->rollbackable();
 	$ids    = array( $stored['g1']['a'], $stored['g1']['b'], $stored['g2']['a'], $stored['g2']['b'] );
@@ -587,6 +620,91 @@ function main() {
 	check( 'done' === row( $h )['status'] && 2 === (int) row( $h )['attempts'] && 'image/webp' === get_post_mime_type( $h ), 'Es wird zurückgestellt und im zweiten Versuch umgewandelt, nicht als fremd liegen gelassen' );
 	rollback( array( $h ) );
 	check( array( get_post_meta( $h, '_wp_attached_file', true ), wp_get_attachment_metadata( $h, true ) ) === $h_then, 'Danach lässt es sich wie gewohnt zurücksetzen' );
+
+	foreach ( array( 1, 20 ) as $priority ) {
+		WP_CLI::log( 'Ein anderes Plugin löscht im Hook von A ein weiteres Bild C (Priorität ' . $priority . '):' );
+		$g      = group( 'nest' . $priority );
+		$before = state( $g );
+		convert( array( $g['a'] ) );
+		write_jpeg( $upload['path'] . '/akwu-guard-nest' . $priority . '-c.jpg', 800, 600 );
+		$c      = attach( $upload['path'] . '/akwu-guard-nest' . $priority . '-c.jpg', 'Guard C', 'image/jpeg' );
+		$c_file = get_attached_file( $c );
+		$files  = files_of( $g['b'] );
+		$nested = static function ( $attachment_id ) use ( $g, $c ) {
+			if ( (int) $attachment_id === $g['a'] && null !== get_post( $c ) ) {
+				wp_delete_attachment( $c, true );
+			}
+		};
+		add_action( 'delete_attachment', $nested, $priority );
+		wp_delete_attachment( $g['a'], true );
+		remove_action( 'delete_attachment', $nested, $priority );
+		clearstatcache();
+		check( null === get_post( $c ) && ! is_file( $c_file ) && null === get_post( $g['a'] ), 'A und C sind gelöscht, die Dateien von C entfernt' );
+		check( files_of( $g['b'] ) === $files && ! in_array( 'fehlt', $files, true ), 'B behält Hauptdatei, alle Größen und HEIC-Master bytegleich' );
+		$result = rollback( array( $g['b'] ) );
+		$after  = state( $g, array( $g['b'] ) );
+		check( array( $g['b'] ) === $result['done'] && $before['posts'][ $g['b'] ] === $after['posts'][ $g['b'] ] && $before['files'] === $after['files'], 'B lässt sich zurücksetzen, alle Originale bytegleich, keine Datei bleibt übrig' );
+	}
+
+	WP_CLI::log( 'Fingerabdruck je Datei (Läufe ab 1.1.2):' );
+	$g = group( 'fp-gleich', false );
+	convert( array( $g['a'] ) );
+	$prints = row( $g['a'] )['new_hashes'];
+	check( count( array_unique( row( $g['a'] )['new_files'] ) ) === count( $prints ) && row( $g['b'] )['new_hashes'] === $prints && 1 === preg_match( '/^\d+:[0-9a-f]{64}$/', (string) reset( $prints ) ), 'Beide Zeilen führen Größe und SHA-256 für jede erzeugte Datei' );
+	flip_byte( get_attached_file( $g['a'] ) );
+	expect_abort( $g, array( $g['b'] ), 'Hauptdatei ersetzt, gleicher Pfad, gleicher Typ, gleiche Länge' );
+
+	$g = group( 'fp-fehlt' );
+	convert( array( $g['a'] ) );
+	$meta = wp_get_attachment_metadata( $g['a'], true );
+	wp_delete_file( dirname( get_attached_file( $g['a'] ) ) . '/' . $meta['sizes']['medium']['file'] );
+	flip_byte( get_attached_file( $g['a'] ) );
+	expect_abort( $g, array( $g['a'] ), 'Eine Vorschau fehlt und die Hauptdatei ist verändert' );
+
+	$g      = group( 'fp-leer', false );
+	$before = state( $g );
+	convert( array( $g['a'] ) );
+	foreach ( array_unique( row( $g['a'] )['new_files'] ) as $relative ) {
+		wp_delete_file( Attachment_Files::path( $relative ) );
+	}
+	$result = rollback( array( $g['a'] ) );
+	check( 2 === count( $result['done'] ) && state( $g ) === $before, 'Alle erzeugten Dateien fehlen schon: Rückgängig stellt beide Einträge trotzdem her' );
+
+	WP_CLI::log( 'Ältere Läufe ohne Fingerabdruck:' );
+	$g = group( 'alt-gross' );
+	convert( array( $g['a'] ) );
+	without_fingerprints( $g );
+	$meta = wp_get_attachment_metadata( $g['a'], true );
+	wp_delete_file( dirname( get_attached_file( $g['a'] ) ) . '/' . $meta['sizes']['medium']['file'] );
+	write_jpeg( $upload['path'] . '/akwu-guard-alt-gross-tmp.jpg', 2400, 1800 );
+	copy( $upload['path'] . '/akwu-guard-alt-gross-tmp.jpg', get_attached_file( $g['a'] ) );
+	clearstatcache();
+	check( filesize( get_attached_file( $g['a'] ) ) > (int) row( $g['a'] )['bytes_after'], 'Testfall: Die Hauptdatei allein ist größer als alle Dateien der Umwandlung zusammen' );
+	expect_abort( $g, array( $g['b'] ), 'Vorschau fehlt, Hauptdatei größer als erwartet' );
+
+	$g      = group( 'alt-gleich', false );
+	$before = state( $g );
+	convert( array( $g['a'] ) );
+	without_fingerprints( $g );
+	$edited = flip_byte( get_attached_file( $g['a'] ) );
+	$name   = wp_basename( get_attached_file( $g['a'] ) );
+	$result = rollback( array( $g['a'] ) );
+	$aside  = glob( $upload['basedir'] . '/akwu-sicherung/*/' . $name );
+	check( 2 === count( $result['done'] ) && state( $g ) === $before, 'Gleiche Länge ist ohne Fingerabdruck nicht erkennbar: Rückgängig läuft, Einträge und Originale wie vorher' );
+	check( 1 === count( $aside ) && hash_file( 'sha256', $aside[0] ) === $edited, 'Die veränderte WebP-Datei wurde nicht gelöscht, sie liegt bytegleich im Sicherungsordner' );
+	check( false !== strpos( row( $g['a'] )['message'] . row( $g['b'] )['message'], 'akwu-sicherung' ), 'Der Ordner steht im Protokoll' );
+
+	$g      = group( 'alt-leer' );
+	$before = state( $g );
+	convert( array( $g['a'] ) );
+	without_fingerprints( $g );
+	foreach ( array_unique( row( $g['a'] )['new_files'] ) as $relative ) {
+		if ( '.webp' === substr( $relative, -5 ) ) {
+			wp_delete_file( Attachment_Files::path( $relative ) );
+		}
+	}
+	$result = rollback( array( $g['b'] ) );
+	check( 2 === count( $result['done'] ) && state( $g ) === $before, 'Alle erzeugten Dateien fehlen schon: Rückgängig stellt beide Einträge her, der HEIC-Master bleibt' );
 
 	WP_CLI::log( 'Gleiche Datei, aber anderer Größenname:' );
 	$g    = group( 'name', false );

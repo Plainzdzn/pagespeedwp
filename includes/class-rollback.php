@@ -21,10 +21,11 @@ final class Rollback {
 	/**
 	 * Lässt sich diese Zeile zurücknehmen? Nur, solange die Originale existieren.
 	 *
-	 * @param array $row Log-Zeile.
+	 * @param array $row  Log-Zeile.
+	 * @param bool  $deep Inhalt jeder vorhandenen Datei per Prüfsumme vergleichen (vor dem Schreiben), sonst nur die Größe (für die Anzeige).
 	 * @return true|\WP_Error
 	 */
-	public static function check( array $row ) {
+	public static function check( array $row, $deep = false ) {
 		if ( ! in_array( $row['status'], array( 'done', 'converted' ), true ) ) {
 			return new \WP_Error( 'akwu_rollback_status', __( 'Dieses Bild wurde nicht umgewandelt.', 'akuma-webp-umwandler' ) );
 		}
@@ -45,7 +46,7 @@ final class Rollback {
 			}
 		}
 
-		$drift = self::drift( $row );
+		$drift = self::drift( $row, $deep );
 		if ( '' !== $drift ) {
 			return new \WP_Error( 'akwu_rollback_changed', $drift );
 		}
@@ -70,10 +71,11 @@ final class Rollback {
 	 * andere Datei, führt er Dateien, die nicht aus der Umwandlung stammen, oder haben die WebP-Dateien einen anderen
 	 * Inhalt, bleibt alles unverändert. Fehlende WebP-Dateien sind kein Hindernis: dann gibt es nichts zu verlieren.
 	 *
-	 * @param array $row Log-Zeile mit Status done oder converted.
+	 * @param array $row  Log-Zeile mit Status done oder converted.
+	 * @param bool  $deep Inhalt per Prüfsumme vergleichen, sonst nur Größen.
 	 * @return string Grund oder leer, wenn der Zustand passt.
 	 */
-	public static function drift( array $row ) {
+	public static function drift( array $row, $deep = false ) {
 		$attachment_id = (int) $row['attachment_id'];
 
 		if ( ! self::exists( $row ) ) {
@@ -94,19 +96,67 @@ final class Rollback {
 			return sprintf( __( 'Zum Bild gehören inzwischen Dateien, die nicht aus der Umwandlung stammen (%s). Rückgängig würde sie löschen, deshalb bleibt alles unverändert.', 'akuma-webp-umwandler' ), implode( ', ', array_map( 'wp_basename', array_slice( array_values( $foreign ), 0, 3 ) ) ) );
 		}
 
-		// Inhalt: Summe der Dateigrößen wie direkt nach der Umwandlung. Bei Zweiteinträgen steht sie beim umgewandelten Bild.
+		return self::content_drift( $row, $deep );
+	}
+
+	/**
+	 * Haben die Dateien der Umwandlung noch den Inhalt von damals?
+	 *
+	 * Geprüft wird jede Datei, die noch vorhanden ist, auch wenn andere fehlen. Dateien, die schon vor der Umwandlung
+	 * zum Bild gehörten (HEIC-Master), zählen nicht, sie werden beim Rückgängig nie gelöscht.
+	 * - Mit Fingerabdruck (ab 1.1.2): Größe und SHA-256 je Datei.
+	 * - Ohne Fingerabdruck (ältere Läufe) ist nur die Summe der Größen bekannt. Was sich daran widerlegen lässt, führt
+	 *   zur Ablehnung. Beweisen lässt sich der unveränderte Inhalt nicht, deshalb werden solche Dateien beim Rückgängig
+	 *   nicht gelöscht, sondern beiseitegelegt, siehe restore_attachment().
+	 *
+	 * @param array $row  Log-Zeile.
+	 * @param bool  $deep Prüfsummen vergleichen, sonst nur Größen.
+	 * @return string Grund oder leer.
+	 */
+	private static function content_drift( array $row, $deep ) {
+		/* translators: %s: Dateiname oder kurze Erklärung. */
+		$changed = __( 'Die WebP-Dateien haben inzwischen einen anderen Inhalt als direkt nach der Umwandlung (%s). Rückgängig würde sie löschen, deshalb bleibt alles unverändert.', 'akuma-webp-umwandler' );
+		$old     = array_values( (array) $row['old_files'] );
+		$hashes  = isset( $row['new_hashes'] ) ? (array) $row['new_hashes'] : array();
+
+		clearstatcache();
+
+		if ( $hashes ) {
+			foreach ( array_unique( array_values( (array) $row['new_files'] ) ) as $relative ) {
+				$path = Attachment_Files::path( $relative );
+				if ( in_array( $relative, $old, true ) || ! is_file( $path ) ) {
+					continue;
+				}
+
+				$expected = isset( $hashes[ $relative ] ) ? explode( ':', (string) $hashes[ $relative ], 2 ) : array( '', '' );
+				if ( 2 !== count( $expected ) || (int) filesize( $path ) !== (int) $expected[0] || ( $deep && ! hash_equals( $expected[1], (string) hash_file( 'sha256', $path ) ) ) ) {
+					/* translators: %s: Dateiname. */
+					return sprintf( $changed, wp_basename( $relative ) );
+				}
+			}
+
+			return '';
+		}
+
+		// Älterer Lauf: nur die Summe aller Dateigrößen ist bekannt, bei Zweiteinträgen steht sie beim umgewandelten Bild.
 		$expected = (int) $row['bytes_after'];
 		if ( 0 === $expected ) {
 			foreach ( Aliases::members( $row ) as $member ) {
 				$expected = max( $expected, (int) $member['bytes_after'] );
 			}
 		}
-		if ( $expected > 0 && $recorded ) {
-			clearstatcache();
-			$measure = Attachment_Files::measure( (array) $row['new_files'] );
-			if ( empty( $measure['missing'] ) && (int) $measure['bytes'] !== $expected ) {
-				return __( 'Die WebP-Dateien haben inzwischen einen anderen Inhalt als direkt nach der Umwandlung. Rückgängig würde sie löschen, deshalb bleibt alles unverändert.', 'akuma-webp-umwandler' );
-			}
+		if ( $expected <= 0 ) {
+			return '';
+		}
+
+		$measure = Attachment_Files::measure( (array) $row['new_files'] );
+		$present = (int) $measure['bytes'];
+		$nothing = count( array_unique( array_values( (array) $row['new_files'] ) ) ) === count( $measure['missing'] );
+
+		// Alles da: Die Summe muss stimmen. Etwas fehlt: Der Rest muss kleiner sein als das Ganze. Nichts mehr da: nichts zu verlieren.
+		if ( ! $nothing && ( empty( $measure['missing'] ) ? $present !== $expected : $present >= $expected ) ) {
+			/* translators: %s: Erklärung. */
+			return sprintf( $changed, __( 'andere Gesamtgröße', 'akuma-webp-umwandler' ) );
 		}
 
 		return '';
@@ -171,7 +221,7 @@ final class Rollback {
 		$rows    = self::with_members( array_values( $rows ) );
 		$blocked = array();
 		foreach ( $rows as $row ) {
-			$check = self::check( $row );
+			$check = self::check( $row, true );
 			if ( is_wp_error( $check ) ) {
 				$blocked[ (string) $row['run_id'] . '|' . (string) $row['new_file'] ] = array( (int) $row['attachment_id'], $check->get_error_message() );
 			}
@@ -203,16 +253,26 @@ final class Rollback {
 
 		// 2. Anhang zurückstellen, WebP-Dateien löschen.
 		foreach ( $ready as $row ) {
-			self::restore_attachment( $row );
+			// Ohne Fingerabdruck (Läufe vor 1.1.2) lässt sich nicht beweisen, dass die WebP-Dateien unverändert sind.
+			// Sie werden dann nicht gelöscht, sondern beiseitegelegt.
+			$aside = empty( $row['new_hashes'] );
+			self::restore_attachment( $row, $aside );
+
+			$message = sprintf(
+				/* translators: %s: Anzahl. */
+				__( 'Rückgängig gemacht, %s Verweise zurückgesetzt.', 'akuma-webp-umwandler' ),
+				isset( $replaced['per_attachment'][ $row['attachment_id'] ] ) ? $replaced['per_attachment'][ $row['attachment_id'] ] : 0
+			);
+			if ( $aside && is_dir( Attachment_Files::path( self::aside_dir( $row ) ) ) ) {
+				/* translators: %s: Ordner im Upload-Verzeichnis. */
+				$message .= ' ' . sprintf( __( 'Die WebP-Dateien dieses älteren Laufs wurden nicht gelöscht, sie liegen in %s.', 'akuma-webp-umwandler' ), 'uploads/' . untrailingslashit( self::aside_dir( $row ) ) );
+			}
+
 			Log_Table::update(
 				$row['id'],
 				array(
 					'status'  => 'rolled_back',
-					'message' => sprintf(
-						/* translators: %s: Anzahl. */
-						__( 'Rückgängig gemacht, %s Verweise zurückgesetzt.', 'akuma-webp-umwandler' ),
-						isset( $replaced['per_attachment'][ $row['attachment_id'] ] ) ? $replaced['per_attachment'][ $row['attachment_id'] ] : 0
-					),
+					'message' => $message,
 				)
 			);
 			$result['done'][] = (int) $row['attachment_id'];
@@ -250,9 +310,10 @@ final class Rollback {
 	 * Dateien zusätzlich aus dem aktuellen Zustand des Anhangs ermittelt.
 	 *
 	 * @param array $row Log-Zeile mit gesichertem Zustand.
+	 * @param bool  $aside Neue Dateien nicht löschen, sondern in den Sicherungsordner verschieben.
 	 * @return bool false, wenn kein Zustand gesichert war (dann wurde nichts geändert).
 	 */
-	public static function restore_attachment( array $row ) {
+	public static function restore_attachment( array $row, $aside = false ) {
 		$attachment_id = (int) $row['attachment_id'];
 
 		if ( '' === (string) $row['old_file'] || empty( $row['old_meta'] ) || '' === (string) $row['old_mime'] ) {
@@ -293,11 +354,42 @@ final class Rollback {
 				continue;
 			}
 			$path = Attachment_Files::path( $relative );
-			if ( is_file( $path ) ) {
+			if ( ! is_file( $path ) ) {
+				continue;
+			}
+			if ( $aside ) {
+				self::set_aside( $relative, self::aside_dir( $row ) );
+			} else {
 				wp_delete_file( $path );
 			}
 		}
 
 		return true;
+	}
+
+	/**
+	 * Ordner (relativ zum Upload-Ordner), in dem die WebP-Dateien eines älteren Laufs beim Rückgängig aufgehoben werden.
+	 *
+	 * @param array $row Log-Zeile.
+	 * @return string Mit Schrägstrich am Ende.
+	 */
+	public static function aside_dir( array $row ) {
+		return 'akwu-sicherung/' . substr( preg_replace( '/[^a-z0-9]/i', '', (string) $row['run_id'] ), 0, 8 ) . '-' . (int) $row['attachment_id'] . '/';
+	}
+
+	/**
+	 * Verschiebt eine Datei in den Sicherungsordner. Klappt das nicht, bleibt sie an ihrem Platz. Gelöscht wird nichts.
+	 *
+	 * @param string $relative Relativer Pfad der Datei.
+	 * @param string $dir      Zielordner relativ zum Upload-Ordner, mit Schrägstrich am Ende.
+	 * @return void
+	 */
+	private static function set_aside( $relative, $dir ) {
+		$target = Attachment_Files::path( $dir . wp_basename( $relative ) );
+
+		if ( wp_mkdir_p( dirname( $target ) ) && ! file_exists( $target ) ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Verschieben innerhalb des Upload-Ordners, ohne Kopie.
+			rename( Attachment_Files::path( $relative ), $target );
+		}
 	}
 }

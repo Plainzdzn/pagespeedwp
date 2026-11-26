@@ -19,21 +19,18 @@ defined( 'ABSPATH' ) || exit;
 final class Aliases {
 
 	/**
-	 * Dateien, die WordPress beim gerade laufenden Löschen eines Anhangs nicht entfernen darf (absolute Pfade als Schlüssel).
+	 * Dateien umgewandelter Gruppen, die beim Löschen eines Eintrags gefährdet sind: absoluter Pfad → gemeinsame Hauptdatei.
 	 *
-	 * @var array<string, bool>
+	 * Die Liste wächst nur. Ob eine Datei liegen bleibt, entscheidet keep_shared() jedes Mal neu am Stand der Datenbank.
+	 * So stören sich verschachtelte Löschvorgänge nicht (ein anderes Plugin löscht im Hook von A ein weiteres Bild C),
+	 * und es braucht kein Zeitfenster, das jemand zu früh schließen könnte.
+	 *
+	 * @var array<string, string>
 	 */
-	private static $keep = array();
+	private static $shared = array();
 
 	/**
-	 * Anhang, der gerade gelöscht wird, und ob sein Datenbankeintrag schon entfernt ist.
-	 *
-	 * @var array{0: int, 1: bool}
-	 */
-	private static $deleting = array( 0, false );
-
-	/**
-	 * Vor dem Löschen eines Anhangs: Dateien merken, die ein anderer Eintrag derselben umgewandelten Datei noch braucht.
+	 * Vor dem Löschen eines Anhangs: Dateien merken, die ein anderer Eintrag derselben umgewandelten Datei noch führt.
 	 *
 	 * WordPress merkt sich die Dateien des Anhangs, bevor ein Plugin gefragt wird, und löscht sie danach ohne Rücksicht
 	 * auf andere Einträge. Der einzige Punkt zum Eingreifen ist der Filter `wp_delete_file`, siehe keep_shared().
@@ -43,9 +40,6 @@ final class Aliases {
 	 * @return void
 	 */
 	public static function before_delete( $attachment_id ) {
-		self::$keep     = array();
-		self::$deleting = array( (int) $attachment_id, false );
-
 		if ( ! Log_Table::exists() ) {
 			return;
 		}
@@ -69,47 +63,28 @@ final class Aliases {
 
 		foreach ( $others as $other ) {
 			foreach ( (array) Attachment_Files::of( $other ) as $relative ) {
-				self::$keep[ wp_normalize_path( Attachment_Files::path( $relative ) ) ] = true;
+				self::$shared[ wp_normalize_path( Attachment_Files::path( $relative ) ) ] = $attached;
 			}
 		}
 	}
 
 	/**
-	 * Aktion `deleted_post`: Der Datenbankeintrag ist entfernt, als Nächstes löscht WordPress die Dateien.
+	 * Filter `wp_delete_file`: Eine Datei bleibt liegen, solange noch ein Mediathek-Eintrag auf ihre Hauptdatei zeigt.
 	 *
-	 * @param int $post_id Beitrag.
-	 * @return void
-	 */
-	public static function mark_deleted( $post_id ) {
-		if ( (int) $post_id === self::$deleting[0] ) {
-			self::$deleting[1] = true;
-		}
-	}
-
-	/**
-	 * Aktion `clean_post_cache`: letzter Schritt von wp_delete_attachment(), die Dateien sind durch.
-	 *
-	 * Danach gilt der Schutz nicht mehr. Sonst könnte im selben Aufruf weder das Plugin selbst (Rückgängig)
-	 * noch WordPress (Löschen des letzten Eintrags) die Dateien später entfernen.
-	 *
-	 * @param int $post_id Beitrag.
-	 * @return void
-	 */
-	public static function after_delete( $post_id ) {
-		if ( self::$deleting[1] && (int) $post_id === self::$deleting[0] ) {
-			self::$keep     = array();
-			self::$deleting = array( 0, false );
-		}
-	}
-
-	/**
-	 * Filter `wp_delete_file`: Dateien, die ein anderer Eintrag noch braucht, bleiben liegen.
+	 * Gefragt wird die Datenbank direkt, ohne Zwischenspeicher: Der Eintrag, der gerade gelöscht wird, steht dort schon
+	 * nicht mehr. Wird später auch der letzte Eintrag gelöscht oder zurückgesetzt, zeigt niemand mehr auf die Hauptdatei
+	 * und die Dateien werden wie gewohnt entfernt.
 	 *
 	 * @param string $file Absoluter Pfad, den WordPress löschen will.
 	 * @return string Derselbe Pfad oder leer, dann löscht WordPress nicht.
 	 */
 	public static function keep_shared( $file ) {
-		if ( is_string( $file ) && '' !== $file && isset( self::$keep[ wp_normalize_path( $file ) ] ) ) {
+		if ( ! is_string( $file ) || '' === $file ) {
+			return $file;
+		}
+
+		$path = wp_normalize_path( $file );
+		if ( isset( self::$shared[ $path ] ) && Attachment_Files::aliases( 0, self::$shared[ $path ] ) ) {
 			return '';
 		}
 
@@ -276,12 +251,13 @@ final class Aliases {
 			Log_Table::update(
 				$row['id'],
 				array(
-					'status'    => 'converted',
-					'new_file'  => (string) $leader['new_file'],
-					'new_files' => $leader['new_files'],
-					'url_map'   => $leader['url_map'],
+					'status'     => 'converted',
+					'new_file'   => (string) $leader['new_file'],
+					'new_files'  => $leader['new_files'],
+					'new_hashes' => isset( $leader['new_hashes'] ) ? $leader['new_hashes'] : array(),
+					'url_map'    => $leader['url_map'],
 					/* translators: %d: Attachment-ID. */
-					'message'   => sprintf( __( 'Gleiche Datei wie Bild-ID %d, zusammen umgestellt.', 'akuma-webp-umwandler' ), $leader_id ),
+					'message'    => sprintf( __( 'Gleiche Datei wie Bild-ID %d, zusammen umgestellt.', 'akuma-webp-umwandler' ), $leader_id ),
 				)
 			);
 		}

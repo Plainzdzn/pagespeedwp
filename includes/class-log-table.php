@@ -22,7 +22,7 @@ final class Log_Table {
 	/**
 	 * Version des Tabellenschemas.
 	 */
-	const DB_VERSION = 1;
+	const DB_VERSION = 2;
 
 	/**
 	 * Option mit der installierten Schema-Version.
@@ -32,7 +32,7 @@ final class Log_Table {
 	/**
 	 * Spalten mit JSON-Inhalt.
 	 */
-	const JSON_COLUMNS = array( 'old_meta', 'old_files', 'new_files', 'url_map', 'places' );
+	const JSON_COLUMNS = array( 'old_meta', 'old_files', 'new_files', 'new_hashes', 'url_map', 'places' );
 
 	/**
 	 * Tabellenname mit Prefix.
@@ -70,6 +70,7 @@ final class Log_Table {
 			old_meta longtext NULL,
 			old_files longtext NULL,
 			new_files longtext NULL,
+			new_hashes longtext NULL,
 			url_map longtext NULL,
 			bytes_before bigint(20) unsigned NOT NULL DEFAULT 0,
 			bytes_after bigint(20) unsigned NOT NULL DEFAULT 0,

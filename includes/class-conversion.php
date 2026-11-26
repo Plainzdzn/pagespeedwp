@@ -192,6 +192,9 @@ final class Conversion {
 	 * @return array|\WP_Error Lauf.
 	 */
 	public static function step( $budget ) {
+		// Ein Lauf kann über ein Update hinweg weitergehen. Die Tabelle muss die Spalten der aktuellen Version haben.
+		Log_Table::maybe_install();
+
 		$run = self::fresh();
 
 		if ( null === $run ) {

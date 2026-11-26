@@ -14,6 +14,31 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
+## 2026-11-26 03:35 – Version 1.1.2: Fingerabdruck je Datei, verschachteltes Löschen (Claude Chat)
+
+**Stand:** Folge-Build im selben Entwurfs-PR (#6). Nicht gemergt, nicht veröffentlicht.
+
+**Anlass:** Zwei weitere bestätigte Datenverlustrisiken im Stand `6040f8c` (1.1.1) aus der unabhängigen Prüfung.
+
+**Erledigt:**
+- **Inhaltsnachweis je Datei** (ADR-035): Neue Umwandlungen speichern Größe und SHA-256 jeder erzeugten Datei. Rückgängig prüft jede vorhandene Datei jedes Gruppenmitglieds vor dem ersten Schreiben, auch wenn andere fehlen. Ersatz unter gleichem Pfad, Typ und Länge wird erkannt. Ältere Läufe ohne Fingerabdruck: widerlegbare Fälle werden abgelehnt, sonst werden die WebP-Dateien beim Rückgängig beiseitegelegt statt gelöscht.
+- **Verschachteltes Löschen** (ADR-036): Der Löschschutz entscheidet am Stand der Datenbank statt über einen einzelnen statischen Vorgang. Löscht ein anderes Plugin im Hook von A ein weiteres Bild C, behält B seine Dateien.
+- Tabelle Version 2 (neue Spalte `new_hashes`), wird beim nächsten Admin-Aufruf und vor jedem Umwandlungsschritt angelegt.
+
+**Entscheidungen:** ADR-035, ADR-036.
+
+**Plattformgrenze (unabhängige Prüfung, Windows, WordPress 7.1.5, PHP 8.3, GD, SQLite):** 1.1.1 bestand dort 178 von 179 Prüfungen. Nach dem endgültigen Löschen beider Einträge einer Gruppe bleiben drei unreferenzierte WebP-Größen und der HEIC-Master liegen. Gegenprobe dort: Auch bei einem nie umgewandelten einzelnen JPG lässt der Kern unter Windows alle vier Vorschaubilder liegen. Das verbleibende Bild beim Löschen nur eines Eintrags und das Rückgängig sind auch unter Windows geschützt. Unter Linux bleibt nichts zurück. Kein Patch am Kern.
+
+**Offen / Nächster Schritt:**
+- 1.1.2 ist unter Windows noch nicht gelaufen.
+- Für die sechs Bilder der JBZ-Demo (Lauf mit 1.1.0, ohne Fingerabdruck) gilt die Regel für ältere Läufe: Ein Rückgängig würde ihre WebP-Dateien nach `uploads/akwu-sicherung/` verschieben statt löschen.
+- Übrige offene Punkte wie im Eintrag zu 1.1.1.
+
+**Getestet:**
+- PHPCS sauber, PHPUnit 91 Tests, 203 Prüfungen.
+- Integration (WordPress 7.1.5, PHP 8.3, SQLite, GD) über `bin/integration-sqlite.sh`, frisch aufgesetzt: siehe Protokoll im Nachweispaket. `alias-guards.php` hat jetzt 74 Prüfungen, darunter ein echter Kern-Test, der aus dem Hook von A ein unabhängiges C löscht (vor und nach dem Hook des Plugins), und die Fälle „gleiche Länge“, „Vorschau fehlt“, „alles fehlt“ mit und ohne Fingerabdruck.
+- Zeilen aus 1.1.0 nach dem Update auf 1.1.2 geprüft (Tabelle von Version 1 auf 2).
+
 ## 2026-11-26 03:15 – Version 1.1.1: Schutz bei gemeinsamen Dateien, Befunde der unabhängigen Prüfung (Claude Chat)
 
 **Stand:** Folgeversion im selben Entwurfs-PR (#6). Nicht gemergt, nicht veröffentlicht.

@@ -50,7 +50,8 @@ Optional misst das Plugin die Startseite mobil mit PageSpeed Insights vorher und
 ## Sicherheit bei doppelten Einträgen (ab 1.1.1)
 
 - Wird einer von mehreren Einträgen derselben Datei endgültig gelöscht, behalten die anderen ihre WebP-Datei, alle Größen und das Original. Das gilt, solange dieses Plugin aktiv ist. Ohne das Plugin verhält sich WordPress wie vor der Umwandlung und löscht gemeinsame Dateien mit.
-- Wurde ein umgewandeltes Bild danach ersetzt oder bearbeitet, lehnt „Rückgängig“ ab und ändert nichts, auch nicht bei den anderen Einträgen derselben Datei. Der Grund steht in der Liste.
+- Wurde ein umgewandeltes Bild danach ersetzt oder bearbeitet, lehnt „Rückgängig“ ab und ändert nichts, auch nicht bei den anderen Einträgen derselben Datei. Der Grund steht in der Liste. Ab 1.1.2 wird dafür jede erzeugte Datei mit Größe und Prüfsumme festgehalten.
+- Bilder aus Läufen vor 1.1.2 haben diesen Nachweis nicht. Beim Rückgängig werden ihre WebP-Dateien deshalb nicht gelöscht, sondern nach `uploads/akwu-sicherung/` verschoben. Der Ordner kann danach von Hand gelöscht werden.
 - Einträge, die dieselbe Datei unter verschiedenen Größennamen führen, werden nicht gemeinsam umgestellt.
 
 ## Einbettungen (ab 1.1.0)

@@ -2,14 +2,14 @@
 # This file is distributed under the same license as the WebP-Umwandler plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: WebP-Umwandler 1.1.1\n"
+"Project-Id-Version: WebP-Umwandler 1.1.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/pagespeedwp\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-26T02:03:32+00:00\n"
+"POT-Creation-Date: 2026-11-26T02:18:12+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: akuma-webp-umwandler\n"
@@ -17,7 +17,7 @@ msgstr ""
 #. Plugin Name of the plugin
 #: akuma-webp-umwandler.php
 #: includes/class-admin.php:243
-#: includes/class-plugin.php:71
+#: includes/class-plugin.php:69
 #: includes/views/layout.php:36
 msgid "WebP-Umwandler"
 msgstr ""
@@ -282,13 +282,13 @@ msgid "Abbrechen und zurücksetzen"
 msgstr ""
 
 #. translators: %d: Attachment-ID.
-#: includes/class-aliases.php:141
+#: includes/class-aliases.php:116
 #, php-format
 msgid "Bild-ID %d nutzt dieselbe Datei, hat aber andere Metadaten oder Größen. Damit beide Einträge zusammenpassen, bleibt das Bild unverändert."
 msgstr ""
 
 #. translators: %d: Attachment-ID.
-#: includes/class-aliases.php:284
+#: includes/class-aliases.php:260
 #, php-format
 msgid "Gleiche Datei wie Bild-ID %d, zusammen umgestellt."
 msgstr ""
@@ -486,32 +486,32 @@ msgstr ""
 msgid "Bitte zuerst den Bestand scannen."
 msgstr ""
 
-#: includes/class-conversion.php:198
+#: includes/class-conversion.php:201
 msgid "Es läuft keine Umwandlung."
 msgstr ""
 
-#: includes/class-conversion.php:207
+#: includes/class-conversion.php:210
 msgid "Ein anderes Fenster arbeitet gerade an diesem Lauf. Bitte kurz warten."
 msgstr ""
 
-#: includes/class-conversion.php:294
-#: includes/class-conversion.php:435
+#: includes/class-conversion.php:297
+#: includes/class-conversion.php:438
 msgid "Das Bild wurde während der Unterbrechung ersetzt oder gelöscht. Es bleibt unverändert."
 msgstr ""
 
-#: includes/class-conversion.php:306
+#: includes/class-conversion.php:309
 msgid "Die Umwandlung brach wiederholt ab, vermutlich zu wenig Arbeitsspeicher oder Zeit. Bild bleibt im Original."
 msgstr ""
 
-#: includes/class-conversion.php:310
+#: includes/class-conversion.php:313
 msgid "Nach Unterbrechung zurückgesetzt, neuer Versuch."
 msgstr ""
 
-#: includes/class-conversion.php:477
+#: includes/class-conversion.php:480
 msgid "Lauf abgebrochen, nicht umgewandelt."
 msgstr ""
 
-#: includes/class-conversion.php:534
+#: includes/class-conversion.php:537
 msgid "Das geht im aktuellen Zustand der Umwandlung nicht."
 msgstr ""
 
@@ -566,11 +566,11 @@ msgstr ""
 msgid "verlustbehaftet"
 msgstr ""
 
-#: includes/class-converter.php:200
+#: includes/class-converter.php:201
 msgid "Der Datei-Pointer konnte nicht umgestellt werden."
 msgstr ""
 
-#: includes/class-converter.php:212
+#: includes/class-converter.php:213
 msgid "Die Metadaten des WebP-Bildes konnten nicht erzeugt werden."
 msgstr ""
 
@@ -743,17 +743,17 @@ msgstr ""
 msgid "PageSpeed meldet: %s"
 msgstr ""
 
-#: includes/class-plugin.php:70
+#: includes/class-plugin.php:68
 msgid "Der WebP-Umwandler unterstützt Multisite-Installationen noch nicht und wurde nicht aktiviert."
 msgstr ""
 
-#: includes/class-plugin.php:91
+#: includes/class-plugin.php:89
 msgid "Der WebP-Umwandler unterstützt Multisite-Installationen noch nicht. Er ist aktiv, tut aber nichts. Bitte deaktivieren."
 msgstr ""
 
 #. translators: 1: Attachment-ID, 2: Grund.
 #: includes/class-report.php:350
-#: includes/class-rollback.php:186
+#: includes/class-rollback.php:236
 #, php-format
 msgid "Gleiche Datei wie Bild-ID %1$d: %2$s"
 msgstr ""
@@ -798,47 +798,60 @@ msgstr ""
 msgid "Die Systemprüfung meldet ein Problem. Bitte zuerst dort nachsehen."
 msgstr ""
 
-#: includes/class-rollback.php:29
+#: includes/class-rollback.php:30
 msgid "Dieses Bild wurde nicht umgewandelt."
 msgstr ""
 
-#: includes/class-rollback.php:33
+#: includes/class-rollback.php:34
 msgid "Die Originale wurden gelöscht. Rückgängig ist nicht mehr möglich."
 msgstr ""
 
-#: includes/class-rollback.php:37
+#: includes/class-rollback.php:38
 msgid "Der gesicherte Zustand fehlt."
 msgstr ""
 
 #. translators: %s: Dateiname.
-#: includes/class-rollback.php:44
+#: includes/class-rollback.php:45
 #, php-format
 msgid "Das Original %s fehlt. Rückgängig ist nicht mehr möglich."
 msgstr ""
 
-#: includes/class-rollback.php:80
-#: includes/class-rollback.php:164
+#: includes/class-rollback.php:82
+#: includes/class-rollback.php:214
 msgid "Der Mediathek-Eintrag existiert nicht mehr."
 msgstr ""
 
-#: includes/class-rollback.php:83
+#: includes/class-rollback.php:85
 msgid "Das Bild wurde seit der Umwandlung ersetzt oder bearbeitet. Rückgängig würde die neue Fassung überschreiben, deshalb bleibt alles unverändert."
 msgstr ""
 
 #. translators: %s: Dateinamen.
-#: includes/class-rollback.php:94
+#: includes/class-rollback.php:96
 #, php-format
 msgid "Zum Bild gehören inzwischen Dateien, die nicht aus der Umwandlung stammen (%s). Rückgängig würde sie löschen, deshalb bleibt alles unverändert."
 msgstr ""
 
-#: includes/class-rollback.php:108
-msgid "Die WebP-Dateien haben inzwischen einen anderen Inhalt als direkt nach der Umwandlung. Rückgängig würde sie löschen, deshalb bleibt alles unverändert."
+#. translators: %s: Dateiname oder kurze Erklärung.
+#: includes/class-rollback.php:118
+#, php-format
+msgid "Die WebP-Dateien haben inzwischen einen anderen Inhalt als direkt nach der Umwandlung (%s). Rückgängig würde sie löschen, deshalb bleibt alles unverändert."
+msgstr ""
+
+#. translators: %s: Erklärung.
+#: includes/class-rollback.php:159
+msgid "andere Gesamtgröße"
 msgstr ""
 
 #. translators: %s: Anzahl.
-#: includes/class-rollback.php:213
+#: includes/class-rollback.php:263
 #, php-format
 msgid "Rückgängig gemacht, %s Verweise zurückgesetzt."
+msgstr ""
+
+#. translators: %s: Ordner im Upload-Verzeichnis.
+#: includes/class-rollback.php:268
+#, php-format
+msgid "Die WebP-Dateien dieses älteren Laufs wurden nicht gelöscht, sie liegen in %s."
 msgstr ""
 
 #: includes/class-run-presenter.php:51
