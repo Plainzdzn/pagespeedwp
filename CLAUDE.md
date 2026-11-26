@@ -21,7 +21,7 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
 | Capability | `manage_options` |
 | WP-CLI | `wp akwu scan\|convert\|report\|rollback\|purge-originals` |
 
-## Architektur (Stand 1.1.4)
+## Architektur (Stand 1.1.5)
 
 - `akuma-webp-umwandler.php` – Bootstrap, Konstanten (`AKWU_VERSION`, `AKWU_DIR`, `AKWU_URL`), eigener Autoloader (keine Composer-Laufzeitabhängigkeit).
 - `includes/` – Kernklassen:
@@ -32,6 +32,7 @@ Nach jeder Sitzung: neuen Eintrag **oben** in `docs/HANDOFF.md` (Format steht do
   - Umwandlung: `Conversion` (Lauf in Option `akwu_run`, Phasen convert → finalize → verify → done, ADR-020/021), `Converter` (ein Anhang, gleiche ID, ADR-018), `Url_Map` (alte → neue Pfade je Größenname), `Replacer` (Verweise in Posts, Postmeta, Termmeta, Optionen), `Value_Replacer` (Text, serialisiert, JSON, ADR-019), `Cache_Purger`, `Rollback`, `Log_Table` (`{prefix}akwu_log`), `Run_Presenter` (Texte und HTML für Seite, REST und Admin-Leiste).
   - Nach der Umwandlung: `Report` (Bericht über alle Läufe, CSV, ADR-022), `Job` (Rückgängig und Originale löschen in Schritten, Option `akwu_job`, ADR-023), `Originals` (alte Dateien löschen, auch beim Löschen eines Bilds, ADR-024), `Verifier` (Gegenprobe nach der Umwandlung und vor dem Löschen).
   - `PageSpeed` (optional, PageSpeed Insights API, ADR-025).
+  - Ab 1.1.5: Auch das erste Speichern nur in eine neue eigene Zieldatei, Formatfilter vorab geprüft, Ergebnis über `Webp_Info` geprüft (ADR-039).
   - Ab 1.1.4: `Webp_Info` (Kopf und Chunks einer WebP-Datei prüfen), `Encoder::save_webp()` hält die gewählte Qualität für genau ein `save()` fest, die zweite PNG-Fassung kommt nur aus einer eigenen Zwischendatei (ADR-038). Ab 1.1.3: `Png_Info::imagick_opaque()`, Einstellung `png_transparent` (ADR-037).
   - Ab 1.1.2: Fingerabdruck je erzeugter Datei in `new_hashes` (Tabelle Version 2, ADR-035), Löschschutz ohne Zeitfenster (ADR-036).
   - Ab 1.1.1: `Aliases::before_delete()` / `keep_shared()` (Löschschutz gemeinsamer Dateien, ADR-031), `Rollback::drift()` (Rückgängig nur aus dem erwarteten Zustand, ADR-032).

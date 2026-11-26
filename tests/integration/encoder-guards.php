@@ -1,6 +1,6 @@
 <?php
 /**
- * Integrationstest: Qualität am Kodierpunkt und Schutz der zweiten PNG-Fassung (1.1.4).
+ * Integrationstest: Qualität am Kodierpunkt (1.1.4), zweite PNG-Fassung (1.1.4) und erstes Speichern (1.1.5).
  *
  * Aufruf auf einer Testinstallation:
  *   wp eval-file tests/integration/encoder-guards.php
@@ -17,6 +17,8 @@
  *    dem Schreiben, kein WebP, Alphakanal verloren, falsche Maße, abgeschnittene Datei. Jedes Mal muss
  *    die gute verlustfreie Datei bleiben, nur die eigene Zwischendatei verschwinden und kein fremder
  *    Pfad verändert werden.
+ * 3. Erstes Speichern (ab 1.1.5): dieselben Störungen für die Zieldatei, dazu eine schon vorhandene
+ *    Zieldatei. Immer: Fehler zurück, eigene Zieldatei entfernt, fremde Pfade und Quelle unverändert.
  *
  * @package Akuma\WebpUmwandler
  */
@@ -542,6 +544,197 @@ function guards( $dir ) {
 }
 
 /**
+ * Filter: verlangt für Zieldateien, deren Name mit „ziel“ beginnt, JPEG statt WebP.
+ *
+ * @param array  $formats  Zuordnung.
+ * @param string $filename Datei.
+ * @return array
+ */
+function jpeg_for_target( $formats, $filename ) {
+	if ( $filename && 0 === strpos( wp_basename( $filename ), 'ziel' ) ) {
+		$formats['image/webp'] = 'image/jpeg';
+	}
+	return $formats;
+}
+
+/**
+ * Teil 3: Ein gestörtes erstes Speichern prüfen.
+ *
+ * @param string   $dir     Arbeitsordner.
+ * @param string   $label   Bezeichnung.
+ * @param string   $mode    Störung im Test-Editor für die Zieldatei.
+ * @param callable $arrange Optional: setzt Filter oder Dateien, gibt eine Prüf- und Aufräum-Funktion zurück.
+ * @return void
+ */
+function first_save_case( $dir, $label, $mode, $arrange = null ) {
+	$work = $dir . '/erst-' . sanitize_title( $label );
+	wp_mkdir_p( $work );
+	$source = $work . '/freisteller.png';
+	write_noise_cutout( $source );
+	$target = $work . '/ziel.webp';
+
+	$after_check               = $arrange ? call_user_func( $arrange, $work, $target ) : null;
+	$before                    = listing( $work );
+	Guard_Editor::$target_mode = $mode;
+
+	$result = Encoder::encode( $source, $target, settings( 82, 'lossless' ) );
+
+	Guard_Editor::$target_mode = 'none';
+	$after                     = listing( $work );
+
+	if ( 'none' === $mode && null === $arrange ) {
+		$info = Webp_Info::read( $target );
+		check( ! is_wp_error( $result ) && 'lossless' === $result['mode'], "{$label}: umgewandelt (" . ( is_wp_error( $result ) ? $result->get_error_message() : $result['mode'] ) . ')' );
+		check( null !== $info && $info['alpha'] && 640 === $info['width'] && 420 === $info['height'], "{$label}: Zieldatei ist WebP mit Alphakanal in 640×420" );
+		return;
+	}
+
+	check( is_wp_error( $result ), "{$label}: Umwandlung abgelehnt" . ( is_wp_error( $result ) ? ' (' . $result->get_error_code() . ': ' . $result->get_error_message() . ')' : ' – FEHLT' ) );
+	check( ! file_exists( $target ) || isset( $before['ziel.webp'] ), "{$label}: keine eigene Zieldatei übrig" );
+	foreach ( $before as $name => $hash ) {
+		check( isset( $after[ $name ] ) && $after[ $name ] === $hash, "{$label}: {$name} unverändert" );
+	}
+	$left = array_filter(
+		array_keys( $after ),
+		function ( $name ) {
+			return 0 === strpos( $name, 'akwu-alpha-' );
+		}
+	);
+	check( empty( $left ), "{$label}: keine Zwischendatei übrig" );
+
+	if ( is_callable( $after_check ) ) {
+		call_user_func( $after_check, $work, $target, $result, $before, $after );
+	}
+}
+
+/**
+ * Teil 3: erstes Speichern mit Imagick (Test-Editor).
+ *
+ * @param string $dir Arbeitsordner.
+ * @return void
+ */
+function first_save( $dir ) {
+	WP_CLI::log( '== Erstes Speichern (Zieldatei)' );
+
+	add_filter( 'wp_image_editors', __NAMESPACE__ . '\guard_first', 20 );
+
+	first_save_case( $dir, 'ohne Stoerung', 'none' );
+
+	first_save_case(
+		$dir,
+		'Filter JPEG fuer Zieldatei',
+		'none',
+		function () {
+			add_filter( 'image_editor_output_format', __NAMESPACE__ . '\jpeg_for_target', 10, 2 );
+			return function ( $work, $target, $result ) {
+				remove_filter( 'image_editor_output_format', __NAMESPACE__ . '\jpeg_for_target', 10 );
+				check( is_wp_error( $result ) && 'akwu_output_format' === $result->get_error_code(), 'Filter JPEG fuer Zieldatei: vor dem Schreiben abgelehnt' );
+				check( empty( glob( $work . '/ziel*.jpg' ) ), 'Filter JPEG fuer Zieldatei: kein JPEG geschrieben' );
+			};
+		}
+	);
+
+	first_save_case(
+		$dir,
+		'Filter schaltet waehrend save um',
+		'none',
+		function () {
+			$seen   = array();
+			$filter = function ( $formats, $filename ) use ( &$seen ) {
+				$name = $filename ? wp_basename( $filename ) : '';
+				if ( 0 === strpos( $name, 'ziel' ) ) {
+					$seen[ $name ] = isset( $seen[ $name ] ) ? $seen[ $name ] + 1 : 1;
+					if ( $seen[ $name ] >= 2 ) {
+						$formats['image/webp'] = 'image/jpeg';
+					}
+				}
+				return $formats;
+			};
+			add_filter( 'image_editor_output_format', $filter, 10, 2 );
+			return function ( $work, $target, $result ) use ( $filter ) {
+				remove_filter( 'image_editor_output_format', $filter, 10 );
+				$jpegs = (array) glob( $work . '/ziel*.jpg' );
+				check( 1 === count( $jpegs ) && 'image/jpeg' === wp_get_image_mime( $jpegs[0] ), 'Filter schaltet waehrend save um: vom Filter benanntes JPEG bleibt unberührt liegen' );
+				check( is_wp_error( $result ) && $jpegs && false !== strpos( $result->get_error_message(), wp_basename( $jpegs[0] ) ), 'Filter schaltet waehrend save um: Meldung nennt die fremde Datei' );
+				foreach ( $jpegs as $jpeg ) {
+					wp_delete_file( $jpeg );
+				}
+			};
+		}
+	);
+
+	first_save_case(
+		$dir,
+		'fremder Pfad',
+		'foreign-path',
+		function ( $work ) {
+			Guard_Editor::$foreign = $work . '/fremd.webp';
+			copy( __FILE__, Guard_Editor::$foreign );
+			return function ( $w, $target, $result ) {
+				check( is_wp_error( $result ) && false !== strpos( $result->get_error_message(), 'fremd.webp' ), 'fremder Pfad: Meldung nennt die fremde Datei' );
+				Guard_Editor::$foreign = '';
+			};
+		}
+	);
+
+	first_save_case(
+		$dir,
+		'Zieldatei existiert schon',
+		'none',
+		function ( $work, $target ) {
+			copy( __FILE__, $target );
+			return function ( $w, $t, $result ) {
+				check( is_wp_error( $result ) && 'akwu_target_exists' === $result->get_error_code(), 'Zieldatei existiert schon: abgelehnt, nichts überschrieben' );
+			};
+		}
+	);
+
+	first_save_case( $dir, 'Fehler nach dem Schreiben', 'error-after-write' );
+	first_save_case( $dir, 'kein WebP', 'not-webp' );
+	first_save_case( $dir, 'Alphakanal verloren', 'no-alpha' );
+	first_save_case( $dir, 'falsche Masse', 'wrong-size' );
+	first_save_case( $dir, 'abgeschnittene Datei', 'truncated' );
+
+	remove_filter( 'wp_image_editors', __NAMESPACE__ . '\guard_first', 20 );
+}
+
+/**
+ * Teil 3b: erstes Speichern mit GD (Formatfilter, vorhandene Zieldatei).
+ *
+ * @param string $dir Arbeitsordner.
+ * @return void
+ */
+function first_save_gd( $dir ) {
+	WP_CLI::log( '== Erstes Speichern, GD' );
+
+	if ( ! function_exists( 'imagewebp' ) ) {
+		WP_CLI::log( '  übersprungen: GD ohne WebP' );
+		return;
+	}
+
+	add_filter( 'wp_image_editors', __NAMESPACE__ . '\gd_only', 30 );
+
+	$work = $dir . '/erst-gd';
+	wp_mkdir_p( $work );
+	$source = $work . '/foto.jpg';
+	write_gd( 'jpg', $source );
+	$hash = hash_file( 'sha256', $source );
+
+	add_filter( 'image_editor_output_format', __NAMESPACE__ . '\jpeg_for_target', 10, 2 );
+	$result = Encoder::encode( $source, $work . '/ziel.webp', settings( 82 ) );
+	remove_filter( 'image_editor_output_format', __NAMESPACE__ . '\jpeg_for_target', 10 );
+	check( is_wp_error( $result ) && 'akwu_output_format' === $result->get_error_code(), 'GD, Filter JPEG: vor dem Schreiben abgelehnt' );
+	check( ! file_exists( $work . '/ziel.webp' ) && empty( glob( $work . '/ziel*.jpg' ) ), 'GD, Filter JPEG: nichts geschrieben' );
+
+	$result = Encoder::encode( $source, $work . '/ziel.webp', settings( 82 ) );
+	$info   = Webp_Info::read( $work . '/ziel.webp' );
+	check( ! is_wp_error( $result ) && null !== $info && 'lossy' === $info['compression'] && 640 === $info['width'], 'GD ohne Filter: WebP 640×420 erzeugt' );
+	check( hash_file( 'sha256', $source ) === $hash, 'GD: Quelle unverändert' );
+
+	remove_filter( 'wp_image_editors', __NAMESPACE__ . '\gd_only', 30 );
+}
+
+/**
  * Ablauf.
  *
  * @return void
@@ -559,11 +752,13 @@ function main() {
 	if ( extension_loaded( 'imagick' ) && Guard_Editor::test( array( 'mime_type' => 'image/webp' ) ) ) {
 		quality_imagick( $dir );
 		guards( $dir );
+		first_save( $dir );
 	} else {
 		WP_CLI::log( '== Imagick fehlt: Qualität mit Imagick und zweite Fassung übersprungen' );
 	}
 
 	quality_gd( $dir );
+	first_save_gd( $dir );
 
 	// Arbeitsordner abräumen (nur eigene Testdateien).
 	$iterator = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ), \RecursiveIteratorIterator::CHILD_FIRST );

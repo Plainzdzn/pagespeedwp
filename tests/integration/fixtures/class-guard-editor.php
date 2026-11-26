@@ -17,7 +17,8 @@ use Akuma\WebpUmwandler\Imagick_Webp_Editor;
  * - Protokoll: Nach jedem get_output_format() (das ist der letzte Schritt vor dem Schreiben) wird die
  *   Qualität festgehalten, die am Imagick-Objekt tatsächlich gesetzt ist.
  * - Störungen: Für die eigene Zwischendatei des Plugins (Name beginnt mit akwu-alpha-) liefert save()
- *   je nach $mode ein falsches Ergebnis, wie es ein anderer Editor oder ein Fehler täte.
+ *   je nach $mode ein falsches Ergebnis, wie es ein anderer Editor oder ein Fehler täte, für die
+ *   Zieldatei des ersten Speicherns je nach $target_mode.
  */
 class Guard_Editor extends Imagick_Webp_Editor {
 
@@ -28,6 +29,13 @@ class Guard_Editor extends Imagick_Webp_Editor {
 	 * @var string
 	 */
 	public static $mode = 'none';
+
+	/**
+	 * Störung für die Zieldatei des ersten Speicherns (alle anderen Namen), Werte wie $mode.
+	 *
+	 * @var string
+	 */
+	public static $target_mode = 'none';
 
 	/**
 	 * Fremde Datei, die save() bei foreign-path meldet.
@@ -80,11 +88,14 @@ class Guard_Editor extends Imagick_Webp_Editor {
 	 * @return array|\WP_Error
 	 */
 	public function save( $destfilename = null, $mime_type = null ) {
-		if ( ! $destfilename || 0 !== strpos( wp_basename( $destfilename ), 'akwu-alpha-' ) ) {
+		$is_temp = $destfilename && 0 === strpos( wp_basename( $destfilename ), 'akwu-alpha-' );
+		$mode    = $is_temp ? self::$mode : self::$target_mode;
+
+		if ( ! $destfilename || ( 'none' === $mode && ! $is_temp ) ) {
 			return parent::save( $destfilename, $mime_type );
 		}
 
-		if ( 'none' === self::$mode ) {
+		if ( 'none' === $mode ) {
 			$saved = parent::save( $destfilename, $mime_type );
 			if ( ! is_wp_error( $saved ) && ! empty( $saved['path'] ) && is_file( $saved['path'] ) ) {
 				clearstatcache( true, $saved['path'] );
@@ -96,7 +107,7 @@ class Guard_Editor extends Imagick_Webp_Editor {
 			return $saved;
 		}
 
-		switch ( self::$mode ) {
+		switch ( $mode ) {
 			case 'foreign-path':
 				$saved = parent::save( $destfilename, $mime_type );
 				if ( ! is_wp_error( $saved ) ) {

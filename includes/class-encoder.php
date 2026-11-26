@@ -97,18 +97,22 @@ final class Encoder {
 			$editor->akwu_strip_meta();
 		}
 
-		$saved = self::save_webp( $editor, $target, $quality );
-
-		if ( is_wp_error( $saved ) ) {
-			return $saved;
+		// Geschrieben wird nur in die vorgesehene, noch nicht vorhandene Zieldatei und nur als WebP.
+		if ( file_exists( $target ) ) {
+			/* translators: %s: Dateiname. */
+			return new \WP_Error( 'akwu_target_exists', sprintf( __( 'Die Zieldatei %s gibt es schon. Bild bleibt unverändert.', 'akuma-webp-umwandler' ), wp_basename( $target ) ) );
 		}
 
-		if ( empty( $saved['path'] ) || ! is_file( $saved['path'] ) || 'image/webp' !== $saved['mime-type'] ) {
-			if ( ! empty( $saved['path'] ) && is_file( $saved['path'] ) && $saved['path'] !== $source ) {
-				wp_delete_file( $saved['path'] );
-			}
+		if ( ! self::output_is_webp( $editor, $target ) ) {
 			/* translators: %s: Dateiname. */
-			return new \WP_Error( 'akwu_save', sprintf( __( 'WebP für %s konnte nicht gespeichert werden.', 'akuma-webp-umwandler' ), wp_basename( $source ) ) );
+			return new \WP_Error( 'akwu_output_format', sprintf( __( 'Ein Filter verlangt für %s ein anderes Format als WebP. Bild bleibt unverändert.', 'akuma-webp-umwandler' ), wp_basename( $source ) ) );
+		}
+
+		$size  = $editor->get_size();
+		$saved = self::save_webp( $editor, $target, $quality );
+
+		if ( ! self::is_own_webp( $saved, $target, $size, $alpha, false ) ) {
+			return self::reject_save( $saved, $target, $source );
 		}
 
 		$mode           = $lossless ? 'lossless' : 'lossy';
@@ -240,7 +244,7 @@ final class Encoder {
 
 		$lossy = self::save_webp( $editor, $temp, $quality );
 
-		if ( ! self::is_own_alpha_webp( $lossy, $temp, $size ) ) {
+		if ( ! self::is_own_webp( $lossy, $temp, $size, true, true ) ) {
 			self::drop_temp( $temp );
 			return false;
 		}
@@ -263,31 +267,86 @@ final class Encoder {
 	}
 
 	/**
-	 * Ist das Ergebnis von save() die eigene Zwischendatei als vollständiges WebP mit Alphakanal?
+	 * Ist das Ergebnis von save() genau die eigene Datei als vollständiges WebP in den Maßen der Quelle?
 	 *
-	 * @param array|\WP_Error $saved Ergebnis von save().
-	 * @param string          $temp  Eigene Zwischendatei.
-	 * @param array           $size  Maße des PNG (width, height).
+	 * @param array|\WP_Error $saved      Ergebnis von save().
+	 * @param string          $path       Eigene Datei (Zieldatei oder Zwischendatei).
+	 * @param array           $size       Maße der Quelle (width, height).
+	 * @param bool            $need_alpha Die Quelle hat durchsichtige Pixel, das WebP muss einen Alphakanal haben.
+	 * @param bool            $need_lossy Nur verlustbehaftet ist gültig (zweite PNG-Fassung).
 	 * @return bool
 	 */
-	private static function is_own_alpha_webp( $saved, $temp, $size ) {
+	private static function is_own_webp( $saved, $path, $size, $need_alpha, $need_lossy ) {
 		if ( is_wp_error( $saved ) || ! is_array( $saved ) || empty( $saved['path'] ) || empty( $saved['mime-type'] ) ) {
 			return false;
 		}
 
-		if ( wp_normalize_path( $saved['path'] ) !== wp_normalize_path( $temp ) || 'image/webp' !== $saved['mime-type'] ) {
+		if ( wp_normalize_path( $saved['path'] ) !== wp_normalize_path( $path ) || 'image/webp' !== $saved['mime-type'] ) {
 			return false;
 		}
 
-		$info = Webp_Info::read( $temp );
+		$info = Webp_Info::read( $path );
 
 		return null !== $info
-			&& 'lossy' === $info['compression']
-			&& true === $info['alpha']
+			&& ( ! $need_lossy || 'lossy' === $info['compression'] )
+			&& ( ! $need_alpha || true === $info['alpha'] )
 			&& false === $info['animated']
 			&& isset( $size['width'], $size['height'] )
 			&& (int) $size['width'] === $info['width']
 			&& (int) $size['height'] === $info['height'];
+	}
+
+	/**
+	 * Würde save() genau diese Datei als WebP schreiben? Fragt den Filter `image_editor_output_format`
+	 * so wie der Core, ohne etwas zu schreiben.
+	 *
+	 * @param \WP_Image_Editor $editor Editor.
+	 * @param string           $path   Zieldatei mit Endung .webp.
+	 * @return bool
+	 */
+	private static function output_is_webp( $editor, $path ) {
+		if ( $editor instanceof Imagick_Webp_Editor ) {
+			return $editor->akwu_output_is( $path, 'image/webp' );
+		}
+
+		$formats = function_exists( 'wp_get_image_editor_output_format' )
+			? wp_get_image_editor_output_format( $path, 'image/webp' )
+			: apply_filters( 'image_editor_output_format', array(), $path, 'image/webp' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core-Filter, vor WordPress 6.1 ohne Wrapper.
+
+		return ! ( is_array( $formats ) && isset( $formats['image/webp'] ) && 'image/webp' !== $formats['image/webp'] && $editor->supports_mime_type( $formats['image/webp'] ) );
+	}
+
+	/**
+	 * Verwirft ein ungültiges erstes Speichern. Entfernt wird nur die eigene Zieldatei (sie gab es vorher
+	 * nicht). Meldet save() eine andere Datei, bleibt sie unberührt und steht in der Meldung.
+	 *
+	 * @param array|\WP_Error $saved  Ergebnis von save().
+	 * @param string          $target Eigene Zieldatei.
+	 * @param string          $source Quelldatei.
+	 * @return \WP_Error
+	 */
+	private static function reject_save( $saved, $target, $source ) {
+		clearstatcache( true, $target );
+		if ( is_file( $target ) ) {
+			wp_delete_file( $target );
+		}
+
+		if ( is_wp_error( $saved ) ) {
+			return $saved;
+		}
+
+		$other = ( is_array( $saved ) && ! empty( $saved['path'] ) && wp_normalize_path( $saved['path'] ) !== wp_normalize_path( $target ) && is_file( $saved['path'] ) ) ? $saved['path'] : '';
+
+		if ( '' !== $other ) {
+			return new \WP_Error(
+				'akwu_save',
+				/* translators: 1: Dateiname der Quelle, 2: Dateiname, den der Bildeditor gemeldet hat. */
+				sprintf( __( 'WebP für %1$s konnte nicht gespeichert werden. Der Bildeditor hat stattdessen %2$s gemeldet, diese Datei bleibt unverändert. Bild bleibt im Original.', 'akuma-webp-umwandler' ), wp_basename( $source ), wp_basename( $other ) )
+			);
+		}
+
+		/* translators: %s: Dateiname. */
+		return new \WP_Error( 'akwu_save', sprintf( __( 'WebP für %s ist unvollständig oder passt nicht zum Original (Format, Maße oder Transparenz). Bild bleibt im Original.', 'akuma-webp-umwandler' ), wp_basename( $source ) ) );
 	}
 
 	/**

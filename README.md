@@ -60,6 +60,11 @@ Optional misst das Plugin die Startseite mobil mit PageSpeed Insights vorher und
 - Ab 1.1.4 gilt beim Kodieren genau die eingestellte Qualität, auch für deckende PNGs und die zweite Fassung von Freistellern. Andere Bildbearbeitungen in WordPress behalten den Standard des Core.
 - Schon umgewandelte Bilder bleiben, wie sie sind. Mit 82 statt 86 werden neue WebP-Dateien etwas kleiner.
 
+## Geschützte Zieldatei (ab 1.1.5)
+
+- Das Plugin schreibt eine neue WebP-Datei nur in eine Zieldatei, die es vorher noch nicht gab. Verlangt ein Filter (`image_editor_output_format`) dafür ein anderes Format als WebP, wird gar nicht gespeichert.
+- Übernommen wird das Ergebnis nur, wenn der Bildeditor genau diese Datei als WebP meldet und sie ein vollständiges WebP in den Maßen der Quelle ist, bei transparenten PNG mit Alphakanal. Sonst bleibt das Bild im Original, die eigene Zieldatei wird entfernt, und eine abweichend gemeldete Datei bleibt unberührt und steht im Protokoll.
+
 ## PNG nach echter Transparenz (ab 1.1.3)
 
 - Viele PNGs (Canva, Photoshop) haben einen Alphakanal, obwohl kein Pixel durchsichtig ist. Bis 1.1.2 wurden sie wie transparente PNGs verlustfrei gespeichert. Ab 1.1.3 prüft das Plugin mit Imagick die Pixel: Ist keines durchsichtig, wird das PNG wie ein PNG ohne Transparenz verlustbehaftet mit der JPG-Qualität gespeichert, ohne leeren Alphakanal. Im Protokoll steht dann „PNG mit Alphakanal, aber ohne durchsichtige Pixel“.
