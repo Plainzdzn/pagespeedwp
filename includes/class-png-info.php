@@ -80,4 +80,43 @@ final class Png_Info {
 
 		return false;
 	}
+
+	/**
+	 * Ist das geladene Bild vollständig deckend, obwohl es einen Alphakanal hat?
+	 *
+	 * Viele Exporte (Canva, Photoshop) speichern RGBA, auch wenn kein Pixel durchsichtig ist.
+	 * Der Kopf der Datei sagt dann „Alphakanal“, die Pixel sagen „deckend“. Entscheidend sind die Pixel.
+	 * Gleiche Antwort unter ImageMagick 6 und 7: zuerst `%[opaque]`, sonst der Wertebereich des Alphakanals.
+	 *
+	 * @param \Imagick $image Geladenes Bild.
+	 * @return bool|null true deckend, false mit durchsichtigen Pixeln, null nicht feststellbar.
+	 */
+	public static function imagick_opaque( $image ) {
+		if ( ! $image instanceof \Imagick ) {
+			return null;
+		}
+
+		try {
+			if ( ! $image->getImageAlphaChannel() ) {
+				return true;
+			}
+
+			if ( method_exists( $image, 'identifyFormat' ) ) {
+				$answer = strtolower( trim( (string) $image->identifyFormat( '%[opaque]' ) ) );
+				if ( 'true' === $answer || 'false' === $answer ) {
+					return 'true' === $answer;
+				}
+			}
+
+			$range = $image->getImageChannelRange( \Imagick::CHANNEL_ALPHA );
+			$top   = $image->getQuantumRange();
+			if ( isset( $range['minima'], $top['quantumRangeLong'] ) ) {
+				return (float) $range['minima'] >= (float) $top['quantumRangeLong'];
+			}
+		} catch ( \Exception $e ) {
+			return null;
+		}
+
+		return null;
+	}
 }

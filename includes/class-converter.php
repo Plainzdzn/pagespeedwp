@@ -154,14 +154,8 @@ final class Converter {
 			return self::finish( $row, 'error', $reason );
 		}
 
-		$message = sprintf(
-			/* translators: 1: lossy oder lossless, 2: Qualität, 3: imagick oder gd. */
-			__( 'WebP %1$s, Qualität %2$d, %3$s.', 'akuma-webp-umwandler' ),
-			'lossless' === $encoded['mode'] ? __( 'verlustfrei', 'akuma-webp-umwandler' ) : __( 'verlustbehaftet', 'akuma-webp-umwandler' ),
-			$encoded['quality'],
-			'imagick' === $encoded['editor'] ? 'Imagick' : 'GD'
-		);
-		$update = array(
+		$message = self::encoding_message( $encoded );
+		$update  = array(
 			'status'      => 'converted',
 			'new_file'    => (string) get_post_meta( $attachment_id, '_wp_attached_file', true ),
 			'new_files'   => $new_files,
@@ -176,6 +170,39 @@ final class Converter {
 		Aliases::follow( $row, $followers );
 
 		return $row;
+	}
+
+	/**
+	 * Meldung zur Kodierung für Protokoll und Bericht.
+	 *
+	 * @param array $encoded Ergebnis von Encoder::encode().
+	 * @return string
+	 */
+	public static function encoding_message( array $encoded ) {
+		$modes = array(
+			'lossless'    => __( 'verlustfrei', 'akuma-webp-umwandler' ),
+			'lossy-alpha' => __( 'verlustbehaftet mit verlustfreiem Alphakanal', 'akuma-webp-umwandler' ),
+			'lossy'       => __( 'verlustbehaftet', 'akuma-webp-umwandler' ),
+		);
+		$mode  = isset( $encoded['mode'], $modes[ $encoded['mode'] ] ) ? $modes[ $encoded['mode'] ] : $modes['lossy'];
+
+		$message = sprintf(
+			/* translators: 1: verlustfrei oder verlustbehaftet, 2: Qualität, 3: Imagick oder GD. */
+			__( 'WebP %1$s, Qualität %2$d, %3$s.', 'akuma-webp-umwandler' ),
+			$mode,
+			(int) $encoded['quality'],
+			isset( $encoded['editor'] ) && 'imagick' === $encoded['editor'] ? 'Imagick' : 'GD'
+		);
+
+		if ( ! empty( $encoded['opaque'] ) ) {
+			$message .= ' ' . __( 'PNG mit Alphakanal, aber ohne durchsichtige Pixel.', 'akuma-webp-umwandler' );
+		}
+
+		if ( ! empty( $encoded['lossless_bytes'] ) && 'lossy-alpha' !== $encoded['mode'] ) {
+			$message .= ' ' . __( 'Verlustbehaftet wäre nicht mindestens halb so groß gewesen.', 'akuma-webp-umwandler' );
+		}
+
+		return $message;
 	}
 
 	/**

@@ -50,4 +50,14 @@ class Settings_Test extends TestCase {
 
 		$this->assertSame( 'AIza_Sy-12script', $result['psi_api_key'] );
 	}
+
+	/**
+	 * PNG mit Transparenz: nur „lossless“ (Standard) und „auto“ sind erlaubt.
+	 */
+	public function test_png_transparent() {
+		$this->assertSame( 'lossless', Settings::sanitize( array() )['png_transparent'] );
+		$this->assertSame( 'auto', Settings::sanitize( array( 'png_transparent' => 'auto' ) )['png_transparent'] );
+		$this->assertSame( 'lossless', Settings::sanitize( array( 'png_transparent' => 'verlustig' ) )['png_transparent'] );
+		$this->assertSame( 'lossless', Settings::sanitize( array( 'png_transparent' => array( 'auto' ) ) )['png_transparent'] );
+	}
 }

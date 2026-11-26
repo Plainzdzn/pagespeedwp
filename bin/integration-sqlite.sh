@@ -5,6 +5,10 @@
 #
 #   bin/integration-sqlite.sh              # frischer Ordner unter /tmp
 #   AKWU_SQLITE_DIR=~/akwu-sqlite bin/integration-sqlite.sh   # Ordner wiederverwenden
+#   AKWU_TESTS="png-transparency roundtrip" bin/integration-sqlite.sh   # nur diese Tests
+#
+# png-transparency braucht Imagick und überspringt sich ohne. purge setzt GD voraus: Die Testdatei
+# „bereits-optimiert.jpg“ ist nur für GD schon optimiert, Imagick macht daraus noch ein kleineres WebP.
 #
 # Die Tests legen nur eigene, entbehrliche Testbilder an und räumen sie wieder ab.
 
@@ -38,10 +42,10 @@ fi
 ln -sfn "$REPO_DIR" "$WP_DIR/wp-content/plugins/akuma-webp-umwandler"
 wp plugin activate akuma-webp-umwandler --quiet
 
-echo "== WordPress $(wp core version), PHP $(php -r 'echo PHP_VERSION;'), Plugin $(wp eval 'echo AKWU_VERSION;')"
+echo "== WordPress $(wp core version), PHP $(php -r 'echo PHP_VERSION;'), Plugin $(wp eval 'echo AKWU_VERSION;'), Bildbibliothek $(php -r 'echo extension_loaded("imagick") ? "Imagick" : "GD";')"
 
 status=0
-for name in roundtrip purge heic-alias embeds alias-guards; do
+for name in ${AKWU_TESTS:-roundtrip purge heic-alias embeds alias-guards png-transparency}; do
 	echo
 	echo "== $name"
 	if ! wp eval-file "$REPO_DIR/tests/integration/$name.php"; then

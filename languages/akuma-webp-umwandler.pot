@@ -2,14 +2,14 @@
 # This file is distributed under the same license as the WebP-Umwandler plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: WebP-Umwandler 1.1.2\n"
+"Project-Id-Version: WebP-Umwandler 1.1.3\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/pagespeedwp\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-26T02:18:12+00:00\n"
+"POT-Creation-Date: 2026-11-26T11:53:43+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: akuma-webp-umwandler\n"
@@ -552,25 +552,37 @@ msgstr ""
 msgid "Diese Größen ließen sich nicht als WebP erzeugen: %s. Bild bleibt im Original."
 msgstr ""
 
-#. translators: 1: lossy oder lossless, 2: Qualität, 3: imagick oder gd.
-#: includes/class-converter.php:159
+#: includes/class-converter.php:183
+msgid "verlustfrei"
+msgstr ""
+
+#: includes/class-converter.php:184
+msgid "verlustbehaftet mit verlustfreiem Alphakanal"
+msgstr ""
+
+#: includes/class-converter.php:185
+msgid "verlustbehaftet"
+msgstr ""
+
+#. translators: 1: verlustfrei oder verlustbehaftet, 2: Qualität, 3: Imagick oder GD.
+#: includes/class-converter.php:191
 #, php-format
 msgid "WebP %1$s, Qualität %2$d, %3$s."
 msgstr ""
 
-#: includes/class-converter.php:160
-msgid "verlustfrei"
+#: includes/class-converter.php:198
+msgid "PNG mit Alphakanal, aber ohne durchsichtige Pixel."
 msgstr ""
 
-#: includes/class-converter.php:160
-msgid "verlustbehaftet"
+#: includes/class-converter.php:202
+msgid "Verlustbehaftet wäre nicht mindestens halb so groß gewesen."
 msgstr ""
 
-#: includes/class-converter.php:201
+#: includes/class-converter.php:228
 msgid "Der Datei-Pointer konnte nicht umgestellt werden."
 msgstr ""
 
-#: includes/class-converter.php:213
+#: includes/class-converter.php:240
 msgid "Die Metadaten des WebP-Bildes konnten nicht erzeugt werden."
 msgstr ""
 
@@ -616,13 +628,13 @@ msgid "Das iframe wurde seit der Änderung bearbeitet. Bitte das Attribut loadin
 msgstr ""
 
 #. translators: %s: Dateiname.
-#: includes/class-encoder.php:45
+#: includes/class-encoder.php:51
 #, php-format
 msgid "%s ist kein JPG oder PNG."
 msgstr ""
 
 #. translators: %s: Dateiname.
-#: includes/class-encoder.php:95
+#: includes/class-encoder.php:111
 #, php-format
 msgid "WebP für %s konnte nicht gespeichert werden."
 msgstr ""
@@ -1111,7 +1123,7 @@ msgid "Der Server kann kein WebP erzeugen. Bitte beim Hoster Imagick oder GD mit
 msgstr ""
 
 #: includes/class-system-check.php:172
-msgid "PNG mit Transparenz wird verlustfrei gespeichert."
+msgid "PNG mit durchsichtigen Pixeln wird verlustfrei gespeichert, PNG mit leerem Alphakanal verlustbehaftet."
 msgstr ""
 
 #: includes/class-system-check.php:181
@@ -2226,7 +2238,7 @@ msgid "JPG-Qualität"
 msgstr ""
 
 #: includes/views/page-settings.php:20
-msgid "Für JPG und PNG ohne Transparenz. Standard 82."
+msgid "Für JPG und PNG ohne Transparenz, auch PNG mit Alphakanal, in dem kein Pixel durchsichtig ist. Standard 82."
 msgstr ""
 
 #: includes/views/page-settings.php:23
@@ -2262,18 +2274,34 @@ msgid "Die Standardwerte passen meist."
 msgstr ""
 
 #: includes/views/page-settings.php:58
-msgid "PageSpeed-API-Schlüssel"
+msgid "PNG mit Transparenz kodieren"
 msgstr ""
 
 #: includes/views/page-settings.php:60
+msgid "Immer verlustfrei (Standard)"
+msgstr ""
+
+#: includes/views/page-settings.php:61
+msgid "Automatisch: Freisteller verlustbehaftet, Alphakanal verlustfrei"
+msgstr ""
+
+#: includes/views/page-settings.php:63
+msgid "Automatisch kodiert jedes PNG mit durchsichtigen Pixeln zweimal und nimmt die verlustbehaftete Fassung nur, wenn sie höchstens halb so groß ist. Das trifft Fotos mit freigestelltem Hintergrund. Logos und flache Grafiken bleiben verlustfrei, weil verlustbehaftet dort kaum kleiner ist. Nur mit Imagick."
+msgstr ""
+
+#: includes/views/page-settings.php:67
+msgid "PageSpeed-API-Schlüssel"
+msgstr ""
+
+#: includes/views/page-settings.php:69
 msgid "Optional. Damit misst der Bericht die Startseite mobil vorher und nachher. Ohne Schlüssel sendet das Plugin keine Anfragen nach außen."
 msgstr ""
 
-#: includes/views/page-settings.php:65
+#: includes/views/page-settings.php:74
 msgid "Speichern"
 msgstr ""
 
-#: includes/views/page-settings.php:71
+#: includes/views/page-settings.php:80
 msgid "Änderungen gelten für die nächste Umwandlung. Für eine neue Hochrechnung bitte erneut scannen."
 msgstr ""
 

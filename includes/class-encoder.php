@@ -13,7 +13,11 @@ defined( 'ABSPATH' ) || exit;
  * Wandelt eine JPG- oder PNG-Datei in WebP um, mit den Regeln aus dem Briefing:
  *
  * - JPG und PNG ohne Transparenz: verlustbehaftet mit der JPG-Qualität (Standard 82).
+ *   Ab 1.1.3 zählt auch ein PNG mit Alphakanal, aber ohne ein einziges durchsichtiges Pixel, als
+ *   „ohne Transparenz“ (Imagick prüft die Pixel). Der leere Alphakanal entfällt im WebP.
  * - PNG mit Transparenz: verlustfrei, wenn Imagick verfügbar ist, sonst mit der PNG-Qualität (Standard 90).
+ *   Mit der Einstellung „automatisch“ (Opt-in) wird zusätzlich verlustbehaftet mit verlustfreiem
+ *   Alphakanal kodiert und diese Fassung nur genommen, wenn sie höchstens halb so groß ist.
  * - EXIF-Ausrichtung wird angewendet, Metadaten außer Farbprofilen entfernt (Imagick).
  *
  * Wird vom Scan (Stichprobe) und von der Umwandlung genutzt.
@@ -27,12 +31,14 @@ final class Encoder {
 	 * @param string $target   Zieldatei (absoluter Pfad, Endung .webp).
 	 * @param array  $settings Einstellungen, siehe Settings::all().
 	 * @return array|\WP_Error {
-	 *     @type string $path    Erzeugte Datei.
-	 *     @type int    $bytes   Dateigröße.
-	 *     @type string $mode    lossy oder lossless.
-	 *     @type int    $quality Verwendete Qualität.
-	 *     @type bool   $alpha   Quelle hatte Transparenz.
-	 *     @type string $editor  imagick oder gd.
+	 *     @type string $path           Erzeugte Datei.
+	 *     @type int    $bytes          Dateigröße.
+	 *     @type string $mode           lossy, lossless oder lossy-alpha.
+	 *     @type int    $quality        Verwendete Qualität.
+	 *     @type bool   $alpha          Quelle hat durchsichtige Pixel.
+	 *     @type bool   $opaque         PNG mit Alphakanal, aber ohne durchsichtige Pixel.
+	 *     @type int    $lossless_bytes Größe der verlustfreien Fassung, wenn beide erzeugt wurden, sonst 0.
+	 *     @type string $editor         imagick oder gd.
 	 * }
 	 */
 	public static function encode( $source, $target, array $settings ) {
@@ -61,8 +67,18 @@ final class Encoder {
 			return $editor;
 		}
 
-		$imagick  = $editor instanceof Imagick_Webp_Editor;
+		$imagick = $editor instanceof Imagick_Webp_Editor;
+		$opaque  = false;
+
+		// Alphakanal im Kopf heißt noch nicht Transparenz: die Pixel entscheiden (nur mit Imagick prüfbar).
+		if ( $alpha && $imagick && true === $editor->akwu_is_opaque() ) {
+			$alpha  = false;
+			$opaque = true;
+			$editor->akwu_drop_alpha();
+		}
+
 		$lossless = $alpha && $imagick;
+		$auto     = $lossless && isset( $settings['png_transparent'] ) && 'auto' === $settings['png_transparent'];
 
 		if ( $lossless ) {
 			$quality = 100;
@@ -95,16 +111,91 @@ final class Encoder {
 			return new \WP_Error( 'akwu_save', sprintf( __( 'WebP für %s konnte nicht gespeichert werden.', 'akuma-webp-umwandler' ), wp_basename( $source ) ) );
 		}
 
+		$mode           = $lossless ? 'lossless' : 'lossy';
+		$lossless_bytes = 0;
+
+		if ( $auto ) {
+			clearstatcache( true, $saved['path'] );
+			$lossless_bytes = (int) filesize( $saved['path'] );
+			$quality_lossy  = (int) $settings['quality_jpg'];
+			$candidate      = self::lossy_alpha( $source, $saved['path'], $quality_lossy, $lossless_bytes );
+			if ( $candidate ) {
+				$mode    = 'lossy-alpha';
+				$quality = $quality_lossy;
+			}
+		}
+
 		clearstatcache( true, $saved['path'] );
 
 		return array(
-			'path'    => $saved['path'],
-			'bytes'   => (int) filesize( $saved['path'] ),
-			'mode'    => $lossless ? 'lossless' : 'lossy',
-			'quality' => $quality,
-			'alpha'   => $alpha,
-			'editor'  => $editor instanceof \WP_Image_Editor_Imagick ? 'imagick' : 'gd',
+			'path'           => $saved['path'],
+			'bytes'          => (int) filesize( $saved['path'] ),
+			'mode'           => $mode,
+			'quality'        => $quality,
+			'alpha'          => $alpha,
+			'opaque'         => $opaque,
+			'lossless_bytes' => $lossless_bytes,
+			'editor'         => $editor instanceof \WP_Image_Editor_Imagick ? 'imagick' : 'gd',
 		);
+	}
+
+	/**
+	 * Höchstens dieser Anteil der verlustfreien Größe, damit die verlustbehaftete Fassung genommen wird.
+	 * Bei Logos und flachen Grafiken ist verlustbehaftet kaum kleiner oder sogar größer, sie bleiben verlustfrei.
+	 */
+	const LOSSY_ALPHA_MAX_RATIO = 0.5;
+
+	/**
+	 * Kodiert zusätzlich verlustbehaftet mit verlustfreiem Alphakanal und ersetzt die verlustfreie Datei,
+	 * wenn die neue höchstens halb so groß ist. Sonst bleibt alles, wie es ist.
+	 *
+	 * Mit einem frischen Editor aus dem PNG: Ein schon gespeicherter Editor zeigt auf die verlustfreie
+	 * WebP-Datei, und der Core stellt beim nächsten Speichern deshalb wieder auf verlustfrei.
+	 *
+	 * @param string $source   Quell-PNG.
+	 * @param string $path     Verlustfrei gespeicherte Datei.
+	 * @param int    $quality  Qualität für die Farbwerte.
+	 * @param int    $lossless Größe der verlustfreien Datei.
+	 * @return bool Ob die verlustbehaftete Fassung übernommen wurde.
+	 */
+	private static function lossy_alpha( $source, $path, $quality, $lossless ) {
+		add_filter( 'wp_image_editors', array( __CLASS__, 'prefer_own_imagick' ) );
+		$editor = wp_get_image_editor(
+			$source,
+			array(
+				'mime_type'        => 'image/png',
+				'output_mime_type' => 'image/webp',
+			)
+		);
+		remove_filter( 'wp_image_editors', array( __CLASS__, 'prefer_own_imagick' ) );
+
+		if ( is_wp_error( $editor ) || ! $editor instanceof Imagick_Webp_Editor || ! $editor->akwu_set_lossy_alpha( $quality ) ) {
+			return false;
+		}
+		$editor->akwu_strip_meta();
+
+		$temp  = trailingslashit( dirname( $path ) ) . wp_unique_filename( dirname( $path ), 'akwu-alpha-' . wp_basename( $path ) );
+		$lossy = $editor->save( $temp, 'image/webp' );
+
+		if ( is_wp_error( $lossy ) || empty( $lossy['path'] ) || ! is_file( $lossy['path'] ) ) {
+			return false;
+		}
+
+		clearstatcache( true, $lossy['path'] );
+		$bytes = (int) filesize( $lossy['path'] );
+
+		if ( $bytes <= 0 || $bytes > $lossless * self::LOSSY_ALPHA_MAX_RATIO ) {
+			wp_delete_file( $lossy['path'] );
+			return false;
+		}
+
+		// Die verlustfreie Datei durch die kleinere ersetzen, Name bleibt gleich.
+		if ( ! @rename( $lossy['path'], $path ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.rename_rename -- Gleiches Verzeichnis, Fehler wird behandelt.
+			wp_delete_file( $lossy['path'] );
+			return false;
+		}
+
+		return true;
 	}
 
 	/**

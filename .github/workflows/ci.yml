@@ -34,6 +34,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
+          extensions: imagick
           coverage: none
           tools: composer:v2
       - run: composer install --no-interaction --no-progress
@@ -51,6 +52,24 @@ jobs:
           php-version: '8.3'
           extensions: gd, pdo_sqlite, sqlite3
           coverage: none
-      - name: Umwandeln, Rückgängig, Originale löschen, HEIC, gemeinsame Dateien, Einbettungen
+      - name: Umwandeln, Rückgängig, Originale löschen, HEIC, gemeinsame Dateien, Einbettungen (GD)
+        run: bin/integration-sqlite.sh
+
+  integration-imagick:
+    name: Integration (WordPress, SQLite, Imagick)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: gd, imagick, pdo_sqlite, sqlite3
+          coverage: none
+      - name: Imagick mit WebP vorhanden
+        run: |
+          php -r 'exit( extension_loaded( "imagick" ) && Imagick::queryFormats( "WEBP" ) ? 0 : 1 );'
+      - name: PNG-Transparenz, Rundlauf, HEIC, gemeinsame Dateien, Einbettungen (Imagick)
+        env:
+          AKWU_TESTS: png-transparency roundtrip heic-alias embeds alias-guards
         run: bin/integration-sqlite.sh
 

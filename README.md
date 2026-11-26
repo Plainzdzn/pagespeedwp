@@ -54,6 +54,14 @@ Optional misst das Plugin die Startseite mobil mit PageSpeed Insights vorher und
 - Bilder aus Läufen vor 1.1.2 haben diesen Nachweis nicht. Beim Rückgängig werden ihre WebP-Dateien deshalb nicht gelöscht, sondern nach `uploads/akwu-sicherung/` verschoben. Der Ordner kann danach von Hand gelöscht werden.
 - Einträge, die dieselbe Datei unter verschiedenen Größennamen führen, werden nicht gemeinsam umgestellt.
 
+## PNG nach echter Transparenz (ab 1.1.3)
+
+- Viele PNGs (Canva, Photoshop) haben einen Alphakanal, obwohl kein Pixel durchsichtig ist. Bis 1.1.2 wurden sie wie transparente PNGs verlustfrei gespeichert. Ab 1.1.3 prüft das Plugin mit Imagick die Pixel: Ist keines durchsichtig, wird das PNG wie ein PNG ohne Transparenz verlustbehaftet mit der JPG-Qualität gespeichert, ohne leeren Alphakanal. Im Protokoll steht dann „PNG mit Alphakanal, aber ohne durchsichtige Pixel“.
+- Unter **Einstellungen → PNG mit Transparenz kodieren** gibt es zusätzlich „Automatisch“ (Opt-in, Standard bleibt verlustfrei): PNGs mit durchsichtigen Pixeln werden dann zweimal kodiert, und die verlustbehaftete Fassung mit verlustfreiem Alphakanal wird nur genommen, wenn sie höchstens halb so groß ist. Das trifft Fotos mit freigestelltem Hintergrund. Logos und flache Grafiken bleiben verlustfrei.
+- Bereits umgewandelte Bilder ändern sich dadurch nicht. Wer sie neu kodieren will, setzt sie unter **Rückgängig** zurück und wandelt sie erneut um.
+- Die Hochrechnung im Scan liest weiter nur den Dateikopf und bleibt für solche PNGs vorsichtig (zu groß).
+- Ohne Imagick ändert sich nichts.
+
 ## Einbettungen (ab 1.1.0)
 
 Eine Matterport-Tour lädt beim Seitenaufruf mehrere Megabyte, auch wenn sie weit unten steht. Unter **WebP-Umwandler → Einbettungen** lässt sich je Tour festlegen, dass der Browser sie erst lädt, wenn man in ihre Nähe scrollt. Die Tour bleibt unverändert bedienbar, es gibt keinen Platzhalter und keinen zusätzlichen Klick. „Zurücknehmen“ stellt den gespeicherten Inhalt zeichengenau wieder her. Ein im Widget ausdrücklich gesetztes `loading` (auch `eager`) wird angezeigt und nie geändert. Danach den Server-Cache leeren (Raidboxes: im Dashboard).
