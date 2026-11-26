@@ -14,6 +14,42 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ---
 
+## 2026-11-26 14:30 – 1.1.3 und 1.1.4: PNG nach Transparenz, Qualität am Kodierpunkt, Testreihe auf drei Demokopien (Claude Code)
+
+**Stand:** Entwurfs-PR #6, nicht gemergt, nicht veröffentlicht. Build **1.1.4 aus `d1d544b`**, ZIP-SHA-256 `e649856d1f8ba3937361f6e37a807da08367ff4aed7fe14d4f5e9586de96761f`. Danach nur Tests und Doku (`01ade5a`, `0d826b0`, dieser Eintrag), Plugin-Inhalt dateiweise identisch.
+
+**Erledigt:**
+- 1.1.3 (`9c951dc`, ADR-037): PNG mit Alphakanal, aber ohne durchsichtiges Pixel, wird per Imagick-Pixelprüfung verlustbehaftet kodiert. Opt-in „automatisch“ für Freisteller (zweite Fassung verlustbehaftet mit verlustfreiem Alphakanal, nur bei höchstens halber Größe).
+- 1.1.4 (`d1d544b`, ADR-038), nach Abnahmebefunden von Felix: Qualität für genau einen `save()` über `wp_editor_set_quality` festgehalten (der Core setzte sie in `get_output_format()` auf seinen Standard zurück). Zweite PNG-Fassung nur aus vorher neu angelegter eigener Zwischendatei, Formatfilter vorab geprüft, Übernahme nur als vollständiges verlustbehaftetes WebP mit Alphakanal in PNG-Maßen (`Webp_Info`). Sonst bleibt die verlustfreie Datei, nur die eigene Zwischendatei wird entfernt.
+- Tests: `encoder-guards.php` mit Test-Editor (Fixture), Gegenprobe gegen 1.1.3-Code 40 Fehler. Q95-Erwartung nach echter Größe (Windows Q16). `purge.php` mit deterministischem Skip-Bild (Rauschen, JPG Qualität 8), Skip über Scan oder Umwandlung belegt, läuft jetzt auch mit Imagick.
+- Testreihe Serie 3 auf #299684 Öko-Zinsen, #299685 VAPODOR, #299686 Ludwigsfelder (Raidboxes-Demos aus Backups vom 26.11.). Je Box Isolations-Plugin vor der Baseline (keine externen Purge-/Optimierungsaufträge, keine Mails), Baseline, 1.1.2, 1.1.4-Endstand. Nachweise, Tabellen und Screenshots im Projekt (Claude-Projekt „Pagespeed WordPress“).
+
+**Ergebnisse (Kurzfassung):**
+- Öko: 84 umgewandelt, 7 übersprungen. 17 deckende RGBA-PNG 12,61 → 3,39 MB (1.1.2 → 1.1.4). 45 JPG bytegleich zu 1.1.2, weil der Core-Rücksetzwert auf dieser Kopie schon 82 lieferte (Filter der Seite, nicht identifiziert). Gegenprobe 40/95 an echten Demobildern: Einstellung wirkt jetzt.
+- VAPODOR: 420 Einträge (108 eigene Dateien). Endstand 38,57 MB statt 40,60 MB (1.1.2). Opt-in auf genau 13 belegten Freisteller-Gruppen: Standard 1.1.4 3,94 MB → Opt-in 0,87 MB (−78,0 %), Alphakanal in allen 13 Hauptdateien bitgleich zum PNG.
+- Ludwigsfelder: 111 Bilder, alle schon WebP, 0 Kandidaten mit 1.1.2 und 1.1.4. Keine Medienänderung, Plugin-Seiten ohne PHP-Meldungen.
+- Wiederherstellung vor der Neuumwandlung mit 1.1.4: Öko 84/84, VAPODOR 108/108 Originale bei Länge, ETag und Last-Modified unverändert, alle WebP-Hauptdateien entfernt.
+
+**Entscheidungen:**
+- Verlustfrei heißt ab 1.1.4 wirklich verlustfrei: ImageMagick setzt bei `webp:lossless` `near_lossless` auf die Qualität. Bis 1.1.3 war „verlustfrei“ auf den Demos near-lossless 82/86. Transparente PNGs werden dadurch 3–12 % größer (gemessen). Opt-in „automatisch“ bleibt der Weg für Freisteller.
+- VAPODOR: Zwischenstufe 1.1.3 ausgelassen, weil deren Freisteller-Ausgabe den Qualitätsfehler trug. Vergleich 1.1.3 → 1.1.4 an echten Bildern auf Öko (17 PNG).
+- PSI-Endstand mit je 3 Läufen pro Kernseite, weil die ausgelieferten Bytes auf VAPODOR sich gegenüber 1.1.2 deutlich änderten. Ein Öko-Lauf parallel zur Headless-Messung derselben Box wurde verworfen.
+
+**Offen / Nächster Schritt:**
+- Score-Rückgänge mit steigendem TBT (Öko-Startseite mobil Median 55 → 45 → 38, TBT 191 → 532 → 1.639 ms; VAPODOR Raumdesinfektion Desktop 69 → 62 → 45) bei identischen Skriptdateien und -bytes. Nicht der Bildumstellung zugeschrieben. Der PSI-Messrechner meldete in diesen Läufen niedrigere `benchmarkIndex`-Werte (Öko mobil 1082 → 444).
+- Unverändert außerhalb des Plugins: WPML-Client-Weiterleitung (VAPODOR lädt `/en/` nach), Elementor-`::before`-Overlays ohne Lazy Load, rund 50 render-blockierende CSS-Dateien, OMGF-Schriften von der Live-Domain (Ludwigsfelder), Turnstile, JetElements-Akkordeonbilder ohne `srcset`.
+- Der Formatprüfpfad des **ersten** Speicherns (`encode()`, nicht WebP → Datei löschen) ist unverändert, außerhalb des Auftrags.
+- Filter `wp_editor_set_quality` auf den Demokopien nicht identifiziert.
+- Demoboxen laufen laut Raidboxes-Banner in 14 Tagen ab.
+
+**Fragen an Felix:** keine offenen.
+
+**Getestet:**
+- PHPCS sauber, PHPUnit 104 Tests (239 Prüfungen). Integration lokal (WordPress 7.1.5, PHP 8.3, SQLite): mit Imagick 6.9.12-98 339 Prüfungen inkl. `purge`, mit erzwungenem GD 196. CI für `0d826b0` grün.
+- Demos: installierte statische Plugin-Dateien (README, admin.js, admin.css, POT) auf allen drei Boxen hashgleich zur ZIP.
+
+---
+
 ## 2026-11-26 03:35 – Version 1.1.2: Fingerabdruck je Datei, verschachteltes Löschen (Claude Chat)
 
 **Stand:** Folge-Build im selben Entwurfs-PR (#6). Nicht gemergt, nicht veröffentlicht.
