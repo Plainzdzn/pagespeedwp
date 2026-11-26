@@ -16,7 +16,7 @@ Nach jeder Arbeitssitzung oben einen neuen Eintrag anlegen, **neueste zuerst**. 
 
 ## 2026-11-26 21:50 – 1.2.1: Kopfzeilen-Fix ohne Nebenwirkung auf andere Bilder, Serie 5 (Claude Code)
 
-**Stand:** Entwurfs-PR #6, nicht gemergt, nicht veröffentlicht. Build **1.2.1 aus `bad5309`**, ZIP-SHA-256 `eb85942174c7ae24b0513b48b2a27abd772977cda120e3af71891f6028561edb`. Danach nur Doku (`fe04340` ADR-041, dieser Eintrag) und eine Ausrichtung im Integrationstest, die PHPCS in der CI bemängelt hat (Tests sind nicht im ZIP).
+**Stand:** Entwurfs-PR #6, nicht gemergt, nicht veröffentlicht. Build **1.2.1 aus `bad5309`**, ZIP-SHA-256 `eb85942174c7ae24b0513b48b2a27abd772977cda120e3af71891f6028561edb`. Danach nur Doku (`fe04340` ADR-041, dieser Eintrag) und eine Ausrichtung im Integrationstest, die PHPCS in der CI bemängelt hat (Tests sind nicht im ZIP). CI für `0927c00` grün.
 
 **Erledigt:**
 - Serie 5, Kontrollmessung auf der Demokopie Solarengel #299741: 1.2.0 aktiv gegen deaktiviert, Server-Cache durchgehend ein, Reihenfolge aktiv, deaktiviert, aktiv. Je Arm 6 PSI-Läufe für Startseite und Formularseite. Das ausgelieferte HTML ist in beiden Armen gleich, wenn man die je Aufruf wechselnden Werte abzieht (Kennungen des Consent-Banners, Zeitstempel, CSS-Versionsstempel von Elementor).
