@@ -200,3 +200,22 @@ Jetzt gilt für das erste Speichern dasselbe wie für die zweite Fassung: Die Zi
 - Andere Lazy-Loader sind nicht getestet.
 **Messung (PageSpeed Insights, je 3 Läufe, Median, Demokopie #299743):** Desktop Startseite 77 → 74 (nach 1.1.5, nur Bilder) → 93 (mit Fix), Shop 80 → 81 → 96. CLS Desktop 0,322 → 0,000 und 0,323 → 0,001. Mobil unverändert (64 → 68 → 65 und 71 → 71 → 70), dort gab es die Verschiebung nicht.
 **Tests:** `tests/unit/test-fix-file.php` (Quelltext gültig und deterministisch, nur Ganzzahlen, Filter ändert nur gelistete IDs, Bildsuche im Elementor-Baum), `tests/integration/header-images.php` (29 Prüfungen: Suche, Einschalten, Wirkung am Bild-Tag, geänderte Kopfzeile, fremde und von Hand veränderte Datei, Zurücknehmen).
+
+### ADR-041 – Kopfzeilen-Fix setzt kein `loading="eager"`, wo keines verlangt ist
+**Status:** Entwurf, wartet auf Felix · 2026-11-26
+**Anlass:** Serie 5, Kontrollmessung auf der Demokopie Solarengel #299741 mit 1.2.0, und Felix' Hinweis auf eine Lücke im Test: `header-images.php` prüfte an fremden Bildern nur, dass sie weder `eager` noch `skip-lazy` bekommen, nicht, dass ihr `loading="lazy"` bestehen bleibt. Die Gegenprobe im gerenderten HTML zeigte: Mit eingeschaltetem Fix verlor ein Bild weit unten auf der Startseite (Karte, ID 6501, 1230 × 1150 px, auf dem Desktop bei rund 6270 px) sein `loading="lazy"` und wurde vor dem Scrollen geladen.
+**Ursache:** WordPress (`wp_get_loading_optimization_attributes()`) und Elementor („Optimized Image Loading“) lassen die ersten Bilder im Inhalt ohne `loading="lazy"` und zählen dabei mit. Trägt ein Bild schon ein `loading`-Attribut, gibt der Core früh zurück und zählt es nicht mit. Der Fix aus 1.2.0 setzte am Logo `loading="eager"`, obwohl es vorher gar kein `loading` hatte. Damit zählte das Logo nicht mehr, die Schwelle rückte um ein Bild nach hinten, und das nächste Inhaltsbild blieb ohne `lazy`.
+**Entscheidung:** Die Fix-Datei setzt `loading="eager"` nur noch dort, wo das Bild-Tag schon `loading="lazy"` trägt. Sonst bleibt das Attribut unberührt. `data-no-lazy="1"` und die Klasse `skip-lazy` werden wie bisher gesetzt, das sind die Merkmale, an denen WP Rocket Bilder ausnimmt (ADR-040). Die Datei trägt jetzt „Version: 2“. Eine Fix-Datei im Stand von 1.2.0 erkennt das Plugin als veraltet (`Header_Images::is_stale()`), zeigt „Ältere Fix-Datei aktiv.“ und bietet „Neu einschalten“ und „Zurücknehmen“ an. Umgeschrieben wird weiter nur auf Knopfdruck.
+**Messung (Solarengel #299741, Startseite, gerendertes HTML und Netzwerk vor dem Scrollen, Messbrowser):**
+
+| Zustand | Karte (ID 6501) | vor dem Scrollen geladen | fremde Bilder mit `lazy` (Desktop / Mobil) | Bildanfragen vor dem Scrollen |
+|---|---|---|---|---|
+| Fix aus | `loading="lazy"` | nein | 21 / 19 | 35 / 31 |
+| Fix aus 1.2.0 | ohne `loading` | ja (46.137 B Desktop, 24.330 B Mobil) | 20 / 18 | 36 / 32 |
+| Fix aus 1.2.1 | `loading="lazy"` | nein | 21 / 19 | 35 / 31 |
+
+Das Logo trägt mit 1.2.1 `skip-lazy` und `data-no-lazy`, kein `loading`-Attribut, `fetchpriority="high"` bleibt.
+**Grenzen:**
+- Mit WP Rocket ist 1.2.1 nicht nachgemessen. Die Demokopie DarumPflanzlich #299743 war kein Ziel dieser Serie. Dass `data-no-lazy` und `skip-lazy` ohne `loading="eager"` reichen, stützt sich auf die Ausnahmeliste im Quelltext von WP Rocket (ADR-040). Vor einer Freigabe dort mit 1.2.1 nachmessen.
+- Auf Seiten, die den Fix aus 1.2.0 eingeschaltet haben, bleibt die Nebenwirkung, bis jemand „Neu einschalten“ oder „Zurücknehmen“ drückt.
+**Tests:** `tests/unit/test-fix-file.php` (Bild ohne `loading` bleibt ohne, `lazy` wird `eager`, `eager` und `false` bleiben). `tests/integration/header-images.php`, neuer Block „Ladeverhalten der übrigen Bilder“: Kopfzeilenbild und fünf Inhaltsbilder laufen durch `wp_img_tag_add_loading_optimization_attrs()`, die Folge der `loading`-Werte muss mit und ohne Fix gleich sein. Gegen den Fix-Code aus 1.2.0 schlägt der Block mit 2 Fehlern fehl. Dazu Prüfungen für `is_stale()`.
